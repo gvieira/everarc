@@ -6,3 +6,8 @@
 .AppleDouble
 .LSOverride
 ._*
+
+# everarc
+/tmp/
+/everarc.toml
+/everarc.html

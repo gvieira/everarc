@@ -17,6 +17,12 @@ Gui is activelly learning Rust, which means you need to be extra-explicit
 when he asks questions. Do not take such questions as requests for changing
 code.
 
+## Guide
+
+When adding or changing user-facing CLI behavior or configuration, update
+`docs/guide.md` in the same implementation chunk. `everarc guide` embeds that
+file in the binary.
+
 ## Memory
 
 Never write to the persistent memory system for this project. Durable
