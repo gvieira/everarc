@@ -2,9 +2,68 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Everarc</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;700&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      :root { --paper: #faf8f5; --card: #fffdfa; --ink: #1e1e1e; --muted: #5c5855; --line: #d2ccc3; --lavender: #8985fd; --peach: #ffc9c9; --mint: #b2f2bb; --sky: #a5d8ff; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: var(--ink); background-color: var(--paper); background-image: radial-gradient(#1b1c1a 0.75px, transparent 0.75px); background-size: 20px 20px; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
+      main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0 5rem; }
+      .dashboard { display: grid; gap: 2rem; }
+      .dashboard-top { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .8fr); align-items: start; gap: 2rem; }
+      .paper-card { position: relative; background: var(--card); border: 1px solid rgba(30, 30, 30, .08); border-radius: 14px 11px 15px 12px; box-shadow: 0 3px 6px rgba(42, 36, 29, .04), 0 14px 28px rgba(42, 36, 29, .08); }
+      .net-worth-card { padding: 2.25rem 2rem 1.75rem; transform: rotate(-.45deg); }
+      .milestone-card { padding: 1.75rem; transform: rotate(.55deg); }
+      .chart-card { padding: 1.5rem; transform: rotate(-.15deg); }
+      .tape { position: absolute; top: -12px; width: 78px; height: 20px; opacity: .68; transform: rotate(-2deg); }
+      .tape-peach { left: 2rem; background: var(--peach); }
+      .tape-lavender { right: 2rem; background: var(--lavender); }
+      .eyebrow { display: flex; gap: .5rem; align-items: center; margin: 0; color: var(--muted); font: 700 .72rem/1.2 "Space Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+      .ink-dot { width: .7rem; height: .7rem; border-radius: 50%; background: var(--ink); }
+      .net-worth { display: inline-block; margin: 1.15rem 0 .85rem; padding: 0 .45rem; background: rgba(255, 201, 201, .58); font: 700 clamp(2.5rem, 5.2vw, 4rem)/1 "Bricolage Grotesque", serif; letter-spacing: -.06em; }
+      .net-worth-meta { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; color: var(--muted); font-size: .9rem; }
+      .change-badge { padding: .3rem .55rem; color: #264a2e; background: var(--mint); border-radius: 7px 5px 8px 4px; font: 700 .75rem/1.2 "Space Mono", monospace; }
+      h2 { margin: .45rem 0 .8rem; font: 700 clamp(1.45rem, 3vw, 2rem)/1.1 "Bricolage Grotesque", serif; letter-spacing: -.04em; }
+      .milestone-copy { margin: 0 0 1.25rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+      .progress-track { height: 18px; padding: 2px; overflow: hidden; background: #eeeae4; border: 1px solid rgba(30, 30, 30, .22); border-radius: 999px; }
+      .progress-fill { height: 100%; border-radius: 999px; background-color: var(--lavender); background-image: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(30, 30, 30, .45) 7px 9px); }
+      .progress-labels { display: flex; justify-content: space-between; gap: .5rem; margin-top: .5rem; color: var(--muted); font: .62rem/1.2 "Space Mono", monospace; }
+      .progress-labels strong { color: var(--ink); }
+      .chart-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; padding-bottom: 1rem; border-bottom: 1px dashed var(--line); }
+      .chart-heading h2 { margin-bottom: 0; }
+      .chart-note { margin: .15rem 0 0; color: var(--muted); font: .7rem/1.3 "Space Mono", monospace; text-align: right; }
+      .chart-frame { margin-top: 1rem; padding: 1rem .25rem .25rem; background-color: #fffdf8; background-image: linear-gradient(rgba(30, 30, 30, .07) 1px, transparent 1px), linear-gradient(90deg, rgba(30, 30, 30, .07) 1px, transparent 1px); background-size: 40px 40px; }
+      svg { display: block; width: 100%; height: auto; overflow: visible; }
+      .chart-grid path { stroke: var(--line); stroke-dasharray: 5 6; stroke-width: 1.4; }
+      .chart-labels { fill: var(--muted); font: 13px "Space Mono", monospace; }
+      .target-line { fill: none; stroke: #d55151; stroke-dasharray: 8 7; stroke-width: 2; }
+      .target-label { fill: #b63f3f; font: 700 13px "Space Mono", monospace; }
+      .axis { fill: none; stroke: var(--ink); stroke-width: 2.4; }
+      .total-shadow { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; transform: translate(2px, 2px); }
+      .total-line { fill: none; stroke: var(--sky); stroke-linecap: round; stroke-linejoin: round; stroke-width: 4; }
+      .projection { fill: none; stroke: var(--ink); stroke-dasharray: 7 7; stroke-linecap: round; stroke-width: 3; }
+      .chart-points circle { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
+      .chart-points circle:last-child { fill: var(--lavender); }
+      .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; color: var(--muted); font: .68rem/1.3 "Space Mono", monospace; }
+      .chart-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+      .legend-line, .legend-target { display: inline-block; width: 22px; border-top: 3px solid var(--ink); }
+      .legend-target { border-top-color: #d55151; border-top-style: dashed; }
+      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 2.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .milestone-card, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { margin-top: .75rem; text-align: left; } }
+    </style>
   </head>
   <body>
-    <p>Config version: {{ version }}</p>
+    {% import "components/dashboard.html" as dashboard %}
+    <main>
+      <div class="dashboard">
+        <div class="dashboard-top">
+          {{ dashboard.net_worth_canvas("$842,650", "+18.4% this year", "+$131,200 mock net delta") }}
+          {{ dashboard.milestone("$1,000,000", 84.2, "September 2025 at the current mock savings pace.") }}
+        </div>
+        {{ dashboard.chart() }}
+      </div>
+    </main>
   </body>
 </html>

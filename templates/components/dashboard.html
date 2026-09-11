@@ -1,0 +1,70 @@
+{% macro net_worth_canvas(total, change, delta) %}
+<section class="paper-card net-worth-card">
+  <div class="tape tape-peach"></div>
+  <p class="eyebrow"><span class="ink-dot"></span>Total net worth canvas</p>
+  <p class="net-worth">{{ total }}</p>
+  <div class="net-worth-meta">
+    <span class="change-badge">↗ {{ change }}</span>
+    <span>{{ delta }}</span>
+  </div>
+</section>
+{% endmacro %}
+
+{% macro milestone(target, progress, forecast) %}
+<section class="paper-card milestone-card">
+  <div class="tape tape-lavender"></div>
+  <p class="eyebrow">⚑ Milestone</p>
+  <h2>{{ target }}</h2>
+  <p class="milestone-copy">Mock forecast: {{ forecast }}</p>
+  <div class="progress-track" aria-label="{{ progress }} percent complete">
+    <div class="progress-fill" style="width: {{ progress }}%"></div>
+  </div>
+  <div class="progress-labels">
+    <span>$0</span>
+    <strong>{{ progress }}% complete</strong>
+    <span>{{ target }}</span>
+  </div>
+</section>
+{% endmacro %}
+
+{% macro chart() %}
+<section class="paper-card chart-card">
+  <div class="chart-heading">
+    <div>
+      <p class="eyebrow"><span class="ink-dot"></span>Total arc</p>
+      <h2>Mock net worth trajectory</h2>
+    </div>
+    <p class="chart-note">Draft canvas · 2024</p>
+  </div>
+  <div class="chart-frame">
+    <svg aria-label="Mock net worth chart" role="img" viewBox="0 0 1000 500">
+      <g class="chart-grid">
+        <path d="M80 75 H950 M80 165 H950 M80 255 H950 M80 345 H950" />
+      </g>
+      <g class="chart-labels">
+        <text x="16" y="79">$1.0M</text>
+        <text x="25" y="169">$750k</text>
+        <text x="25" y="259">$500k</text>
+        <text x="25" y="349">$250k</text>
+        <text x="70" y="465">Jan</text><text x="240" y="465">Apr</text>
+        <text x="410" y="465">Jul</text><text x="580" y="465">Oct</text>
+        <text x="748" y="465">Now</text><text x="900" y="465">Goal</text>
+      </g>
+      <path class="target-line" d="M80 75 H950" />
+      <text class="target-label" x="832" y="61">$1M horizon</text>
+      <path class="axis" d="M80 435 H950" />
+      <path class="total-shadow" d="M85 340 C185 325 250 300 330 288 S490 244 585 229 S705 174 790 155" />
+      <path class="total-line" d="M85 336 C185 321 250 296 330 284 S490 240 585 225 S705 170 790 151" />
+      <path class="projection" d="M790 151 C845 125 890 102 940 90" />
+      <g class="chart-points">
+        <circle cx="85" cy="336" r="6" /><circle cx="330" cy="284" r="6" />
+        <circle cx="585" cy="225" r="6" /><circle cx="790" cy="151" r="7" />
+      </g>
+    </svg>
+  </div>
+  <div class="chart-legend">
+    <span><i class="legend-line"></i>Bold ink = mocked total</span>
+    <span><i class="legend-target"></i>Dashed = milestone target</span>
+  </div>
+</section>
+{% endmacro %}

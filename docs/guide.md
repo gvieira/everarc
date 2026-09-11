@@ -31,6 +31,9 @@ everarc check
 `build` renders an HTML document from the configuration. Its default output
 path is `everarc.html` in the current working directory. Use `-o` or
 `--output` to choose a different path; an existing output file is overwritten.
+Use `-w` or `--watch` to rebuild when the configuration file changes; stop
+watch mode with `Ctrl-C`. Watch mode writes the HTML file but does not serve it
+or refresh a browser.
 
 ```sh
 everarc build
@@ -38,4 +41,7 @@ everarc build
 
 everarc build --output site.html
 # creates site.html
+
+everarc build --watch
+# rebuilds everarc.html after changes to everarc.toml
 ```
