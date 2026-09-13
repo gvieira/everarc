@@ -1,43 +1,99 @@
-{% macro net_worth_canvas(total, change, delta) %}
+{% macro scenario_switcher(scenarios, text) %}
+<section class="scenario-switcher" aria-label="{{ text.scenario }}">
+  <p class="eyebrow"><span class="ink-dot"></span>{{ text.scenario }}</p>
+  <div class="scenario-tabs" role="group" aria-label="{{ text.choose_scenario }}">
+    {% for scenario in scenarios %}
+    <button
+      class="scenario-tab{% if loop.first %} is-selected{% endif %}"
+      type="button"
+      aria-pressed="{% if loop.first %}true{% else %}false{% endif %}"
+      tabindex="{% if loop.first %}0{% else %}-1{% endif %}"
+      data-scenario-tab
+      data-scenario-id="{{ scenario.id }}"
+    >{{ scenario.name }}</button>
+    {% endfor %}
+  </div>
+</section>
+{% endmacro %}
+
+{% macro net_worth_canvas(total, change, delta, text) %}
 <section class="paper-card net-worth-card">
   <div class="tape tape-peach"></div>
-  <p class="eyebrow"><span class="ink-dot"></span>Total net worth canvas</p>
+  <p class="eyebrow"><span class="ink-dot"></span>{{ text.total_net_worth_canvas }}</p>
   <p class="net-worth">{{ total }}</p>
   <div class="net-worth-meta">
-    <span class="change-badge">↗ {{ change }}</span>
-    <span>{{ delta }}</span>
+    <span class="change-badge">↗ {{ change }} {{ text.this_year }}</span>
+    <span>{{ delta }} {{ text.mock_net_delta }}</span>
   </div>
 </section>
 {% endmacro %}
 
-{% macro milestone(target, progress, forecast) %}
-<section class="paper-card milestone-card">
+{% macro outcomes_deck(dashboard) %}
+{% for scenario in dashboard.scenarios %}
+<section
+  class="paper-card outcomes-deck"
+  data-scenario-deck
+  data-scenario-id="{{ scenario.id }}"
+  data-outcome-accent="peach"
+  {% if not loop.first %}hidden{% endif %}
+>
   <div class="tape tape-lavender"></div>
-  <p class="eyebrow">⚑ Milestone</p>
-  <h2>{{ target }}</h2>
-  <p class="milestone-copy">Mock forecast: {{ forecast }}</p>
-  <div class="progress-track" aria-label="{{ progress }} percent complete">
-    <div class="progress-fill" style="width: {{ progress }}%"></div>
+  <div class="outcomes-header">
+    <p class="eyebrow"><span class="ink-dot"></span>{{ dashboard.text.outcomes }}</p>
+    <div class="outcomes-controls">
+      <button class="outcome-arrow" type="button" aria-label="{{ dashboard.text.previous_outcome }}" data-outcome-previous>‹</button>
+      <span class="outcome-counter" data-outcome-counter></span>
+      <button class="outcome-arrow" type="button" aria-label="{{ dashboard.text.next_outcome }}" data-outcome-next>›</button>
+    </div>
   </div>
-  <div class="progress-labels">
-    <span>$0</span>
-    <strong>{{ progress }}% complete</strong>
-    <span>{{ target }}</span>
-  </div>
+
+  <section class="outcome-slide outcome-future-living-costs" data-outcome-slide data-outcome-accent="peach">
+    <h2>{{ dashboard.text.future_living_costs }}</h2>
+    {% if scenario.future_living_costs.costs %}
+    <div class="cost-list">
+      {% for cost in scenario.future_living_costs.costs %}
+      <div class="cost-row"><span>{{ cost.name }}</span><strong>{{ cost.nominal_monthly_cost }}</strong></div>
+      {% endfor %}
+    </div>
+    <div class="cost-total"><span>{{ dashboard.text.monthly_total }}</span><strong>{{ scenario.future_living_costs.nominal_monthly_total }}</strong></div>
+    <p class="outcome-note">{{ dashboard.text.end_of_plan_nominal_money }}</p>
+    {% else %}
+    <p class="milestone-copy">{{ dashboard.text.no_future_living_costs }}</p>
+    {% endif %}
+  </section>
+
+  {% for milestone in dashboard.total_balance_milestones %}
+  <section class="outcome-slide outcome-total-milestone" data-outcome-slide data-outcome-accent="lavender" hidden>
+    <h2>{{ milestone.name }}</h2>
+    <p class="milestone-copy">{{ dashboard.text.total_balance_target }}</p>
+    <p class="outcome-target">{{ milestone.target }}</p>
+    <p class="outcome-note">{{ dashboard.text.projection_progress }}</p>
+  </section>
+  {% endfor %}
+
+  {% for milestone in scenario.asset_milestones %}
+  <section class="outcome-slide outcome-asset-milestone" data-outcome-slide data-outcome-accent="sky" hidden>
+    <h2>{{ milestone.name }}</h2>
+    <p class="milestone-copy">{{ dashboard.text.asset_balance_target }}</p>
+    <p class="outcome-target">{{ milestone.target }}</p>
+    <p class="outcome-note">{{ dashboard.text.projection_progress }}</p>
+  </section>
+  {% endfor %}
 </section>
+{% endfor %}
 {% endmacro %}
 
-{% macro chart() %}
+{% macro chart(start, end, scenario_count, text) %}
 <section class="paper-card chart-card">
   <div class="chart-heading">
     <div>
-      <p class="eyebrow"><span class="ink-dot"></span>Total arc</p>
-      <h2>Mock net worth trajectory</h2>
+      <p class="eyebrow"><span class="ink-dot"></span>{{ text.total_arc }}</p>
+      <h2>{{ text.mock_net_worth_trajectory }}</h2>
     </div>
-    <p class="chart-note">Draft canvas · 2024</p>
+    <p class="chart-note">{{ text.draft_canvas }} · {{ scenario_count }} {{ text.scenarios }} · {{ start }}–{{ end }}</p>
   </div>
   <div class="chart-frame">
-    <svg aria-label="Mock net worth chart" role="img" viewBox="0 0 1000 500">
+    <svg aria-label="{{ text.mock_net_worth_trajectory }}" role="img" viewBox="0 0 1000 500">
       <g class="chart-grid">
         <path d="M80 75 H950 M80 165 H950 M80 255 H950 M80 345 H950" />
       </g>
@@ -46,12 +102,12 @@
         <text x="25" y="169">$750k</text>
         <text x="25" y="259">$500k</text>
         <text x="25" y="349">$250k</text>
-        <text x="70" y="465">Jan</text><text x="240" y="465">Apr</text>
-        <text x="410" y="465">Jul</text><text x="580" y="465">Oct</text>
-        <text x="748" y="465">Now</text><text x="900" y="465">Goal</text>
+        <text x="70" y="465">{{ text.january }}</text><text x="240" y="465">{{ text.april }}</text>
+        <text x="410" y="465">{{ text.july }}</text><text x="580" y="465">{{ text.october }}</text>
+        <text x="748" y="465">{{ text.now }}</text><text x="900" y="465">{{ text.goal }}</text>
       </g>
       <path class="target-line" d="M80 75 H950" />
-      <text class="target-label" x="832" y="61">$1M horizon</text>
+      <text class="target-label" x="832" y="61">{{ text.one_million_horizon }}</text>
       <path class="axis" d="M80 435 H950" />
       <path class="total-shadow" d="M85 340 C185 325 250 300 330 288 S490 244 585 229 S705 174 790 155" />
       <path class="total-line" d="M85 336 C185 321 250 296 330 284 S490 240 585 225 S705 170 790 151" />
@@ -63,8 +119,8 @@
     </svg>
   </div>
   <div class="chart-legend">
-    <span><i class="legend-line"></i>Bold ink = mocked total</span>
-    <span><i class="legend-target"></i>Dashed = milestone target</span>
+    <span><i class="legend-line"></i>{{ text.bold_ink_mocked_total }}</span>
+    <span><i class="legend-target"></i>{{ text.dashed_milestone_target }}</span>
   </div>
 </section>
 {% endmacro %}

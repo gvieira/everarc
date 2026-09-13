@@ -17,6 +17,10 @@ a single `plan` table, and at least one scenario.
 ```toml
 version = 1
 
+# Required dashboard language and number-formatting conventions.
+[display]
+locale = "pt-BR"
+
 [plan]
 # Reporting currency. Identifiers are compared exactly, so this can be USD, BRL,
 # BTC, or another currency identifier used consistently throughout the config.
@@ -94,11 +98,18 @@ monthly_expected_return = "0.005"
 monthly_contribution = "1000.00"
 ```
 
+`[display]` is required. `locale` controls generated-dashboard text and number
+formatting; supported values are `en-US` and `pt-BR`. It does not change CLI or
+configuration-check messages.
+
 Each conversion rate must connect exactly one currency to `plan.currency`; for
 a USD plan, `BTC` → `USD` is valid but `BTC` → `BRL` is not. `rate` is a
 positive quoted decimal, and its direction is `1 from = rate to`. Rates are
-optional when all values use the plan currency. Duplicate `from`/`to` pairs
-are not allowed.
+optional when all assets use the plan currency. Every asset in another currency
+needs a rate connecting it to `plan.currency`; Everarc uses a direct
+asset-currency → plan-currency rate when available, or reciprocates a reverse
+plan-currency → asset-currency rate. Duplicate `from`/`to` pairs are not
+allowed.
 
 Every scenario needs a nonblank `id` and `name`, plus an `annual_inflation`
 quoted decimal. It is an annual fraction: `"0.03"` means 3%, while `"-0.01"`
@@ -112,8 +123,8 @@ and names must be nonblank; IDs are unique within their scenario. `currency`
 is a required opaque identifier, so it may be `USD`, `BTC`, or another
 consistently used currency. The three financial fields are nonnegative quoted
 decimals. `monthly_expected_return` is a fraction: `"0.5"` means 50% per
-month, while `"0.005"` means 0.5%. Asset-currency conversion validation comes
-later.
+month, while `"0.005"` means 0.5%. Assets outside `plan.currency` require a
+usable conversion rate.
 
 Events are optional and are processed in TOML declaration order. Every event
 has a nonblank ID unique within its scenario, a `YYYY-MM` date within the plan
@@ -134,9 +145,9 @@ strictly positive quoted decimals.
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.
 It is not a record of current spending. Each cost has a nonblank, unique `id`,
-a nonblank `name`, and a strictly positive quoted `monthly_cost`. Scenario
-inflation will convert these reference values to future nominal money in later
-projection work.
+a nonblank `name`, and a strictly positive quoted `monthly_cost`. Dashboard
+projections convert these reference values to end-of-plan nominal money using
+each scenario's annual inflation.
 
 ## Commands
 

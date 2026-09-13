@@ -7,6 +7,6 @@ edition = "2024"
 clap = { version = "4.6.6", features = ["derive"] }
 minijinja = "2.24.0"
 notify = "8.2.0"
-rust_decimal = { version = "1.43.0", default-features = false, features = ["std"] }
+rust_decimal = { version = "1.43.0", default-features = false, features = ["maths", "std"] }
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.5"

@@ -11,7 +11,7 @@ use clap::Args;
 use minijinja::{Environment, context};
 use notify::{Event, RecursiveMode, Watcher};
 
-use crate::config::Config;
+use crate::{config::Config, localization::DashboardPresentation, projection::PlanProjection};
 
 const TEMPLATE: &str = include_str!("../../templates/build.html");
 const DASHBOARD_TEMPLATE: &str = include_str!("../../templates/components/dashboard.html");
@@ -40,11 +40,13 @@ pub fn run(config_path: &Path, args: BuildArgs) -> Result<(), Box<dyn Error>> {
 
 fn build_once(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
     let config = Config::load(config_path)?;
+    let projection = PlanProjection::from(&config);
+    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
     let mut environment = Environment::new();
     environment.add_template("components/dashboard.html", DASHBOARD_TEMPLATE)?;
     environment.add_template("build.html", TEMPLATE)?;
     let template = environment.get_template("build.html")?;
-    let html = template.render(context!(version => config.version))?;
+    let html = template.render(context!(dashboard => dashboard))?;
 
     fs::write(output_path, html)?;
     Ok(())

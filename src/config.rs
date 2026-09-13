@@ -7,7 +7,7 @@ use std::{
 };
 
 use rust_decimal::Decimal;
-use serde::{Deserialize, Deserializer, de};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -19,7 +19,47 @@ pub struct Config {
     pub milestones: Vec<TotalBalanceMilestone>,
     #[serde(default)]
     pub future_living_costs: Vec<FutureLivingCost>,
+    pub display: DisplaySettings,
     pub scenarios: Vec<Scenario>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DisplaySettings {
+    pub locale: Locale,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub enum Locale {
+    EnUs,
+    PtBr,
+}
+
+impl Locale {
+    pub fn html_language(self) -> &'static str {
+        match self {
+            Self::EnUs => "en-US",
+            Self::PtBr => "pt-BR",
+        }
+    }
+}
+
+impl fmt::Display for Locale {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.html_language())
+    }
+}
+
+impl<'de> Deserialize<'de> for Locale {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match String::deserialize(deserializer)?.as_str() {
+            "en-US" => Ok(Self::EnUs),
+            "pt-BR" => Ok(Self::PtBr),
+            _ => Err(de::Error::custom("locale must be `en-US` or `pt-BR`")),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,7 +69,15 @@ pub struct Plan {
     pub end: Month,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq)]
+impl Plan {
+    pub fn inclusive_month_count(&self) -> u32 {
+        let start = u32::from(self.start.year) * 12 + u32::from(self.start.month - 1);
+        let end = u32::from(self.end.year) * 12 + u32::from(self.end.month - 1);
+        end - start + 1
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Currency(String);
 
 impl fmt::Display for Currency {
@@ -50,8 +98,6 @@ pub struct ConversionRate {
 pub struct Scenario {
     pub id: String,
     pub name: String,
-    // Stored for later projection calculations.
-    #[allow(dead_code)]
     #[serde(deserialize_with = "deserialize_decimal")]
     pub annual_inflation: Decimal,
     pub extends: Option<String>,
@@ -66,8 +112,7 @@ pub struct Scenario {
 pub struct Asset {
     pub id: String,
     pub name: String,
-    // Stored for later conversion; asset-currency connectivity is not validated yet.
-    #[allow(dead_code)]
+    // Asset-currency connectivity is not validated yet.
     pub currency: Currency,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub initial_value: Decimal,
@@ -189,6 +234,15 @@ impl fmt::Display for Month {
     }
 }
 
+impl Serialize for Month {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
+
 impl FromStr for Month {
     type Err = &'static str;
 
@@ -256,6 +310,12 @@ pub enum ConfigError {
     DuplicateConversionRate {
         from: Currency,
         to: Currency,
+    },
+    MissingAssetConversionRate {
+        scenario_id: String,
+        asset_id: String,
+        currency: Currency,
+        plan_currency: Currency,
     },
     NoScenarios,
     BlankScenarioId,
@@ -409,6 +469,15 @@ impl fmt::Display for ConfigError {
             Self::DuplicateConversionRate { from, to } => {
                 write!(formatter, "duplicate conversion rate `{from}` → `{to}`")
             }
+            Self::MissingAssetConversionRate {
+                scenario_id,
+                asset_id,
+                currency,
+                plan_currency,
+            } => write!(
+                formatter,
+                "asset `{asset_id}` in scenario `{scenario_id}` uses `{currency}`, but no conversion rate connects it to plan currency `{plan_currency}`"
+            ),
             Self::NoScenarios => {
                 write!(formatter, "configuration must define at least one scenario")
             }
@@ -587,6 +656,7 @@ impl Error for ConfigError {
             | Self::InvalidConversionRate { .. }
             | Self::InvalidConversionRateCurrencies { .. }
             | Self::DuplicateConversionRate { .. }
+            | Self::MissingAssetConversionRate { .. }
             | Self::NoScenarios
             | Self::BlankScenarioId
             | Self::BlankScenarioName { .. }
@@ -682,6 +752,23 @@ impl Config {
         }
 
         Ok(())
+    }
+
+    pub fn conversion_rate_to_plan_currency(&self, currency: &Currency) -> Option<Decimal> {
+        if currency == &self.plan.currency {
+            return Some(Decimal::ONE);
+        }
+
+        self.conversion_rates
+            .iter()
+            .find(|rate| rate.from == *currency && rate.to == self.plan.currency)
+            .map(|rate| rate.rate)
+            .or_else(|| {
+                self.conversion_rates
+                    .iter()
+                    .find(|rate| rate.from == self.plan.currency && rate.to == *currency)
+                    .map(|rate| Decimal::ONE / rate.rate)
+            })
     }
 
     fn validate_total_balance_milestones(&self) -> Result<(), ConfigError> {
@@ -826,6 +913,18 @@ impl Config {
                 return Err(ConfigError::DuplicateAssetId {
                     scenario_id: scenario.id.clone(),
                     asset_id: asset.id.clone(),
+                });
+            }
+
+            if self
+                .conversion_rate_to_plan_currency(&asset.currency)
+                .is_none()
+            {
+                return Err(ConfigError::MissingAssetConversionRate {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                    currency: asset.currency.clone(),
+                    plan_currency: self.plan.currency.clone(),
                 });
             }
 

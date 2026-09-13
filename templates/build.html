@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ dashboard.locale }}">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Everarc</title>
+    <title>Everarc · {{ dashboard.plan.currency }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;700&family=Plus+Jakarta+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -11,12 +11,12 @@
       :root { --paper: #faf8f5; --card: #fffdfa; --ink: #1e1e1e; --muted: #5c5855; --line: #d2ccc3; --lavender: #8985fd; --peach: #ffc9c9; --mint: #b2f2bb; --sky: #a5d8ff; }
       * { box-sizing: border-box; }
       body { margin: 0; color: var(--ink); background-color: var(--paper); background-image: radial-gradient(#1b1c1a 0.75px, transparent 0.75px); background-size: 20px 20px; font-family: "Plus Jakarta Sans", system-ui, sans-serif; }
-      main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 4rem 0 5rem; }
+      main { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 1.5rem 0 5rem; }
       .dashboard { display: grid; gap: 2rem; }
       .dashboard-top { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .8fr); align-items: start; gap: 2rem; }
       .paper-card { position: relative; background: var(--card); border: 1px solid rgba(30, 30, 30, .08); border-radius: 14px 11px 15px 12px; box-shadow: 0 3px 6px rgba(42, 36, 29, .04), 0 14px 28px rgba(42, 36, 29, .08); }
       .net-worth-card { padding: 2.25rem 2rem 1.75rem; transform: rotate(-.45deg); }
-      .milestone-card { padding: 1.75rem; transform: rotate(.55deg); }
+      .outcomes-deck { padding: 1.75rem; transform: rotate(.55deg); }
       .chart-card { padding: 1.5rem; transform: rotate(-.15deg); }
       .tape { position: absolute; top: -12px; width: 78px; height: 20px; opacity: .68; transform: rotate(-2deg); }
       .tape-peach { left: 2rem; background: var(--peach); }
@@ -28,10 +28,28 @@
       .change-badge { padding: .3rem .55rem; color: #264a2e; background: var(--mint); border-radius: 7px 5px 8px 4px; font: 700 .75rem/1.2 "Space Mono", monospace; }
       h2 { margin: .45rem 0 .8rem; font: 700 clamp(1.45rem, 3vw, 2rem)/1.1 "Bricolage Grotesque", serif; letter-spacing: -.04em; }
       .milestone-copy { margin: 0 0 1.25rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
-      .progress-track { height: 18px; padding: 2px; overflow: hidden; background: #eeeae4; border: 1px solid rgba(30, 30, 30, .22); border-radius: 999px; }
-      .progress-fill { height: 100%; border-radius: 999px; background-color: var(--lavender); background-image: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(30, 30, 30, .45) 7px 9px); }
-      .progress-labels { display: flex; justify-content: space-between; gap: .5rem; margin-top: .5rem; color: var(--muted); font: .62rem/1.2 "Space Mono", monospace; }
-      .progress-labels strong { color: var(--ink); }
+      .outcomes-header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+      .outcomes-header .eyebrow { margin: 0; }
+      .outcomes-controls { display: inline-flex; gap: .35rem; align-items: center; }
+      .outcome-arrow { width: 1.8rem; height: 1.8rem; padding: 0; color: var(--ink); background: var(--card); border: 1px solid rgba(30, 30, 30, .28); border-radius: 5px 7px 4px 6px; cursor: pointer; font: 700 1.25rem/1 "Space Mono", monospace; }
+      .outcome-arrow:hover { background: var(--mint); }
+      .outcome-arrow:focus-visible { outline: 3px solid var(--lavender); outline-offset: 2px; }
+      .outcome-counter { min-width: 2.9rem; color: var(--muted); text-align: center; font: .65rem/1 "Space Mono", monospace; }
+      .outcomes-deck[data-outcome-accent="peach"] .tape { background: var(--peach); }
+      .outcomes-deck[data-outcome-accent="lavender"] .tape { background: var(--lavender); }
+      .outcomes-deck[data-outcome-accent="sky"] .tape { background: var(--sky); }
+      .outcome-slide { padding-top: 1.1rem; }
+      .outcome-slide h2 { display: inline; padding: 0 .18rem; box-shadow: inset 0 -.45em var(--outcome-wash); }
+      .outcome-future-living-costs { --outcome-wash: rgba(255, 201, 201, .68); }
+      .outcome-total-milestone { --outcome-wash: rgba(137, 133, 253, .32); }
+      .outcome-asset-milestone { --outcome-wash: rgba(165, 216, 255, .55); }
+      .cost-list { display: grid; gap: .6rem; margin: 0.95rem 0 1rem; }
+      .cost-row, .cost-total { display: flex; justify-content: space-between; gap: 1rem; font: .73rem/1.35 "Space Mono", monospace; }
+      .cost-row { color: var(--muted); }
+      .cost-row strong, .cost-total strong { color: var(--ink); white-space: nowrap; }
+      .cost-total { padding: .65rem .5rem; border-top: 1px dashed var(--line); color: var(--ink); background: var(--outcome-wash); font-size: .82rem; }
+      .outcome-target { display: inline-block; margin: .8rem 0 1.1rem; padding: 0 .35rem; color: var(--ink); background: var(--outcome-wash); font: 700 clamp(1.8rem, 3vw, 2.5rem)/1 "Bricolage Grotesque", serif; letter-spacing: -.05em; }
+      .outcome-note { margin: 0; color: var(--muted); font: .65rem/1.4 "Space Mono", monospace; }
       .chart-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; padding-bottom: 1rem; border-bottom: 1px dashed var(--line); }
       .chart-heading h2 { margin-bottom: 0; }
       .chart-note { margin: .15rem 0 0; color: var(--muted); font: .7rem/1.3 "Space Mono", monospace; text-align: right; }
@@ -51,19 +69,123 @@
       .chart-legend span { display: inline-flex; align-items: center; gap: .4rem; }
       .legend-line, .legend-target { display: inline-block; width: 22px; border-top: 3px solid var(--ink); }
       .legend-target { border-top-color: #d55151; border-top-style: dashed; }
-      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 2.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .milestone-card, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { margin-top: .75rem; text-align: left; } }
+      .scenario-switcher { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .7rem 1.25rem; align-items: center; padding: .9rem 1.15rem; background: rgba(255, 253, 250, .72); border: 1px solid rgba(30, 30, 30, .12); border-radius: 11px 14px 10px 13px; box-shadow: 0 3px 6px rgba(42, 36, 29, .03); }
+      .scenario-switcher .eyebrow { white-space: nowrap; }
+      .scenario-tabs { display: flex; gap: .5rem; overflow-x: auto; padding: .15rem; scrollbar-width: thin; }
+      .scenario-tab { flex: 0 0 auto; padding: .5rem .75rem; color: var(--muted); background: transparent; border: 1px dashed transparent; border-radius: 7px 5px 8px 4px; cursor: pointer; font: 700 .75rem/1.2 "Space Mono", monospace; }
+      .scenario-tab:hover { color: var(--ink); background: rgba(178, 242, 187, .38); }
+      .scenario-tab:focus-visible { outline: 3px solid var(--lavender); outline-offset: 2px; }
+      .scenario-tab.is-selected { color: var(--ink); background: var(--mint); border-color: rgba(30, 30, 30, .48); }
+      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { margin-top: .75rem; text-align: left; } .scenario-switcher { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
-    {% import "components/dashboard.html" as dashboard %}
+    {% import "components/dashboard.html" as components %}
     <main>
       <div class="dashboard">
+        {{ components.scenario_switcher(dashboard.scenarios, dashboard.text) }}
         <div class="dashboard-top">
-          {{ dashboard.net_worth_canvas("$842,650", "+18.4% this year", "+$131,200 mock net delta") }}
-          {{ dashboard.milestone("$1,000,000", 84.2, "September 2025 at the current mock savings pace.") }}
+          {{ components.net_worth_canvas("$842,650", "+18.4%", "+$131,200", dashboard.text) }}
+          {{ components.outcomes_deck(dashboard) }}
         </div>
-        {{ dashboard.chart() }}
+        {{ components.chart(dashboard.plan.start, dashboard.plan.end, dashboard.scenarios | length, dashboard.text) }}
       </div>
     </main>
+    <script>
+      (() => {
+        const tabs = [...document.querySelectorAll("[data-scenario-tab]")];
+        const decks = [...document.querySelectorAll("[data-scenario-deck]")];
+        if (tabs.length === 0) return;
+
+        let previousScenarioId = null;
+        const tabForId = (id) => tabs.find((tab) => tab.dataset.scenarioId === id);
+        const deckForId = (id) => decks.find((deck) => deck.dataset.scenarioId === id);
+        const showOutcome = (deck, requestedIndex) => {
+          const slides = [...deck.querySelectorAll("[data-outcome-slide]")];
+          const index = (requestedIndex + slides.length) % slides.length;
+          slides.forEach((slide, slideIndex) => { slide.hidden = slideIndex !== index; });
+          deck.querySelector("[data-outcome-counter]").textContent = `${index + 1} / ${slides.length}`;
+          deck.dataset.outcomeIndex = index;
+          deck.dataset.outcomeAccent = slides[index].dataset.outcomeAccent;
+        };
+        const showScenarioDeck = (scenarioId) => {
+          decks.forEach((deck) => { deck.hidden = deck.dataset.scenarioId !== scenarioId; });
+          const deck = deckForId(scenarioId);
+          if (deck) showOutcome(deck, 0);
+        };
+        const select = (requestedId, updateHash = false) => {
+          const tab = tabForId(requestedId) ?? tabs[0];
+          const scenarioId = tab.dataset.scenarioId;
+          const focusIsInScenarioControls = tabs.includes(document.activeElement)
+            || decks.some((deck) => deck.contains(document.activeElement));
+          const currentTab = tabs.find((candidate) => candidate.classList.contains("is-selected"));
+          if (currentTab && currentTab !== tab) {
+            previousScenarioId = currentTab.dataset.scenarioId;
+          }
+
+          for (const candidate of tabs) {
+            const selected = candidate === tab;
+            candidate.classList.toggle("is-selected", selected);
+            candidate.setAttribute("aria-pressed", String(selected));
+            candidate.tabIndex = selected ? 0 : -1;
+          }
+          showScenarioDeck(scenarioId);
+          if (focusIsInScenarioControls) {
+            tab.focus();
+          }
+
+          if (updateHash) {
+            const url = new URL(window.location.href);
+            url.hash = `scenario=${encodeURIComponent(scenarioId)}`;
+            history.replaceState(null, "", url);
+          }
+        };
+        const scenarioFromHash = () => new URLSearchParams(window.location.hash.slice(1)).get("scenario");
+
+        select(scenarioFromHash());
+        for (const tab of tabs) {
+          tab.addEventListener("click", () => select(tab.dataset.scenarioId, true));
+          tab.addEventListener("keydown", (event) => {
+            const index = tabs.indexOf(tab);
+            let nextIndex;
+            if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+            else if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+            else if (event.key === "Home") nextIndex = 0;
+            else if (event.key === "End") nextIndex = tabs.length - 1;
+            else return;
+
+            event.preventDefault();
+            tabs[nextIndex].focus();
+            select(tabs[nextIndex].dataset.scenarioId, true);
+          });
+        }
+        for (const deck of decks) {
+          deck.querySelector("[data-outcome-previous]").addEventListener("click", () => {
+            showOutcome(deck, Number(deck.dataset.outcomeIndex) - 1);
+          });
+          deck.querySelector("[data-outcome-next]").addEventListener("click", () => {
+            showOutcome(deck, Number(deck.dataset.outcomeIndex) + 1);
+          });
+        }
+        window.addEventListener("keydown", (event) => {
+          if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+          if (event.key === "\\") {
+            if (!previousScenarioId) return;
+            event.preventDefault();
+            select(previousScenarioId, true);
+            return;
+          }
+
+          const direction = event.key === "[" ? -1 : event.key === "]" ? 1 : 0;
+          if (direction === 0) return;
+
+          const selectedIndex = tabs.findIndex((tab) => tab.classList.contains("is-selected"));
+          const nextIndex = (selectedIndex + direction + tabs.length) % tabs.length;
+          event.preventDefault();
+          select(tabs[nextIndex].dataset.scenarioId, true);
+        });
+        window.addEventListener("hashchange", () => select(scenarioFromHash()));
+      })();
+    </script>
   </body>
 </html>

@@ -1,6 +1,8 @@
 mod cli;
 mod commands;
 mod config;
+mod localization;
+mod projection;
 
 use std::{error::Error, process};
 
