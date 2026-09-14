@@ -2,7 +2,7 @@ use rust_decimal::{Decimal, MathematicalOps};
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 use crate::config::{
-    AssetMilestone, Config, Currency, FutureLivingCost, Month, Plan, Scenario,
+    Asset, AssetMilestone, Config, Currency, Event, FutureLivingCost, Month, Plan, Scenario,
     TotalBalanceMilestone,
 };
 
@@ -48,6 +48,11 @@ impl Serialize for PlanContext<'_> {
 #[derive(Debug)]
 pub struct ScenarioProjection<'config> {
     scenario: &'config Scenario,
+    pub assets: Vec<AssetProjection<'config>>,
+    pub total_net_worth: Vec<TotalNetWorthMonthProjection>,
+    pub asset_adjustments: Vec<AssetAdjustmentProjection<'config>>,
+    pub contribution_settings: Vec<ContributionSettingProjection<'config>>,
+    pub asset_events: Vec<AppliedAssetEventProjection<'config>>,
     pub future_living_costs: FutureLivingCostsProjection<'config>,
     pub asset_milestones: Vec<AssetMilestoneProjection<'config>>,
 }
@@ -67,11 +72,98 @@ impl Serialize for ScenarioProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ScenarioProjection", 4)?;
+        let mut state = serializer.serialize_struct("ScenarioProjection", 9)?;
         state.serialize_field("id", &self.scenario.id)?;
         state.serialize_field("name", &self.scenario.name)?;
+        state.serialize_field("assets", &self.assets)?;
+        state.serialize_field("total_net_worth", &self.total_net_worth)?;
+        state.serialize_field("asset_adjustments", &self.asset_adjustments)?;
+        state.serialize_field("contribution_settings", &self.contribution_settings)?;
+        state.serialize_field("asset_events", &self.asset_events)?;
         state.serialize_field("future_living_costs", &self.future_living_costs)?;
         state.serialize_field("asset_milestones", &self.asset_milestones)?;
+        state.end()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct AssetProjection<'config> {
+    asset: &'config Asset,
+    pub monthly_balances: Vec<AssetMonthProjection>,
+}
+
+impl<'config> AssetProjection<'config> {
+    pub fn id(&self) -> &'config str {
+        &self.asset.id
+    }
+
+    pub fn name(&self) -> &'config str {
+        &self.asset.name
+    }
+
+    pub fn currency(&self) -> &'config Currency {
+        &self.asset.currency
+    }
+}
+
+impl Serialize for AssetProjection<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AssetProjection", 4)?;
+        state.serialize_field("id", self.id())?;
+        state.serialize_field("name", self.name())?;
+        state.serialize_field("currency", self.currency())?;
+        state.serialize_field("monthly_balances", &self.monthly_balances)?;
+        state.end()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct AssetMonthProjection {
+    pub month: Month,
+    pub monthly_expected_return: Decimal,
+    pub monthly_contribution: Decimal,
+    pub native_balance: Decimal,
+    pub plan_balance: Decimal,
+}
+
+impl Serialize for AssetMonthProjection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AssetMonthProjection", 5)?;
+        state.serialize_field("month", &self.month)?;
+        state.serialize_field(
+            "monthly_expected_return",
+            &self.monthly_expected_return.to_string(),
+        )?;
+        state.serialize_field(
+            "monthly_contribution",
+            &self.monthly_contribution.to_string(),
+        )?;
+        state.serialize_field("native_balance", &self.native_balance.to_string())?;
+        state.serialize_field("plan_balance", &self.plan_balance.to_string())?;
+        state.end()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct TotalNetWorthMonthProjection {
+    pub month: Month,
+    pub balance: Decimal,
+}
+
+impl Serialize for TotalNetWorthMonthProjection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("TotalNetWorthMonthProjection", 2)?;
+        state.serialize_field("month", &self.month)?;
+        state.serialize_field("balance", &self.balance.to_string())?;
         state.end()
     }
 }
@@ -252,6 +344,7 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                 target: PlanMoney::configured_in_plan_currency(&milestone.target),
             })
             .collect();
+        let projected_asset_sets = project_scenario_assets(config);
 
         Self {
             plan: PlanContext { plan: &config.plan },
@@ -259,7 +352,8 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
             scenarios: config
                 .scenarios
                 .iter()
-                .map(|scenario| {
+                .zip(projected_asset_sets)
+                .map(|(scenario, assets)| {
                     let inflation_factor =
                         (Decimal::ONE + scenario.annual_inflation).powd(inflation_years);
                     let costs = config
@@ -300,8 +394,18 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                         })
                         .collect();
 
+                    let total_net_worth = project_total_net_worth(&assets);
+                    let asset_adjustments = resolved_asset_adjustments(config, scenario);
+                    let contribution_settings = resolved_contribution_settings(config, scenario);
+                    let asset_events = resolved_asset_events(config, scenario);
+
                     ScenarioProjection {
                         scenario,
+                        assets,
+                        total_net_worth,
+                        asset_adjustments,
+                        contribution_settings,
+                        asset_events,
                         future_living_costs: FutureLivingCostsProjection {
                             costs,
                             nominal_monthly_total,
@@ -311,6 +415,422 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                 })
                 .collect(),
         }
+    }
+}
+
+fn project_total_net_worth(assets: &[AssetProjection<'_>]) -> Vec<TotalNetWorthMonthProjection> {
+    let Some(first_asset) = assets.first() else {
+        return Vec::new();
+    };
+
+    first_asset
+        .monthly_balances
+        .iter()
+        .enumerate()
+        .map(|(index, balance)| TotalNetWorthMonthProjection {
+            month: balance.month,
+            balance: assets
+                .iter()
+                .map(|asset| asset.monthly_balances[index].plan_balance)
+                .sum(),
+        })
+        .collect()
+}
+
+fn project_scenario_assets<'config>(config: &'config Config) -> Vec<Vec<AssetProjection<'config>>> {
+    let mut projected_asset_sets = (0..config.scenarios.len())
+        .map(|_| None)
+        .collect::<Vec<Option<Vec<AssetProjection<'config>>>>>();
+
+    while projected_asset_sets.iter().any(Option::is_none) {
+        let mut made_progress = false;
+
+        for (index, scenario) in config.scenarios.iter().enumerate() {
+            if projected_asset_sets[index].is_some() {
+                continue;
+            }
+
+            let mut assets = match scenario.extends.as_deref() {
+                None => Vec::new(),
+                Some(parent_id) => {
+                    let parent_index = config
+                        .scenarios
+                        .iter()
+                        .position(|candidate| candidate.id == parent_id)
+                        .expect("validated scenario parents always exist");
+                    let Some(parent_assets) = projected_asset_sets[parent_index].as_ref() else {
+                        continue;
+                    };
+                    parent_assets.clone()
+                }
+            };
+
+            for asset in &scenario.assets {
+                let projection = AssetProjection {
+                    asset,
+                    monthly_balances: Vec::new(),
+                };
+                if let Some(existing_index) = assets
+                    .iter()
+                    .position(|inherited_asset| inherited_asset.id() == asset.id)
+                {
+                    assets[existing_index] = projection;
+                } else {
+                    assets.push(projection);
+                }
+            }
+
+            let adjustments = resolved_asset_adjustments(config, scenario);
+            let contribution_settings = resolved_contribution_settings(config, scenario);
+            let return_settings = resolved_return_settings(config, scenario);
+            for asset in &mut assets {
+                *asset = project_asset(
+                    config,
+                    asset.asset,
+                    &adjustments,
+                    &contribution_settings,
+                    &return_settings,
+                );
+            }
+
+            projected_asset_sets[index] = Some(assets);
+            made_progress = true;
+        }
+
+        assert!(
+            made_progress,
+            "validated scenario inheritance must allow asset projection ordering"
+        );
+    }
+
+    projected_asset_sets
+        .into_iter()
+        .map(|assets| assets.expect("all scenarios receive projected assets"))
+        .collect()
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AssetAdjustmentProjection<'config> {
+    pub name: &'config str,
+    pub date: Month,
+    pub asset_id: &'config str,
+    pub amount: &'config Decimal,
+}
+
+impl Serialize for AssetAdjustmentProjection<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AssetAdjustmentProjection", 4)?;
+        state.serialize_field("name", self.name)?;
+        state.serialize_field("date", &self.date)?;
+        state.serialize_field("asset_id", self.asset_id)?;
+        state.serialize_field("amount", &self.amount.to_string())?;
+        state.end()
+    }
+}
+
+fn resolved_asset_adjustments<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<AssetAdjustmentProjection<'config>> {
+    let mut lineage = Vec::new();
+    let mut current = scenario;
+    loop {
+        lineage.push(current);
+        let Some(parent_id) = current.extends.as_deref() else {
+            break;
+        };
+        current = config
+            .scenarios
+            .iter()
+            .find(|candidate| candidate.id == parent_id)
+            .expect("validated scenario parents always exist");
+    }
+    lineage.reverse();
+
+    lineage
+        .into_iter()
+        .flat_map(|scenario| scenario.events.iter())
+        .filter_map(|event| match event {
+            Event::AssetAdjustment {
+                name,
+                date,
+                asset_id,
+                amount,
+                ..
+            } => Some(AssetAdjustmentProjection {
+                name,
+                date: *date,
+                asset_id,
+                amount,
+            }),
+            Event::SetMonthlyContribution { .. } | Event::SetMonthlyExpectedReturn { .. } => None,
+        })
+        .collect()
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppliedAssetEventKind {
+    Adjustment,
+    ContributionSetting,
+    ExpectedReturn,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AppliedAssetEventProjection<'config> {
+    pub name: &'config str,
+    pub date: Month,
+    pub asset_id: &'config str,
+    pub kind: AppliedAssetEventKind,
+    pub amount: &'config Decimal,
+}
+
+impl Serialize for AppliedAssetEventProjection<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AppliedAssetEventProjection", 5)?;
+        state.serialize_field("name", self.name)?;
+        state.serialize_field("date", &self.date)?;
+        state.serialize_field("asset_id", self.asset_id)?;
+        state.serialize_field("kind", &self.kind)?;
+        state.serialize_field("amount", &self.amount.to_string())?;
+        state.end()
+    }
+}
+
+fn resolved_asset_events<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<AppliedAssetEventProjection<'config>> {
+    let mut lineage = Vec::new();
+    let mut current = scenario;
+    loop {
+        lineage.push(current);
+        let Some(parent_id) = current.extends.as_deref() else {
+            break;
+        };
+        current = config
+            .scenarios
+            .iter()
+            .find(|candidate| candidate.id == parent_id)
+            .expect("validated scenario parents always exist");
+    }
+    lineage.reverse();
+
+    lineage
+        .into_iter()
+        .flat_map(|scenario| scenario.events.iter())
+        .filter_map(|event| match event {
+            Event::AssetAdjustment {
+                name,
+                date,
+                asset_id,
+                amount,
+                ..
+            } => Some(AppliedAssetEventProjection {
+                name,
+                date: *date,
+                asset_id,
+                kind: AppliedAssetEventKind::Adjustment,
+                amount,
+            }),
+            Event::SetMonthlyContribution {
+                name,
+                date,
+                asset_id,
+                amount,
+                ..
+            } => Some(AppliedAssetEventProjection {
+                name,
+                date: *date,
+                asset_id,
+                kind: AppliedAssetEventKind::ContributionSetting,
+                amount,
+            }),
+            Event::SetMonthlyExpectedReturn {
+                name,
+                date,
+                asset_id,
+                rate,
+                ..
+            } => Some(AppliedAssetEventProjection {
+                name,
+                date: *date,
+                asset_id,
+                kind: AppliedAssetEventKind::ExpectedReturn,
+                amount: rate,
+            }),
+        })
+        .collect()
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ContributionSettingProjection<'config> {
+    pub name: &'config str,
+    pub date: Month,
+    pub asset_id: &'config str,
+    pub amount: &'config Decimal,
+}
+
+impl Serialize for ContributionSettingProjection<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("ContributionSettingProjection", 4)?;
+        state.serialize_field("name", self.name)?;
+        state.serialize_field("date", &self.date)?;
+        state.serialize_field("asset_id", self.asset_id)?;
+        state.serialize_field("amount", &self.amount.to_string())?;
+        state.end()
+    }
+}
+
+fn resolved_contribution_settings<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<ContributionSettingProjection<'config>> {
+    let mut lineage = Vec::new();
+    let mut current = scenario;
+    loop {
+        lineage.push(current);
+        let Some(parent_id) = current.extends.as_deref() else {
+            break;
+        };
+        current = config
+            .scenarios
+            .iter()
+            .find(|candidate| candidate.id == parent_id)
+            .expect("validated scenario parents always exist");
+    }
+    lineage.reverse();
+
+    lineage
+        .into_iter()
+        .flat_map(|scenario| scenario.events.iter())
+        .filter_map(|event| match event {
+            Event::SetMonthlyContribution {
+                name,
+                date,
+                asset_id,
+                amount,
+                ..
+            } => Some(ContributionSettingProjection {
+                name,
+                date: *date,
+                asset_id,
+                amount,
+            }),
+            Event::AssetAdjustment { .. } | Event::SetMonthlyExpectedReturn { .. } => None,
+        })
+        .collect()
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ResolvedReturnSetting<'config> {
+    date: Month,
+    asset_id: &'config str,
+    rate: &'config Decimal,
+}
+
+fn resolved_return_settings<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<ResolvedReturnSetting<'config>> {
+    let mut lineage = Vec::new();
+    let mut current = scenario;
+    loop {
+        lineage.push(current);
+        let Some(parent_id) = current.extends.as_deref() else {
+            break;
+        };
+        current = config
+            .scenarios
+            .iter()
+            .find(|candidate| candidate.id == parent_id)
+            .expect("validated scenario parents always exist");
+    }
+    lineage.reverse();
+    lineage
+        .into_iter()
+        .flat_map(|scenario| scenario.events.iter())
+        .filter_map(|event| match event {
+            Event::SetMonthlyExpectedReturn {
+                date,
+                asset_id,
+                rate,
+                ..
+            } => Some(ResolvedReturnSetting {
+                date: *date,
+                asset_id,
+                rate,
+            }),
+            Event::AssetAdjustment { .. } | Event::SetMonthlyContribution { .. } => None,
+        })
+        .collect()
+}
+
+fn project_asset<'config>(
+    config: &'config Config,
+    asset: &'config Asset,
+    adjustments: &[AssetAdjustmentProjection<'config>],
+    contribution_settings: &[ContributionSettingProjection<'config>],
+    return_settings: &[ResolvedReturnSetting<'config>],
+) -> AssetProjection<'config> {
+    let conversion_rate = config
+        .conversion_rate_to_plan_currency(&asset.currency)
+        .expect("validated asset currencies have a conversion rate");
+    let mut month = config.plan.start;
+    let mut native_balance = asset.initial_value;
+    let mut monthly_expected_return = asset.monthly_expected_return;
+    let mut monthly_contribution = asset.monthly_contribution;
+    let month_count = config.plan.inclusive_month_count();
+    let monthly_balances = (0..month_count)
+        .map(|index| {
+            if let Some(setting) = return_settings
+                .iter()
+                .rev()
+                .find(|setting| setting.date == month && setting.asset_id == asset.id)
+            {
+                monthly_expected_return = *setting.rate;
+            }
+            if let Some(setting) = contribution_settings
+                .iter()
+                .rev()
+                .find(|setting| setting.date == month && setting.asset_id == asset.id)
+            {
+                monthly_contribution = *setting.amount;
+            }
+            let adjustment_total = adjustments
+                .iter()
+                .filter(|adjustment| adjustment.date == month && adjustment.asset_id == asset.id)
+                .map(|adjustment| *adjustment.amount)
+                .sum::<Decimal>();
+            native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
+                + monthly_contribution
+                + adjustment_total;
+            let projection = AssetMonthProjection {
+                month,
+                monthly_expected_return,
+                monthly_contribution,
+                native_balance,
+                plan_balance: native_balance * conversion_rate,
+            };
+            if index + 1 < month_count {
+                month = month.next();
+            }
+            projection
+        })
+        .collect();
+
+    AssetProjection {
+        asset,
+        monthly_balances,
     }
 }
 
@@ -328,3 +848,6 @@ fn asset_currency<'a>(config: &'a Config, scenario: &'a Scenario, asset_id: &str
             .expect("validated milestone assets always resolve through a scenario parent");
     }
 }
+
+#[cfg(test)]
+mod tests;

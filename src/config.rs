@@ -112,7 +112,7 @@ pub struct Scenario {
 pub struct Asset {
     pub id: String,
     pub name: String,
-    // Asset-currency connectivity is not validated yet.
+    // Every asset currency must connect directly to the plan currency.
     pub currency: Currency,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub initial_value: Decimal,
@@ -127,6 +127,7 @@ pub struct Asset {
 pub enum Event {
     AssetAdjustment {
         id: String,
+        name: String,
         date: Month,
         asset_id: String,
         // Stored for later event application; signed values are valid.
@@ -136,6 +137,7 @@ pub enum Event {
     },
     SetMonthlyContribution {
         id: String,
+        name: String,
         date: Month,
         asset_id: String,
         #[serde(deserialize_with = "deserialize_decimal")]
@@ -143,6 +145,7 @@ pub enum Event {
     },
     SetMonthlyExpectedReturn {
         id: String,
+        name: String,
         date: Month,
         asset_id: String,
         #[serde(deserialize_with = "deserialize_decimal")]
@@ -187,6 +190,14 @@ impl Event {
         }
     }
 
+    fn name(&self) -> &str {
+        match self {
+            Self::AssetAdjustment { name, .. }
+            | Self::SetMonthlyContribution { name, .. }
+            | Self::SetMonthlyExpectedReturn { name, .. } => name,
+        }
+    }
+
     fn date(&self) -> Month {
         match self {
             Self::AssetAdjustment { date, .. }
@@ -226,6 +237,25 @@ where
 pub struct Month {
     year: u16,
     month: u8,
+}
+
+impl Month {
+    pub fn next(self) -> Self {
+        if self.month == 12 {
+            Self {
+                year: self
+                    .year
+                    .checked_add(1)
+                    .expect("month exceeds supported year range"),
+                month: 1,
+            }
+        } else {
+            Self {
+                year: self.year,
+                month: self.month + 1,
+            }
+        }
+    }
 }
 
 impl fmt::Display for Month {
@@ -356,6 +386,10 @@ pub enum ConfigError {
     },
     BlankEventId {
         scenario_id: String,
+    },
+    BlankEventName {
+        scenario_id: String,
+        event_id: String,
     },
     DuplicateEventId {
         scenario_id: String,
@@ -540,6 +574,13 @@ impl fmt::Display for ConfigError {
                     "scenario `{scenario_id}` has an event with a blank id"
                 )
             }
+            Self::BlankEventName {
+                scenario_id,
+                event_id,
+            } => write!(
+                formatter,
+                "event `{event_id}` in scenario `{scenario_id}` has a blank name"
+            ),
             Self::DuplicateEventId {
                 scenario_id,
                 event_id,
@@ -670,6 +711,7 @@ impl Error for ConfigError {
             | Self::DuplicateAssetId { .. }
             | Self::NegativeAssetValue { .. }
             | Self::BlankEventId { .. }
+            | Self::BlankEventName { .. }
             | Self::DuplicateEventId { .. }
             | Self::EventOutsidePlan { .. }
             | Self::UnknownEventAsset { .. }
@@ -957,6 +999,12 @@ impl Config {
             if event.id().trim().is_empty() {
                 return Err(ConfigError::BlankEventId {
                     scenario_id: scenario.id.clone(),
+                });
+            }
+            if event.name().trim().is_empty() {
+                return Err(ConfigError::BlankEventName {
+                    scenario_id: scenario.id.clone(),
+                    event_id: event.id().to_owned(),
                 });
             }
             if !event_ids.insert(event.id()) {

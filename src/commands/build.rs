@@ -42,14 +42,17 @@ fn build_once(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Erro
     let config = Config::load(config_path)?;
     let projection = PlanProjection::from(&config);
     let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    fs::write(output_path, render_dashboard(&dashboard)?)?;
+    Ok(())
+}
+
+fn render_dashboard(dashboard: &DashboardPresentation<'_>) -> Result<String, minijinja::Error> {
     let mut environment = Environment::new();
     environment.add_template("components/dashboard.html", DASHBOARD_TEMPLATE)?;
     environment.add_template("build.html", TEMPLATE)?;
-    let template = environment.get_template("build.html")?;
-    let html = template.render(context!(dashboard => dashboard))?;
-
-    fs::write(output_path, html)?;
-    Ok(())
+    environment
+        .get_template("build.html")?
+        .render(context!(dashboard => dashboard))
 }
 
 fn watch(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
@@ -116,5 +119,53 @@ fn absolute_path(path: &Path) -> io::Result<PathBuf> {
         Ok(path.to_path_buf())
     } else {
         Ok(env::current_dir()?.join(path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_inherited_event_rows_without_plan_currency_codes() {
+        let config: Config = toml::from_str(include_str!("../../everarc.toml"))
+            .expect("sample configuration parses");
+        config.validate().expect("sample configuration validates");
+        let projection = PlanProjection::from(&config);
+        let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+        let html = render_dashboard(&dashboard).expect("dashboard renders");
+
+        assert!(!html.contains("Car purchase -25.000,00"));
+        assert!(!html.contains("<title>Everarc ·"));
+        assert!(html.contains("<title>Everarc</title>"));
+        assert!(html.contains("↗ 0,50%"));
+        assert!(html.contains("+ 3.000,00&#x2f;mês"));
+        assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
+        assert!(html.contains("<span>Car purchase</span><strong>-25.000,00</strong>"));
+        assert!(
+            html.contains("<span>Increase contribution</span><strong>3.000,00&#x2f;mês</strong>")
+        );
+
+        for value in html
+            .split("<span class=\"chart-inspector-native\">")
+            .skip(1)
+        {
+            let value = value
+                .split("</span>")
+                .next()
+                .expect("native inspector span closes");
+            assert!(!value.contains("USD"));
+        }
+        for value in html
+            .split("<span class=\"chart-inspector-comparable\">")
+            .skip(1)
+        {
+            let value = value
+                .split("</span>")
+                .next()
+                .expect("comparable inspector span closes");
+            assert!(!value.contains("USD"));
+        }
+        assert!(html.contains("BTC</span>"));
     }
 }

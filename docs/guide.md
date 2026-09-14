@@ -69,6 +69,7 @@ monthly_contribution = "1000.00"
 # Optional events apply in their declaration order.
 [[scenarios.events]]
 id = "car-purchase"
+name = "Car purchase"
 date = "2027-06"
 type = "asset_adjustment"
 asset_id = "brokerage"
@@ -127,12 +128,15 @@ month, while `"0.005"` means 0.5%. Assets outside `plan.currency` require a
 usable conversion rate.
 
 Events are optional and are processed in TOML declaration order. Every event
-has a nonblank ID unique within its scenario, a `YYYY-MM` date within the plan
-range, and an `asset_id`. The asset may be local to the scenario or inherited
+has a nonblank ID unique within its scenario, a nonblank human-facing name, a
+`YYYY-MM` date within the plan range, and an `asset_id`. The asset may be local to the scenario or inherited
 from a parent scenario. `asset_adjustment` uses a signed `amount` in the
-asset's currency. `set_monthly_contribution` uses a nonnegative `amount`, and
-`set_monthly_expected_return` uses a nonnegative decimal-fraction `rate`;
-both define values for later projection work. Inflation-changing events are not
+asset's currency. `set_monthly_contribution` uses a nonnegative `amount` and
+takes effect for that month's contribution and every following month; where
+multiple settings take effect in the same month, the last declaration wins.
+`set_monthly_expected_return` uses a nonnegative decimal-fraction `rate` and
+takes effect for that month's return and every following month; multiple
+same-month settings use the last declaration. Inflation-changing events are not
 supported yet.
 
 Milestones are optional balance thresholds with no date. Root `[[milestones]]`

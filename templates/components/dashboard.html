@@ -16,16 +16,22 @@
 </section>
 {% endmacro %}
 
-{% macro net_worth_canvas(total, change, delta, text) %}
-<section class="paper-card net-worth-card">
+{% macro net_worth_canvases(scenarios, text) %}
+{% for scenario in scenarios %}
+<section class="paper-card net-worth-card" data-scenario-net-worth data-scenario-id="{{ scenario.id }}" {% if not loop.first %}hidden{% endif %}>
   <div class="tape tape-peach"></div>
-  <p class="eyebrow"><span class="ink-dot"></span>{{ text.total_net_worth_canvas }}</p>
-  <p class="net-worth">{{ total }}</p>
+  <p class="eyebrow"><span class="ink-dot"></span>{{ text.total_net_worth }}</p>
+  <p class="net-worth">{{ scenario.net_worth.end_total }}</p>
   <div class="net-worth-meta">
-    <span class="change-badge">↗ {{ change }} {{ text.this_year }}</span>
-    <span>{{ delta }} {{ text.mock_net_delta }}</span>
+    {% if scenario.net_worth.percentage_change %}
+    <span class="change-badge">{{ scenario.net_worth.percentage_change }} {{ text.change_since_first_projected_month }}</span>
+    {% else %}
+    <span class="change-badge">{{ text.change_from_zero_unavailable }}</span>
+    {% endif %}
+    <span>{{ scenario.net_worth.absolute_change }} {{ text.projected_change }}</span>
   </div>
 </section>
+{% endfor %}
 {% endmacro %}
 
 {% macro outcomes_deck(dashboard) %}
@@ -83,44 +89,64 @@
 {% endfor %}
 {% endmacro %}
 
-{% macro chart(start, end, scenario_count, text) %}
-<section class="paper-card chart-card">
+{% macro charts(scenarios, chart, text) %}
+{% for scenario in scenarios %}
+<section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not loop.first %}hidden{% endif %}>
   <div class="chart-heading">
-    <div>
-      <p class="eyebrow"><span class="ink-dot"></span>{{ text.total_arc }}</p>
-      <h2>{{ text.mock_net_worth_trajectory }}</h2>
-    </div>
-    <p class="chart-note">{{ text.draft_canvas }} · {{ scenario_count }} {{ text.scenarios }} · {{ start }}–{{ end }}</p>
+    <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
   </div>
   <div class="chart-frame">
-    <svg aria-label="{{ text.mock_net_worth_trajectory }}" role="img" viewBox="0 0 1000 500">
+    <svg aria-label="{{ text.projection }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 500">
       <g class="chart-grid">
-        <path d="M80 75 H950 M80 165 H950 M80 255 H950 M80 345 H950" />
+        {% for tick in chart.y_ticks %}<path d="M80 {{ tick.y }} H950" />{% endfor %}
+        {% for x in chart.x_grid %}<path class="chart-month-grid" d="M{{ x }} 75 V435" />{% endfor %}
       </g>
       <g class="chart-labels">
-        <text x="16" y="79">$1.0M</text>
-        <text x="25" y="169">$750k</text>
-        <text x="25" y="259">$500k</text>
-        <text x="25" y="349">$250k</text>
-        <text x="70" y="465">{{ text.january }}</text><text x="240" y="465">{{ text.april }}</text>
-        <text x="410" y="465">{{ text.july }}</text><text x="580" y="465">{{ text.october }}</text>
-        <text x="748" y="465">{{ text.now }}</text><text x="900" y="465">{{ text.goal }}</text>
+        {% for tick in chart.y_ticks %}<text x="65" y="{{ tick.y }}" text-anchor="end">{{ tick.label }}</text>{% endfor %}
+        {% for label in chart.x_labels %}<text x="{{ label.x }}" y="465" text-anchor="middle">{{ label.label }}</text>{% endfor %}
       </g>
-      <path class="target-line" d="M80 75 H950" />
-      <text class="target-label" x="832" y="61">{{ text.one_million_horizon }}</text>
+      {% for milestone in chart.milestones %}
+      <path class="target-line" d="M80 {{ milestone.line_y }} H950" />
+      <text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>
+      {% endfor %}
       <path class="axis" d="M80 435 H950" />
-      <path class="total-shadow" d="M85 340 C185 325 250 300 330 288 S490 244 585 229 S705 174 790 155" />
-      <path class="total-line" d="M85 336 C185 321 250 296 330 284 S490 240 585 225 S705 170 790 151" />
-      <path class="projection" d="M790 151 C845 125 890 102 940 90" />
-      <g class="chart-points">
-        <circle cx="85" cy="336" r="6" /><circle cx="330" cy="284" r="6" />
-        <circle cx="585" cy="225" r="6" /><circle cx="790" cy="151" r="7" />
+      {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
+      <path class="total-line" d="{{ scenario.chart_path }}" />
+      <g class="chart-cursor" data-chart-cursor hidden>
+        <path class="chart-cursor-line" data-chart-cursor-line />
+        <g data-chart-asset-markers></g>
+        <circle class="chart-cursor-point" data-chart-cursor-point r="6" />
       </g>
+      <rect class="chart-hit-area" data-chart-hit-area x="80" y="75" width="870" height="360" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
     </svg>
+    <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
+  </div>
+  <div data-chart-month-data hidden>
+    {% for month in scenario.chart_months %}
+    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" {% if not loop.first %}hidden{% endif %}>
+      <div class="chart-inspector-summary">
+        <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
+        <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
+      </div>
+      <p class="chart-inspector-assets-label">{{ text.assets }}</p>
+      <div class="chart-inspector-assets">
+        {% for asset in month.assets %}
+        <div class="chart-inspector-asset" data-chart-asset data-chart-asset-y="{{ asset.y }}" data-chart-asset-color="{{ asset.color_index }}">
+          <strong>{{ asset.name }}</strong>
+          <span class="chart-inspector-values"><span class="chart-inspector-native">{{ asset.native_balance }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}</span>{% if asset.comparable_plan_balance %}<span class="chart-inspector-comparable"> ≈ {{ asset.comparable_plan_balance }}</span>{% endif %}</span>
+          <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.monthly_return }}: {{ asset.monthly_expected_return }}">↗ {{ asset.monthly_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}">+ {{ asset.monthly_contribution }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}{{ text.per_month }}</span></span>
+          {% for event in asset.events %}<span class="chart-asset-event"><span>{{ event.name }}</span><strong>{{ event.value }}</strong></span>{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
   </div>
   <div class="chart-legend">
-    <span><i class="legend-line"></i>{{ text.bold_ink_mocked_total }}</span>
-    <span><i class="legend-target"></i>{{ text.dashed_milestone_target }}</span>
+    {% for asset in scenario.chart_assets %}<span><i class="legend-asset asset-line-{{ asset.color_index }}"></i>{{ asset.name }}</span>{% endfor %}
+    <span><i class="legend-line"></i>{{ text.total_net_worth_legend }}</span>
+    <span><i class="legend-target"></i>{{ text.goals_legend }}</span>
   </div>
 </section>
+{% endfor %}
 {% endmacro %}
