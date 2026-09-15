@@ -16,11 +16,12 @@
 </section>
 {% endmacro %}
 
-{% macro plan_summary(plan, text) %}
-<section class="paper-card net-worth-card">
+{% macro plan_summary(plan, scenarios, text) %}
+{% for scenario in scenarios %}
+<section class="paper-card net-worth-card" data-scenario-plan-summary data-scenario-id="{{ scenario.id }}" {% if not loop.first %}hidden{% endif %}>
   <div class="tape tape-peach"></div>
   <p class="eyebrow"><span class="ink-dot"></span>{{ text.plan_summary }}</p>
-  <p class="passive-income">{{ text.mock_passive_income }}</p>
+  <p class="passive-income">{{ scenario.end_of_plan_passive_income }}</p>
   <p class="passive-income-label">{{ text.end_of_plan_passive_income }}</p>
   <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}</p>
   <div class="conversion-rates">
@@ -38,6 +39,7 @@
     </div>
   </div>
 </section>
+{% endfor %}
 {% endmacro %}
 
 {% macro outcomes_deck(dashboard) %}
@@ -137,6 +139,7 @@
       <div class="chart-inspector-summary">
         <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
+        <p><span>{{ text.passive_income }}</span><strong>{{ month.passive_income }}</strong></p>
       </div>
       <p class="chart-inspector-assets-label">{{ text.assets }}</p>
       <div class="chart-inspector-assets">
@@ -144,7 +147,7 @@
         <div class="chart-inspector-asset" data-chart-asset data-chart-asset-y="{{ asset.y }}" data-chart-asset-color="{{ asset.color_index }}">
           <strong>{{ asset.name }}</strong>
           <span class="chart-inspector-values"><span class="chart-inspector-native">{{ asset.native_balance }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}</span>{% if asset.comparable_plan_balance %}<span class="chart-inspector-comparable"> ≈ {{ asset.comparable_plan_balance }}</span>{% endif %}</span>
-          <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.monthly_return }}: {{ asset.monthly_expected_return }}">↗ {{ asset.monthly_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}">+ {{ asset.monthly_contribution }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}{{ text.per_month }}</span></span>
+          <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.monthly_return }}: {{ asset.monthly_expected_return }}">↗ {{ asset.monthly_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}">+ {{ asset.monthly_contribution }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}{{ text.per_month }}</span><span class="chart-asset-assumption" aria-label="{{ text.passive_income }}: {{ asset.passive_income }}">☼ {{ asset.passive_income }}</span></span>
           {% for event in asset.events %}<span class="chart-asset-event"><span>{{ event.name }}</span><strong>{{ event.value }}</strong></span>{% endfor %}
         </div>
         {% endfor %}

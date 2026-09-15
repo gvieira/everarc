@@ -137,7 +137,7 @@
       <div class="dashboard">
         {{ components.scenario_switcher(dashboard.scenarios, dashboard.text) }}
         <div class="dashboard-top">
-          {{ components.plan_summary(dashboard.plan, dashboard.text) }}
+          {{ components.plan_summary(dashboard.plan, dashboard.scenarios, dashboard.text) }}
           {{ components.outcomes_deck(dashboard) }}
         </div>
         {{ components.charts(dashboard.scenarios, dashboard.chart, dashboard.text) }}
@@ -147,6 +147,7 @@
       (() => {
         const tabs = [...document.querySelectorAll("[data-scenario-tab]")];
         const decks = [...document.querySelectorAll("[data-scenario-deck]")];
+        const planSummaryCards = [...document.querySelectorAll("[data-scenario-plan-summary]")];
         const charts = [...document.querySelectorAll("[data-scenario-chart]")];
         if (tabs.length === 0) return;
 
@@ -204,6 +205,7 @@
         };
         const showScenarioViews = (scenarioId) => {
           decks.forEach((deck) => { deck.hidden = deck.dataset.scenarioId !== scenarioId; });
+          planSummaryCards.forEach((card) => { card.hidden = card.dataset.scenarioId !== scenarioId; });
           charts.forEach((chart) => { chart.hidden = chart.dataset.scenarioId !== scenarioId; });
           const deck = deckForId(scenarioId);
           if (deck) showOutcome(deck, 0);

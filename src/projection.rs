@@ -136,6 +136,8 @@ pub struct AssetMonthProjection {
     pub monthly_contribution: Decimal,
     pub native_balance: Decimal,
     pub plan_balance: Decimal,
+    pub native_passive_income: Decimal,
+    pub plan_passive_income: Decimal,
 }
 
 impl Serialize for AssetMonthProjection {
@@ -143,7 +145,7 @@ impl Serialize for AssetMonthProjection {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("AssetMonthProjection", 5)?;
+        let mut state = serializer.serialize_struct("AssetMonthProjection", 7)?;
         state.serialize_field("month", &self.month)?;
         state.serialize_field(
             "monthly_expected_return",
@@ -155,6 +157,11 @@ impl Serialize for AssetMonthProjection {
         )?;
         state.serialize_field("native_balance", &self.native_balance.to_string())?;
         state.serialize_field("plan_balance", &self.plan_balance.to_string())?;
+        state.serialize_field(
+            "native_passive_income",
+            &self.native_passive_income.to_string(),
+        )?;
+        state.serialize_field("plan_passive_income", &self.plan_passive_income.to_string())?;
         state.end()
     }
 }
@@ -827,6 +834,8 @@ fn project_asset<'config>(
                 .filter(|adjustment| adjustment.date == month && adjustment.asset_id == asset.id)
                 .map(|adjustment| *adjustment.amount)
                 .sum::<Decimal>();
+            let native_passive_income = native_balance * monthly_expected_return;
+            let plan_passive_income = native_passive_income * conversion_rate;
             native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
                 + monthly_contribution
                 + adjustment_total;
@@ -836,6 +845,8 @@ fn project_asset<'config>(
                 monthly_contribution,
                 native_balance,
                 plan_balance: native_balance * conversion_rate,
+                native_passive_income,
+                plan_passive_income,
             };
             if index + 1 < month_count {
                 month = month.next();

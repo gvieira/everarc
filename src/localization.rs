@@ -42,12 +42,12 @@ pub struct DashboardText {
     pub total_net_worth: &'static str,
     pub plan_summary: &'static str,
     pub end_of_plan_passive_income: &'static str,
-    pub mock_passive_income: &'static str,
     pub conversion_rates: &'static str,
     pub no_conversion_rates: &'static str,
     pub projection: &'static str,
     pub month: &'static str,
     pub total: &'static str,
+    pub passive_income: &'static str,
     pub assets: &'static str,
     pub monthly_return: &'static str,
     pub monthly_contribution: &'static str,
@@ -103,6 +103,7 @@ pub struct DashboardChartMilestone<'projection> {
 pub struct DashboardScenarioPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
+    pub end_of_plan_passive_income: String,
     pub chart_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
     pub chart_asset_milestones: Vec<DashboardChartAssetMilestone<'projection>>,
@@ -139,6 +140,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub x: String,
     pub y: String,
     pub total: String,
+    pub passive_income: String,
     pub assets: Vec<DashboardChartAssetPresentation<'projection>>,
 }
 
@@ -148,6 +150,7 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub native_balance: String,
     pub monthly_expected_return: String,
     pub monthly_contribution: String,
+    pub passive_income: String,
     pub is_plan_currency: bool,
     pub y: String,
     pub color_index: usize,
@@ -261,6 +264,15 @@ impl<'projection> DashboardPresentation<'projection> {
                 .map(|scenario| DashboardScenarioPresentation {
                     id: scenario.id(),
                     name: scenario.name(),
+                    end_of_plan_passive_income: format_number(
+                        scenario
+                            .assets
+                            .iter()
+                            .filter_map(|asset| asset.monthly_balances.last())
+                            .map(|month| month.plan_passive_income)
+                            .sum(),
+                        locale,
+                    ),
                     chart_path: chart_path(&scenario.total_net_worth, chart_scale.maximum),
                     chart_assets: scenario
                         .assets
@@ -387,12 +399,12 @@ impl DashboardText {
                 total_net_worth: "Total net worth",
                 plan_summary: "Plan summary",
                 end_of_plan_passive_income: "Monthly passive income at the end of the plan",
-                mock_passive_income: "12,500/month",
                 conversion_rates: "Conversion rates",
                 no_conversion_rates: "No conversion rates configured.",
                 projection: "Projection",
                 month: "Month",
                 total: "Total",
+                passive_income: "Passive income",
                 assets: "Assets",
                 monthly_return: "Monthly return",
                 monthly_contribution: "Monthly contribution",
@@ -417,12 +429,12 @@ impl DashboardText {
                 total_net_worth: "Patrimônio líquido total",
                 plan_summary: "Resumo do plano",
                 end_of_plan_passive_income: "Renda passiva mensal ao fim do plano",
-                mock_passive_income: "12.500/mês",
                 conversion_rates: "Taxas de conversão",
                 no_conversion_rates: "Nenhuma taxa de conversão configurada.",
                 projection: "Projeção",
                 month: "Mês",
                 total: "Total",
+                passive_income: "Renda passiva",
                 assets: "Ativos",
                 monthly_return: "Retorno mensal",
                 monthly_contribution: "Contribuição mensal",
@@ -574,6 +586,14 @@ fn chart_months<'projection>(
             x: chart_x(index, last_index),
             y: chart_y(total.balance, maximum),
             total: format_number(total.balance, locale),
+            passive_income: format_number(
+                scenario
+                    .assets
+                    .iter()
+                    .map(|asset| asset.monthly_balances[index].plan_passive_income)
+                    .sum(),
+                locale,
+            ),
             assets: scenario
                 .assets
                 .iter()
@@ -590,6 +610,7 @@ fn chart_months<'projection>(
                             locale,
                         ),
                         monthly_contribution: format_number(balance.monthly_contribution, locale),
+                        passive_income: format_number(balance.plan_passive_income, locale),
                         is_plan_currency: asset.currency() == plan_currency,
                         y: chart_y(balance.plan_balance, maximum),
                         color_index: asset_index,

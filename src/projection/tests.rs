@@ -42,8 +42,12 @@ monthly_contribution = "10"
     assert_eq!(balances[0].month.to_string(), "2026-01");
     assert_eq!(balances[0].native_balance, Decimal::new(120, 0));
     assert_eq!(balances[0].plan_balance, Decimal::new(120, 0));
+    assert_eq!(balances[0].native_passive_income, Decimal::new(10, 0));
+    assert_eq!(balances[0].plan_passive_income, Decimal::new(10, 0));
     assert_eq!(balances[1].month.to_string(), "2026-02");
     assert_eq!(balances[1].native_balance, Decimal::new(142, 0));
+    assert_eq!(balances[1].native_passive_income, Decimal::new(12, 0));
+    assert_eq!(balances[1].plan_passive_income, Decimal::new(12, 0));
     assert_eq!(
         projection.scenarios[0].total_net_worth[1].balance,
         Decimal::new(142, 0)

@@ -139,9 +139,14 @@ amount = "-0.1"
     assert_eq!(asset.native_balance, "0.48");
     assert_eq!(asset.monthly_expected_return, "50.00%");
     assert_eq!(asset.monthly_contribution, "0.20");
+    assert_eq!(asset.passive_income, "1,250.00");
     assert_eq!(asset.y, "93.00");
     assert_eq!(asset.color_index, 0);
     assert_eq!(asset.comparable_plan_balance.as_deref(), Some("4,750.00"));
+    assert_eq!(
+        dashboard.scenarios[0].chart_months[0].passive_income,
+        "1,250.00"
+    );
     assert_eq!(asset.events.len(), 3);
     assert_eq!(asset.events[0].name, "Start contribution");
     assert_eq!(asset.events[0].value, "0.20/month");
@@ -214,7 +219,7 @@ monthly_contribution = "0"
     let dashboard = DashboardPresentation::new(&projection, config.display.locale);
 
     assert_eq!(dashboard.plan.duration, "1 mês");
-    assert_eq!(dashboard.text.mock_passive_income, "12.500/mês");
+    assert_eq!(dashboard.scenarios[0].end_of_plan_passive_income, "0,00");
     assert_eq!(dashboard.text.monthly_return, "Retorno mensal");
     assert_eq!(dashboard.text.monthly_contribution, "Contribuição mensal");
     assert_eq!(dashboard.text.per_month, "/mês");
