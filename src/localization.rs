@@ -40,9 +40,11 @@ pub struct DashboardText {
     pub asset_balance_target: &'static str,
     pub projection_progress: &'static str,
     pub total_net_worth: &'static str,
-    pub change_since_first_projected_month: &'static str,
-    pub projected_change: &'static str,
-    pub change_from_zero_unavailable: &'static str,
+    pub plan_summary: &'static str,
+    pub end_of_plan_passive_income: &'static str,
+    pub mock_passive_income: &'static str,
+    pub conversion_rates: &'static str,
+    pub no_conversion_rates: &'static str,
     pub projection: &'static str,
     pub month: &'static str,
     pub total: &'static str,
@@ -59,6 +61,15 @@ pub struct DashboardPlanPresentation<'projection> {
     pub currency: &'projection Currency,
     pub start: Month,
     pub end: Month,
+    pub duration: String,
+    pub conversion_rates: Vec<DashboardConversionRatePresentation<'projection>>,
+}
+
+#[derive(Serialize)]
+pub struct DashboardConversionRatePresentation<'projection> {
+    pub from: &'projection Currency,
+    pub to: &'projection Currency,
+    pub rate: String,
 }
 
 #[derive(Serialize)]
@@ -92,7 +103,6 @@ pub struct DashboardChartMilestone<'projection> {
 pub struct DashboardScenarioPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
-    pub net_worth: DashboardNetWorthPresentation,
     pub chart_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
     pub chart_asset_milestones: Vec<DashboardChartAssetMilestone<'projection>>,
@@ -150,13 +160,6 @@ pub struct DashboardChartAssetPresentation<'projection> {
 pub struct DashboardAssetEventPresentation<'projection> {
     pub name: &'projection str,
     pub value: String,
-}
-
-#[derive(Serialize)]
-pub struct DashboardNetWorthPresentation {
-    pub end_total: String,
-    pub absolute_change: String,
-    pub percentage_change: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -234,6 +237,17 @@ impl<'projection> DashboardPresentation<'projection> {
                 currency: projection.plan.currency(),
                 start: projection.plan.start(),
                 end: projection.plan.end(),
+                duration: format_duration(projection.plan.inclusive_month_count(), locale),
+                conversion_rates: projection
+                    .plan
+                    .conversion_rates()
+                    .iter()
+                    .map(|conversion_rate| DashboardConversionRatePresentation {
+                        from: &conversion_rate.from,
+                        to: &conversion_rate.to,
+                        rate: format_number(conversion_rate.rate, locale),
+                    })
+                    .collect(),
             },
             total_balance_milestones: projection
                 .total_balance_milestones
@@ -247,7 +261,6 @@ impl<'projection> DashboardPresentation<'projection> {
                 .map(|scenario| DashboardScenarioPresentation {
                     id: scenario.id(),
                     name: scenario.name(),
-                    net_worth: DashboardNetWorthPresentation::from_scenario(scenario, locale),
                     chart_path: chart_path(&scenario.total_net_worth, chart_scale.maximum),
                     chart_assets: scenario
                         .assets
@@ -333,29 +346,6 @@ impl<'projection> DashboardPresentation<'projection> {
     }
 }
 
-impl DashboardNetWorthPresentation {
-    fn from_scenario(scenario: &crate::projection::ScenarioProjection<'_>, locale: Locale) -> Self {
-        let first = scenario
-            .total_net_worth
-            .first()
-            .map(|month| month.balance)
-            .unwrap_or(Decimal::ZERO);
-        let end = scenario
-            .total_net_worth
-            .last()
-            .map(|month| month.balance)
-            .unwrap_or(Decimal::ZERO);
-        let change = end - first;
-
-        Self {
-            end_total: format_number(end, locale),
-            absolute_change: format_signed_number(change, locale),
-            percentage_change: (first != Decimal::ZERO)
-                .then(|| format_signed_percent(change / first * Decimal::from(100), locale)),
-        }
-    }
-}
-
 impl<'projection> DashboardMilestonePresentation<'projection> {
     fn from_total(
         milestone: &TotalBalanceMilestoneProjection<'projection>,
@@ -395,9 +385,11 @@ impl DashboardText {
                 asset_balance_target: "Asset-balance target",
                 projection_progress: "Progress will appear with projections.",
                 total_net_worth: "Total net worth",
-                change_since_first_projected_month: "since first projected month",
-                projected_change: "projected change",
-                change_from_zero_unavailable: "Change unavailable from a zero first month",
+                plan_summary: "Plan summary",
+                end_of_plan_passive_income: "Monthly passive income at the end of the plan",
+                mock_passive_income: "12,500/month",
+                conversion_rates: "Conversion rates",
+                no_conversion_rates: "No conversion rates configured.",
                 projection: "Projection",
                 month: "Month",
                 total: "Total",
@@ -423,9 +415,11 @@ impl DashboardText {
                 asset_balance_target: "Meta de saldo do ativo",
                 projection_progress: "O progresso aparecerá com as projeções.",
                 total_net_worth: "Patrimônio líquido total",
-                change_since_first_projected_month: "desde o primeiro mês projetado",
-                projected_change: "variação projetada",
-                change_from_zero_unavailable: "Variação indisponível a partir de um primeiro mês zerado",
+                plan_summary: "Resumo do plano",
+                end_of_plan_passive_income: "Renda passiva mensal ao fim do plano",
+                mock_passive_income: "12.500/mês",
+                conversion_rates: "Taxas de conversão",
+                no_conversion_rates: "Nenhuma taxa de conversão configurada.",
                 projection: "Projeção",
                 month: "Mês",
                 total: "Total",
@@ -631,6 +625,34 @@ fn chart_months<'projection>(
         .collect()
 }
 
+fn format_duration(months: u32, locale: Locale) -> String {
+    let years = months / 12;
+    let remaining_months = months % 12;
+
+    match locale {
+        Locale::EnUs => match (years, remaining_months) {
+            (0, 1) => "1 month".to_owned(),
+            (0, _) => format!("{remaining_months} months"),
+            (1, 0) => "1 year".to_owned(),
+            (1, 1) => "1 year, 1 month".to_owned(),
+            (1, _) => format!("1 year, {remaining_months} months"),
+            (_, 0) => format!("{years} years"),
+            (_, 1) => format!("{years} years, 1 month"),
+            _ => format!("{years} years, {remaining_months} months"),
+        },
+        Locale::PtBr => match (years, remaining_months) {
+            (0, 1) => "1 mês".to_owned(),
+            (0, _) => format!("{remaining_months} meses"),
+            (1, 0) => "1 ano".to_owned(),
+            (1, 1) => "1 ano e 1 mês".to_owned(),
+            (1, _) => format!("1 ano e {remaining_months} meses"),
+            (_, 0) => format!("{years} anos"),
+            (_, 1) => format!("{years} anos e 1 mês"),
+            _ => format!("{years} anos e {remaining_months} meses"),
+        },
+    }
+}
+
 fn chart_x(index: usize, last_index: usize) -> String {
     let width = Decimal::from(CHART_RIGHT - CHART_LEFT);
     let position = if last_index == 0 {
@@ -720,11 +742,6 @@ fn format_signed_number(amount: Decimal, locale: Locale) -> String {
 
 fn format_percentage(rate: Decimal, locale: Locale) -> String {
     format!("{}%", format_decimal(rate * Decimal::from(100), 2, locale))
-}
-
-fn format_signed_percent(percent: Decimal, locale: Locale) -> String {
-    let sign = if percent >= Decimal::ZERO { "+" } else { "" };
-    format!("{sign}{}%", format_decimal(percent, 1, locale))
 }
 
 fn format_number(amount: Decimal, locale: Locale) -> String {

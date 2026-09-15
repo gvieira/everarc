@@ -23,9 +23,15 @@
       .tape-lavender { right: 2rem; background: var(--lavender); }
       .eyebrow { display: flex; gap: .5rem; align-items: center; margin: 0; color: var(--muted); font: 700 .72rem/1.2 "Space Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
       .ink-dot { width: .7rem; height: .7rem; border-radius: 50%; background: var(--ink); }
-      .net-worth { display: inline-block; margin: 1.15rem 0 .85rem; padding: 0 .45rem; background: rgba(255, 201, 201, .58); font: 700 clamp(2.5rem, 5.2vw, 4rem)/1 "Bricolage Grotesque", serif; letter-spacing: -.06em; }
-      .net-worth-meta { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; color: var(--muted); font-size: .9rem; }
-      .change-badge { padding: .3rem .55rem; color: #264a2e; background: var(--mint); border-radius: 7px 5px 8px 4px; font: 700 .75rem/1.2 "Space Mono", monospace; }
+      .passive-income { display: inline-block; margin: 1.15rem 0 .35rem; padding: 0 .45rem; background: rgba(255, 201, 201, .58); font: 700 clamp(2.5rem, 5.2vw, 4rem)/1 "Bricolage Grotesque", serif; letter-spacing: -.06em; }
+      .passive-income-label { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+      .plan-context { margin: 1.2rem 0 .8rem; padding-top: .8rem; border-top: 1px dashed rgba(30, 30, 30, .18); color: var(--ink); font: 700 .72rem/1.4 "Space Mono", monospace; }
+      .conversion-rates { position: relative; display: inline-block; color: var(--muted); font: 700 .72rem/1.3 "Space Mono", monospace; }
+      .conversion-rates > span { cursor: help; color: var(--ink); text-decoration: underline dotted; text-underline-offset: .2em; }
+      .conversion-rates-popover { display: none; position: absolute; z-index: 2; left: 0; bottom: calc(100% + .65rem); width: max-content; max-width: min(18rem, calc(100vw - 4rem)); padding: .7rem .8rem; color: var(--ink); background: var(--card); border: 1px solid rgba(30, 30, 30, .14); border-radius: 8px 6px 9px 7px; box-shadow: 0 8px 18px rgba(42, 36, 29, .14); }
+      .conversion-rates:hover .conversion-rates-popover, .conversion-rates:focus-within .conversion-rates-popover { display: block; }
+      .conversion-rates ul { display: grid; gap: .4rem; margin: 0; padding: 0; list-style: none; }
+      .conversion-rates p { margin: 0; }
       h2 { margin: .45rem 0 .8rem; font: 700 clamp(1.45rem, 3vw, 2rem)/1.1 "Bricolage Grotesque", serif; letter-spacing: -.04em; }
       .milestone-copy { margin: 0 0 1.25rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
       .outcomes-header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
@@ -131,7 +137,7 @@
       <div class="dashboard">
         {{ components.scenario_switcher(dashboard.scenarios, dashboard.text) }}
         <div class="dashboard-top">
-          {{ components.net_worth_canvases(dashboard.scenarios, dashboard.text) }}
+          {{ components.plan_summary(dashboard.plan, dashboard.text) }}
           {{ components.outcomes_deck(dashboard) }}
         </div>
         {{ components.charts(dashboard.scenarios, dashboard.chart, dashboard.text) }}
@@ -141,7 +147,6 @@
       (() => {
         const tabs = [...document.querySelectorAll("[data-scenario-tab]")];
         const decks = [...document.querySelectorAll("[data-scenario-deck]")];
-        const netWorthCards = [...document.querySelectorAll("[data-scenario-net-worth]")];
         const charts = [...document.querySelectorAll("[data-scenario-chart]")];
         if (tabs.length === 0) return;
 
@@ -199,7 +204,6 @@
         };
         const showScenarioViews = (scenarioId) => {
           decks.forEach((deck) => { deck.hidden = deck.dataset.scenarioId !== scenarioId; });
-          netWorthCards.forEach((card) => { card.hidden = card.dataset.scenarioId !== scenarioId; });
           charts.forEach((chart) => { chart.hidden = chart.dataset.scenarioId !== scenarioId; });
           const deck = deckForId(scenarioId);
           if (deck) showOutcome(deck, 0);

@@ -13,8 +13,6 @@ fn config(source: &str) -> Config {
 fn shared_chart_scale_includes_root_total_balance_milestones() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -79,8 +77,6 @@ target = "1500"
 fn chart_month_inspector_includes_converted_asset_values() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -134,6 +130,10 @@ amount = "-0.1"
     );
     let projection = PlanProjection::from(&config);
     let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    assert_eq!(dashboard.plan.duration, "1 month");
+    assert_eq!(dashboard.plan.conversion_rates[0].rate, "10,000.00");
+    assert_eq!(dashboard.plan.conversion_rates[0].from.to_string(), "BTC");
+    assert_eq!(dashboard.plan.conversion_rates[0].to.to_string(), "USD");
     let asset = &dashboard.scenarios[0].chart_months[0].assets[0];
 
     assert_eq!(asset.native_balance, "0.48");
@@ -185,11 +185,9 @@ fn rounds_chart_scales_to_nice_intervals() {
 }
 
 #[test]
-fn zero_first_month_has_no_percentage_change() {
+fn localizes_plan_duration() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "pt-BR"
 
@@ -215,8 +213,8 @@ monthly_contribution = "0"
     let projection = PlanProjection::from(&config);
     let dashboard = DashboardPresentation::new(&projection, config.display.locale);
 
-    assert_eq!(dashboard.scenarios[0].net_worth.end_total, "0,00");
-    assert!(dashboard.scenarios[0].net_worth.percentage_change.is_none());
+    assert_eq!(dashboard.plan.duration, "1 mês");
+    assert_eq!(dashboard.text.mock_passive_income, "12.500/mês");
     assert_eq!(dashboard.text.monthly_return, "Retorno mensal");
     assert_eq!(dashboard.text.monthly_contribution, "Contribuição mensal");
     assert_eq!(dashboard.text.per_month, "/mês");

@@ -12,8 +12,6 @@ fn config(source: &str) -> Config {
 fn projects_inclusive_monthly_ending_balances() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -56,8 +54,6 @@ monthly_contribution = "10"
 fn projects_converted_assets_in_plan_currency() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -108,8 +104,6 @@ amount = "0.1"
 #[test]
 fn rejects_missing_and_blank_event_names() {
     let source = r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -140,6 +134,7 @@ asset_id = "cash"
 amount = "1"
 "#;
 
+    assert!(toml::from_str::<Config>(&format!("version = 1\n\n{source}")).is_err());
     assert!(toml::from_str::<Config>(&source.replace("name = \"Deposit\"\n", "")).is_err());
 
     let blank_name: Config = toml::from_str(&source.replace("Deposit", "   "))
@@ -154,8 +149,6 @@ amount = "1"
 fn applies_adjustments_after_returns_and_contributions() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -198,8 +191,6 @@ amount = "5"
 fn applies_adjustments_after_contributions_and_return_settings() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -283,8 +274,6 @@ rate = "0.5"
 fn contribution_settings_take_effect_immediately_persist_and_last_setting_wins() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -349,8 +338,6 @@ amount = "5"
 fn inherits_adjustments_for_a_child_replacement_asset() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -450,8 +437,6 @@ amount = "50"
 fn resolves_parent_assets_before_child_listed_earlier() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 
@@ -539,8 +524,6 @@ monthly_contribution = "0"
 fn accumulates_parent_and_child_adjustments_on_an_inherited_asset() {
     let config = config(
         r#"
-version = 1
-
 [display]
 locale = "en-US"
 

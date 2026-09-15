@@ -11,12 +11,9 @@ Everarc reads configuration from TOML.
 
 ## Current format
 
-The root TOML table requires a `version` key whose value is an unsigned integer,
-a single `plan` table, and at least one scenario.
+The root TOML table requires a single `plan` table and at least one scenario.
 
 ```toml
-version = 1
-
 # Required dashboard language and number-formatting conventions.
 [display]
 locale = "pt-BR"

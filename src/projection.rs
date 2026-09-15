@@ -2,8 +2,8 @@ use rust_decimal::{Decimal, MathematicalOps};
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 use crate::config::{
-    Asset, AssetMilestone, Config, Currency, Event, FutureLivingCost, Month, Plan, Scenario,
-    TotalBalanceMilestone,
+    Asset, AssetMilestone, Config, ConversionRate, Currency, Event, FutureLivingCost, Month, Plan,
+    Scenario, TotalBalanceMilestone,
 };
 
 #[derive(Debug, Serialize)]
@@ -16,6 +16,7 @@ pub struct PlanProjection<'config> {
 #[derive(Debug)]
 pub struct PlanContext<'config> {
     plan: &'config Plan,
+    conversion_rates: &'config [ConversionRate],
 }
 
 impl<'config> PlanContext<'config> {
@@ -29,6 +30,14 @@ impl<'config> PlanContext<'config> {
 
     pub fn end(&self) -> Month {
         self.plan.end
+    }
+
+    pub fn inclusive_month_count(&self) -> u32 {
+        self.plan.inclusive_month_count()
+    }
+
+    pub fn conversion_rates(&self) -> &'config [ConversionRate] {
+        self.conversion_rates
     }
 }
 
@@ -351,7 +360,10 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
         let projected_asset_sets = project_scenario_assets(config);
 
         Self {
-            plan: PlanContext { plan: &config.plan },
+            plan: PlanContext {
+                plan: &config.plan,
+                conversion_rates: &config.conversion_rates,
+            },
             total_balance_milestones,
             scenarios: config
                 .scenarios

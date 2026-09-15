@@ -10,8 +10,8 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
-    pub version: u32,
     pub plan: Plan,
     #[serde(default)]
     pub conversion_rates: Vec<ConversionRate>,
@@ -321,9 +321,6 @@ pub enum ConfigError {
         path: PathBuf,
         source: toml::de::Error,
     },
-    UnsupportedVersion {
-        version: u32,
-    },
     InvalidPlanRange {
         start: Month,
         end: Month,
@@ -470,12 +467,6 @@ impl fmt::Display for ConfigError {
                     "failed to parse configuration file `{}`: {}",
                     path.display(),
                     source.message()
-                )
-            }
-            Self::UnsupportedVersion { version } => {
-                write!(
-                    formatter,
-                    "unsupported configuration version {version}; supported version: 1"
                 )
             }
             Self::InvalidPlanRange { start, end } => {
@@ -692,8 +683,7 @@ impl Error for ConfigError {
         match self {
             Self::Read { source, .. } => Some(source),
             Self::Parse { source, .. } => Some(source),
-            Self::UnsupportedVersion { .. }
-            | Self::InvalidPlanRange { .. }
+            Self::InvalidPlanRange { .. }
             | Self::InvalidConversionRate { .. }
             | Self::InvalidConversionRateCurrencies { .. }
             | Self::DuplicateConversionRate { .. }
@@ -749,12 +739,6 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {
-        if self.version != 1 {
-            return Err(ConfigError::UnsupportedVersion {
-                version: self.version,
-            });
-        }
-
         self.plan.validate()?;
         self.validate_conversion_rates()?;
         self.validate_total_balance_milestones()?;

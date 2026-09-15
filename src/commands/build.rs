@@ -142,6 +142,9 @@ mod tests {
         assert!(html.contains("+ 3.000,00&#x2f;mês"));
         assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
         assert!(html.contains("class=\"asset-target-line asset-line-0\""));
+        assert!(html.contains("<p class=\"passive-income\">12.500&#x2f;mês</p>"));
+        assert!(html.contains("<div class=\"conversion-rates\">"));
+        assert!(html.contains("1 BTC = 85.000,00 USD"));
         assert!(html.contains("<span>Car purchase</span><strong>-25.000,00</strong>"));
         assert!(
             html.contains("<span>Increase contribution</span><strong>3.000,00&#x2f;mês</strong>")

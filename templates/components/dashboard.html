@@ -16,22 +16,28 @@
 </section>
 {% endmacro %}
 
-{% macro net_worth_canvases(scenarios, text) %}
-{% for scenario in scenarios %}
-<section class="paper-card net-worth-card" data-scenario-net-worth data-scenario-id="{{ scenario.id }}" {% if not loop.first %}hidden{% endif %}>
+{% macro plan_summary(plan, text) %}
+<section class="paper-card net-worth-card">
   <div class="tape tape-peach"></div>
-  <p class="eyebrow"><span class="ink-dot"></span>{{ text.total_net_worth }}</p>
-  <p class="net-worth">{{ scenario.net_worth.end_total }}</p>
-  <div class="net-worth-meta">
-    {% if scenario.net_worth.percentage_change %}
-    <span class="change-badge">{{ scenario.net_worth.percentage_change }} {{ text.change_since_first_projected_month }}</span>
-    {% else %}
-    <span class="change-badge">{{ text.change_from_zero_unavailable }}</span>
-    {% endif %}
-    <span>{{ scenario.net_worth.absolute_change }} {{ text.projected_change }}</span>
+  <p class="eyebrow"><span class="ink-dot"></span>{{ text.plan_summary }}</p>
+  <p class="passive-income">{{ text.mock_passive_income }}</p>
+  <p class="passive-income-label">{{ text.end_of_plan_passive_income }}</p>
+  <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}</p>
+  <div class="conversion-rates">
+    <span tabindex="0">{{ text.conversion_rates }}</span>
+    <div class="conversion-rates-popover">
+      {% if plan.conversion_rates %}
+      <ul>
+        {% for conversion_rate in plan.conversion_rates %}
+        <li>1 {{ conversion_rate.from }} = {{ conversion_rate.rate }} {{ conversion_rate.to }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>{{ text.no_conversion_rates }}</p>
+      {% endif %}
+    </div>
   </div>
 </section>
-{% endfor %}
 {% endmacro %}
 
 {% macro outcomes_deck(dashboard) %}
