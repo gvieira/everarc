@@ -128,6 +128,7 @@
       .scenario-tab:hover { color: var(--ink); background: rgba(178, 242, 187, .38); }
       .scenario-tab:focus-visible { outline: 3px solid var(--lavender); outline-offset: 2px; }
       .scenario-tab.is-selected { color: var(--ink); background: var(--mint); border-color: rgba(30, 30, 30, .48); }
+      .scenario-selection-mark { color: var(--ink); font-size: .9rem; }
       @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { margin-top: .75rem; text-align: left; } .scenario-switcher { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -213,7 +214,9 @@
           if (chart) showChartMonth(chart, 0);
         };
         const select = (requestedId, updateHash = false) => {
-          const tab = tabForId(requestedId) ?? tabs[0];
+          const tab = tabForId(requestedId)
+            ?? tabs.find((candidate) => candidate.dataset.scenarioDefault === "true")
+            ?? tabs[0];
           const scenarioId = tab.dataset.scenarioId;
           const focusIsInScenarioControls = tabs.includes(document.activeElement)
             || decks.some((deck) => deck.contains(document.activeElement));

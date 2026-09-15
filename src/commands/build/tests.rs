@@ -2,8 +2,9 @@ use super::*;
 
 #[test]
 fn renders_inherited_event_rows_without_plan_currency_codes() {
-    let config: Config =
+    let mut config: Config =
         toml::from_str(include_str!("../../../everarc.toml")).expect("sample configuration parses");
+    config.scenarios[0].selected = true;
     config.validate().expect("sample configuration validates");
     let projection = PlanProjection::from(&config);
     let dashboard = DashboardPresentation::new(&projection, config.display.locale);
@@ -18,6 +19,8 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("<span>Renda passiva</span><strong>"));
     assert!(html.contains("class=\"asset-target-line asset-line-0\""));
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));
+    assert!(html.contains("data-scenario-default=\"true\""));
+    assert!(html.contains("scenario-selection-mark\" aria-label=\"Selecionado\">★</span>"));
     assert!(html.contains("<p class=\"passive-income\">14.590,12</p>"));
     assert!(html.contains("<p class=\"passive-income\">17.247,94</p>"));
     assert!(html.contains("<div class=\"conversion-rates\">"));

@@ -50,3 +50,38 @@ assets = []
         Err(ConfigError::DuplicateConversionRate { .. })
     ));
 }
+
+#[test]
+fn rejects_multiple_selected_scenarios() {
+    let config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+selected = true
+annual_inflation = "0"
+assets = []
+
+[[scenarios]]
+id = "alternative"
+name = "Alternative"
+selected = true
+annual_inflation = "0"
+assets = []
+"#,
+    )
+    .expect("configuration parses");
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::MultipleSelectedScenarios)
+    ));
+}

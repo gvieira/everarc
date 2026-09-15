@@ -4,13 +4,14 @@
   <div class="scenario-tabs" role="group" aria-label="{{ text.choose_scenario }}">
     {% for scenario in scenarios %}
     <button
-      class="scenario-tab{% if loop.first %} is-selected{% endif %}"
+      class="scenario-tab{% if scenario.is_default %} is-selected{% endif %}"
       type="button"
-      aria-pressed="{% if loop.first %}true{% else %}false{% endif %}"
-      tabindex="{% if loop.first %}0{% else %}-1{% endif %}"
+      aria-pressed="{% if scenario.is_default %}true{% else %}false{% endif %}"
+      tabindex="{% if scenario.is_default %}0{% else %}-1{% endif %}"
       data-scenario-tab
       data-scenario-id="{{ scenario.id }}"
-    >{{ scenario.name }}</button>
+      data-scenario-default="{{ scenario.is_default | lower }}"
+    >{{ scenario.name }}{% if scenario.selected %} <span class="scenario-selection-mark" aria-label="{{ text.selected }}">★</span>{% endif %}</button>
     {% endfor %}
   </div>
 </section>
@@ -18,7 +19,7 @@
 
 {% macro plan_summary(plan, scenarios, text) %}
 {% for scenario in scenarios %}
-<section class="paper-card net-worth-card" data-scenario-plan-summary data-scenario-id="{{ scenario.id }}" {% if not loop.first %}hidden{% endif %}>
+<section class="paper-card net-worth-card" data-scenario-plan-summary data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="tape tape-peach"></div>
   <p class="eyebrow"><span class="ink-dot"></span>{{ text.plan_summary }}</p>
   <p class="passive-income">{{ scenario.end_of_plan_passive_income }}</p>
@@ -49,7 +50,7 @@
   data-scenario-deck
   data-scenario-id="{{ scenario.id }}"
   data-outcome-accent="peach"
-  {% if not loop.first %}hidden{% endif %}
+  {% if not scenario.is_default %}hidden{% endif %}
 >
   <div class="tape tape-lavender"></div>
   <div class="outcomes-header">
@@ -99,7 +100,7 @@
 
 {% macro charts(scenarios, chart, text) %}
 {% for scenario in scenarios %}
-<section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not loop.first %}hidden{% endif %}>
+<section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="chart-heading">
     <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
   </div>

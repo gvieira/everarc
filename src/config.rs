@@ -97,6 +97,8 @@ pub struct ConversionRate {
 pub struct Scenario {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub selected: bool,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub annual_inflation: Decimal,
     pub extends: Option<String>,
@@ -352,6 +354,8 @@ pub enum ConfigError {
     NoScenarios,
     #[error("scenario id must not be blank")]
     BlankScenarioId,
+    #[error("only one scenario may be selected")]
+    MultipleSelectedScenarios,
     #[error("scenario `{id}` name must not be blank")]
     BlankScenarioName { id: String },
     #[error("duplicate scenario id `{id}`")]
@@ -598,6 +602,7 @@ impl Config {
         }
 
         let mut scenario_by_id = HashMap::new();
+        let mut has_selected_scenario = false;
         for scenario in &self.scenarios {
             if scenario.id.trim().is_empty() {
                 return Err(ConfigError::BlankScenarioId);
@@ -607,6 +612,10 @@ impl Config {
                     id: scenario.id.clone(),
                 });
             }
+            if scenario.selected && has_selected_scenario {
+                return Err(ConfigError::MultipleSelectedScenarios);
+            }
+            has_selected_scenario |= scenario.selected;
             if scenario_by_id
                 .insert(scenario.id.as_str(), scenario)
                 .is_some()

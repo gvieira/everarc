@@ -50,6 +50,8 @@ monthly_cost = "1200.00"
 [[scenarios]]
 id = "baseline"
 name = "Baseline"
+# Optional: marks the scenario you intend to follow.
+selected = true
 # Annual decimal fraction: 0.03 means 3%; negative values represent deflation.
 annual_inflation = "0.03"
 
@@ -99,6 +101,11 @@ monthly_contribution = "1000.00"
 `[display]` is required. `locale` controls generated-dashboard text and number
 formatting; supported values are `en-US` and `pt-BR`. It does not change CLI or
 configuration-check messages.
+
+A scenario may optionally set `selected = true` to identify the one you intend
+to follow. At most one scenario may be selected. The dashboard opens on it and
+marks it in the scenario bar; when none is selected, it opens on the first
+scenario.
 
 Each conversion rate must connect exactly one currency to `plan.currency`; for
 a USD plan, `BTC` → `USD` is valid but `BTC` → `BRL` is not. `rate` is a

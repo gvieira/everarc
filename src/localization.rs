@@ -28,6 +28,7 @@ pub struct DashboardPresentation<'projection> {
 pub struct DashboardText {
     pub scenario: &'static str,
     pub choose_scenario: &'static str,
+    pub selected: &'static str,
     pub scenarios: &'static str,
     pub outcomes: &'static str,
     pub previous_outcome: &'static str,
@@ -103,6 +104,8 @@ pub struct DashboardChartMilestone<'projection> {
 pub struct DashboardScenarioPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
+    pub selected: bool,
+    pub is_default: bool,
     pub end_of_plan_passive_income: String,
     pub chart_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
@@ -187,6 +190,12 @@ pub struct DashboardMilestonePresentation<'projection> {
 
 impl<'projection> DashboardPresentation<'projection> {
     pub fn new(projection: &'projection PlanProjection<'projection>, locale: Locale) -> Self {
+        let default_scenario_id = projection
+            .scenarios
+            .iter()
+            .find(|scenario| scenario.is_selected())
+            .or_else(|| projection.scenarios.first())
+            .map(|scenario| scenario.id());
         let chart_maximum = projection
             .scenarios
             .iter()
@@ -264,6 +273,8 @@ impl<'projection> DashboardPresentation<'projection> {
                 .map(|scenario| DashboardScenarioPresentation {
                     id: scenario.id(),
                     name: scenario.name(),
+                    selected: scenario.is_selected(),
+                    is_default: Some(scenario.id()) == default_scenario_id,
                     end_of_plan_passive_income: format_number(
                         scenario
                             .assets
@@ -387,6 +398,7 @@ impl DashboardText {
             Locale::EnUs => Self {
                 scenario: "Scenario",
                 choose_scenario: "Choose a scenario",
+                selected: "Selected",
                 scenarios: "scenarios",
                 outcomes: "Outcomes",
                 previous_outcome: "Previous outcome",
@@ -417,6 +429,7 @@ impl DashboardText {
             Locale::PtBr => Self {
                 scenario: "Cenário",
                 choose_scenario: "Escolha um cenário",
+                selected: "Selecionado",
                 scenarios: "cenários",
                 outcomes: "Resultados",
                 previous_outcome: "Resultado anterior",
