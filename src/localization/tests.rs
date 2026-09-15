@@ -40,13 +40,27 @@ currency = "USD"
 initial_value = "100"
 monthly_expected_return = "0"
 monthly_contribution = "10"
+
+[[scenarios.milestones]]
+id = "cash-goal"
+name = "Cash goal"
+asset_id = "cash"
+target = "1500"
 "#,
     );
     let projection = PlanProjection::from(&config);
     let dashboard = DashboardPresentation::new(&projection, config.display.locale);
 
-    assert_eq!(dashboard.chart.y_ticks.last().unwrap().label, "1k");
-    assert_eq!(dashboard.chart.milestones[0].line_y, "75.0");
+    assert_eq!(dashboard.chart.y_ticks.last().unwrap().label, "1.5k");
+    assert_eq!(dashboard.chart.milestones[0].line_y, "195.00");
+    assert_eq!(
+        dashboard.scenarios[0].chart_asset_milestones[0].line_y,
+        "75"
+    );
+    assert_eq!(
+        dashboard.scenarios[0].chart_asset_milestones[0].color_index,
+        0
+    );
     assert_eq!(dashboard.chart.x_grid, vec!["80", "950"]);
     assert_eq!(dashboard.scenarios[0].chart_assets.len(), 1);
     assert!(

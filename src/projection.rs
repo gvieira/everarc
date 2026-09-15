@@ -246,6 +246,10 @@ impl<'config> AssetMilestoneProjection<'config> {
     pub fn name(&self) -> &'config str {
         &self.milestone.name
     }
+
+    pub fn asset_id(&self) -> &'config str {
+        &self.milestone.asset_id
+    }
 }
 
 impl Serialize for AssetMilestoneProjection<'_> {

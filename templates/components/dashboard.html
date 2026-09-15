@@ -109,6 +109,10 @@
       <path class="target-line" d="M80 {{ milestone.line_y }} H950" />
       <text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>
       {% endfor %}
+      {% for milestone in scenario.chart_asset_milestones %}
+      <path class="asset-target-line asset-line-{{ milestone.color_index }}" d="M80 {{ milestone.line_y }} H950" />
+      <text class="asset-target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>
+      {% endfor %}
       <path class="axis" d="M80 435 H950" />
       {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
       <path class="total-line" d="{{ scenario.chart_path }}" />

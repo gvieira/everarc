@@ -141,6 +141,7 @@ mod tests {
         assert!(html.contains("↗ 0,50%"));
         assert!(html.contains("+ 3.000,00&#x2f;mês"));
         assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
+        assert!(html.contains("class=\"asset-target-line asset-line-0\""));
         assert!(html.contains("<span>Car purchase</span><strong>-25.000,00</strong>"));
         assert!(
             html.contains("<span>Increase contribution</span><strong>3.000,00&#x2f;mês</strong>")

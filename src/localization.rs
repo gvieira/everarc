@@ -95,6 +95,7 @@ pub struct DashboardScenarioPresentation<'projection> {
     pub net_worth: DashboardNetWorthPresentation,
     pub chart_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
+    pub chart_asset_milestones: Vec<DashboardChartAssetMilestone<'projection>>,
     pub chart_months: Vec<DashboardChartMonthPresentation<'projection>>,
     pub future_living_costs: DashboardFutureLivingCostsPresentation<'projection>,
     pub asset_milestones: Vec<DashboardMilestonePresentation<'projection>>,
@@ -112,6 +113,14 @@ pub struct DashboardChartAssetLinePresentation<'projection> {
 pub struct DashboardChartEventMarker {
     pub x: String,
     pub y: String,
+}
+
+#[derive(Serialize)]
+pub struct DashboardChartAssetMilestone<'projection> {
+    pub name: &'projection str,
+    pub line_y: String,
+    pub label_y: String,
+    pub color_index: usize,
 }
 
 #[derive(Serialize)]
@@ -182,6 +191,12 @@ impl<'projection> DashboardPresentation<'projection> {
                     .iter()
                     .map(|milestone| milestone.target.plan_amount()),
             )
+            .chain(projection.scenarios.iter().flat_map(|scenario| {
+                scenario
+                    .asset_milestones
+                    .iter()
+                    .map(|milestone| milestone.target.plan_amount())
+            }))
             .max()
             .filter(|maximum| *maximum > Decimal::ZERO)
             .unwrap_or(Decimal::ONE);
@@ -256,6 +271,28 @@ impl<'projection> DashboardPresentation<'projection> {
                                     y: chart_y(balance.plan_balance, chart_scale.maximum),
                                 })
                                 .collect(),
+                        })
+                        .collect(),
+                    chart_asset_milestones: scenario
+                        .asset_milestones
+                        .iter()
+                        .filter_map(|milestone| {
+                            scenario
+                                .assets
+                                .iter()
+                                .position(|asset| asset.id() == milestone.asset_id())
+                                .map(|color_index| DashboardChartAssetMilestone {
+                                    name: milestone.name(),
+                                    line_y: chart_y(
+                                        milestone.target.plan_amount(),
+                                        chart_scale.maximum,
+                                    ),
+                                    label_y: chart_milestone_label_y(
+                                        milestone.target.plan_amount(),
+                                        chart_scale.maximum,
+                                    ),
+                                    color_index,
+                                })
                         })
                         .collect(),
                     chart_months: chart_months(
