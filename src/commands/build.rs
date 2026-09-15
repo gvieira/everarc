@@ -67,14 +67,14 @@ fn watch(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
     watcher.watch(watch_directory, RecursiveMode::NonRecursive)?;
     eprintln!("watching `{}` for changes", config_path.display());
 
-    if let Err(error) = build_once(&config_path, output_path) {
+    if let Err(error) = build_once(config_path, output_path) {
         eprintln!("error: {error}");
     }
 
     loop {
-        wait_for_change(&receiver, &config_path)?;
+        wait_for_change(&receiver, config_path)?;
 
-        if let Err(error) = build_once(&config_path, output_path) {
+        if let Err(error) = build_once(config_path, output_path) {
             eprintln!("error: {error}");
         }
     }

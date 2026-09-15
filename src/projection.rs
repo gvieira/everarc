@@ -554,10 +554,10 @@ impl Serialize for AssetAdjustmentProjection<'_> {
     }
 }
 
-fn resolved_asset_adjustments<'config>(
+fn scenario_lineage<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
-) -> Vec<AssetAdjustmentProjection<'config>> {
+) -> Vec<&'config Scenario> {
     let mut lineage = Vec::new();
     let mut current = scenario;
     loop {
@@ -572,8 +572,14 @@ fn resolved_asset_adjustments<'config>(
             .expect("validated scenario parents always exist");
     }
     lineage.reverse();
-
     lineage
+}
+
+fn resolved_asset_adjustments<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<AssetAdjustmentProjection<'config>> {
+    scenario_lineage(config, scenario)
         .into_iter()
         .flat_map(|scenario| scenario.events.iter())
         .filter_map(|event| match event {
@@ -630,64 +636,49 @@ fn resolved_asset_events<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<AppliedAssetEventProjection<'config>> {
-    let mut lineage = Vec::new();
-    let mut current = scenario;
-    loop {
-        lineage.push(current);
-        let Some(parent_id) = current.extends.as_deref() else {
-            break;
-        };
-        current = config
-            .scenarios
-            .iter()
-            .find(|candidate| candidate.id == parent_id)
-            .expect("validated scenario parents always exist");
-    }
-    lineage.reverse();
-
-    lineage
+    scenario_lineage(config, scenario)
         .into_iter()
         .flat_map(|scenario| scenario.events.iter())
-        .filter_map(|event| match event {
+        .map(|event| match event {
             Event::AssetAdjustment {
                 name,
                 date,
                 asset_id,
                 amount,
                 ..
-            } => Some(AppliedAssetEventProjection {
+            } => AppliedAssetEventProjection {
                 name,
                 date: *date,
                 asset_id,
                 kind: AppliedAssetEventKind::Adjustment,
                 amount,
-            }),
+            },
             Event::SetMonthlyContribution {
                 name,
                 date,
                 asset_id,
                 amount,
                 ..
-            } => Some(AppliedAssetEventProjection {
+            } => AppliedAssetEventProjection {
                 name,
                 date: *date,
                 asset_id,
                 kind: AppliedAssetEventKind::ContributionSetting,
                 amount,
-            }),
+            },
             Event::SetMonthlyExpectedReturn {
                 name,
                 date,
                 asset_id,
                 rate,
                 ..
-            } => Some(AppliedAssetEventProjection {
+            } => AppliedAssetEventProjection {
                 name,
                 date: *date,
                 asset_id,
                 kind: AppliedAssetEventKind::ExpectedReturn,
                 amount: rate,
-            }),
+            },
         })
         .collect()
 }
@@ -718,22 +709,7 @@ fn resolved_contribution_settings<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<ContributionSettingProjection<'config>> {
-    let mut lineage = Vec::new();
-    let mut current = scenario;
-    loop {
-        lineage.push(current);
-        let Some(parent_id) = current.extends.as_deref() else {
-            break;
-        };
-        current = config
-            .scenarios
-            .iter()
-            .find(|candidate| candidate.id == parent_id)
-            .expect("validated scenario parents always exist");
-    }
-    lineage.reverse();
-
-    lineage
+    scenario_lineage(config, scenario)
         .into_iter()
         .flat_map(|scenario| scenario.events.iter())
         .filter_map(|event| match event {
@@ -765,21 +741,7 @@ fn resolved_return_settings<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<ResolvedReturnSetting<'config>> {
-    let mut lineage = Vec::new();
-    let mut current = scenario;
-    loop {
-        lineage.push(current);
-        let Some(parent_id) = current.extends.as_deref() else {
-            break;
-        };
-        current = config
-            .scenarios
-            .iter()
-            .find(|candidate| candidate.id == parent_id)
-            .expect("validated scenario parents always exist");
-    }
-    lineage.reverse();
-    lineage
+    scenario_lineage(config, scenario)
         .into_iter()
         .flat_map(|scenario| scenario.events.iter())
         .filter_map(|event| match event {

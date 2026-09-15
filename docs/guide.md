@@ -106,8 +106,9 @@ positive quoted decimal, and its direction is `1 from = rate to`. Rates are
 optional when all assets use the plan currency. Every asset in another currency
 needs a rate connecting it to `plan.currency`; Everarc uses a direct
 asset-currency → plan-currency rate when available, or reciprocates a reverse
-plan-currency → asset-currency rate. Duplicate `from`/`to` pairs are not
-allowed.
+plan-currency → asset-currency rate. Only one rate may connect a given
+non-plan currency to the plan currency: configuring both directions (or the
+same direction twice) is not allowed.
 
 Every scenario needs a nonblank `id` and `name`, plus an `annual_inflation`
 quoted decimal. It is an annual fraction: `"0.03"` means 3%, while `"-0.01"`

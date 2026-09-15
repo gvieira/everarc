@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    error::Error,
     fmt, fs, io,
     path::{Path, PathBuf},
     str::FromStr,
@@ -130,8 +129,6 @@ pub enum Event {
         name: String,
         date: Month,
         asset_id: String,
-        // Stored for later event application; signed values are valid.
-        #[allow(dead_code)]
         #[serde(deserialize_with = "deserialize_decimal")]
         amount: Decimal,
     },
@@ -225,6 +222,9 @@ where
         .map_err(|_| de::Error::custom("rate must be a decimal string"))
 }
 
+#[cfg(test)]
+mod tests;
+
 fn deserialize_decimal<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
 where
     D: Deserializer<'de>,
@@ -311,87 +311,92 @@ impl<'de> Deserialize<'de> for Month {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
+    #[error("failed to read configuration file `{}`: {source}", path.display())]
     Read {
         path: PathBuf,
+        #[source]
         source: io::Error,
     },
+    #[error("failed to parse configuration file `{}`: {}", path.display(), source.message())]
     Parse {
         path: PathBuf,
+        #[source]
         source: toml::de::Error,
     },
-    InvalidPlanRange {
-        start: Month,
-        end: Month,
-    },
-    InvalidConversionRate {
-        from: Currency,
-        to: Currency,
-    },
+    #[error("plan end month {end} is before start month {start}")]
+    InvalidPlanRange { start: Month, end: Month },
+    #[error("conversion rate `{from}` → `{to}` must be greater than zero")]
+    InvalidConversionRate { from: Currency, to: Currency },
+    #[error(
+        "conversion rate `{from}` → `{to}` must have exactly one endpoint matching plan currency `{plan_currency}`"
+    )]
     InvalidConversionRateCurrencies {
         from: Currency,
         to: Currency,
         plan_currency: Currency,
     },
-    DuplicateConversionRate {
-        from: Currency,
-        to: Currency,
-    },
+    #[error("multiple conversion rates connect `{from}` and `{to}`")]
+    DuplicateConversionRate { from: Currency, to: Currency },
+    #[error(
+        "asset `{asset_id}` in scenario `{scenario_id}` uses `{currency}`, but no conversion rate connects it to plan currency `{plan_currency}`"
+    )]
     MissingAssetConversionRate {
         scenario_id: String,
         asset_id: String,
         currency: Currency,
         plan_currency: Currency,
     },
+    #[error("configuration must define at least one scenario")]
     NoScenarios,
+    #[error("scenario id must not be blank")]
     BlankScenarioId,
-    BlankScenarioName {
-        id: String,
-    },
-    DuplicateScenarioId {
-        id: String,
-    },
-    UnknownScenarioParent {
-        id: String,
-        parent_id: String,
-    },
-    ScenarioSelfExtension {
-        id: String,
-    },
-    ScenarioExtensionCycle {
-        id: String,
-    },
-    NoScenarioAssets {
-        scenario_id: String,
-    },
-    BlankAssetId {
-        scenario_id: String,
-    },
+    #[error("scenario `{id}` name must not be blank")]
+    BlankScenarioName { id: String },
+    #[error("duplicate scenario id `{id}`")]
+    DuplicateScenarioId { id: String },
+    #[error("scenario `{id}` extends unknown scenario `{parent_id}`")]
+    UnknownScenarioParent { id: String, parent_id: String },
+    #[error("scenario `{id}` cannot extend itself")]
+    ScenarioSelfExtension { id: String },
+    #[error("scenario extension cycle includes `{id}`")]
+    ScenarioExtensionCycle { id: String },
+    #[error("scenario `{scenario_id}` must define at least one asset")]
+    NoScenarioAssets { scenario_id: String },
+    #[error("scenario `{scenario_id}` has an asset with a blank id")]
+    BlankAssetId { scenario_id: String },
+    #[error("asset `{asset_id}` in scenario `{scenario_id}` has a blank name")]
     BlankAssetName {
         scenario_id: String,
         asset_id: String,
     },
+    #[error("duplicate asset id `{asset_id}` in scenario `{scenario_id}`")]
     DuplicateAssetId {
         scenario_id: String,
         asset_id: String,
     },
+    #[error("asset `{asset_id}` in scenario `{scenario_id}` has a negative `{field}`")]
     NegativeAssetValue {
         scenario_id: String,
         asset_id: String,
         field: &'static str,
     },
-    BlankEventId {
-        scenario_id: String,
-    },
+    #[error("scenario `{scenario_id}` has an event with a blank id")]
+    BlankEventId { scenario_id: String },
+    #[error("event `{event_id}` in scenario `{scenario_id}` has a blank name")]
     BlankEventName {
         scenario_id: String,
         event_id: String,
     },
+    #[error("duplicate event id `{event_id}` in scenario `{scenario_id}`")]
     DuplicateEventId {
         scenario_id: String,
         event_id: String,
     },
+    #[error(
+        "event `{event_id}` in scenario `{scenario_id}` is dated {date}, outside the plan range {start} through {end}"
+    )]
     EventOutsidePlan {
         scenario_id: String,
         event_id: String,
@@ -399,328 +404,59 @@ pub enum ConfigError {
         start: Month,
         end: Month,
     },
+    #[error("event `{event_id}` in scenario `{scenario_id}` targets unknown asset `{asset_id}`")]
     UnknownEventAsset {
         scenario_id: String,
         event_id: String,
         asset_id: String,
     },
+    #[error("event `{event_id}` in scenario `{scenario_id}` has a negative `{field}`")]
     NegativeEventValue {
         scenario_id: String,
         event_id: String,
         field: &'static str,
     },
+    #[error("configuration has a total-balance milestone with a blank id")]
     BlankTotalBalanceMilestoneId,
-    BlankTotalBalanceMilestoneName {
-        id: String,
-    },
-    DuplicateTotalBalanceMilestoneId {
-        id: String,
-    },
-    NonpositiveTotalBalanceMilestoneTarget {
-        id: String,
-    },
+    #[error("total-balance milestone `{id}` has a blank name")]
+    BlankTotalBalanceMilestoneName { id: String },
+    #[error("duplicate total-balance milestone id `{id}`")]
+    DuplicateTotalBalanceMilestoneId { id: String },
+    #[error("total-balance milestone `{id}` must have a positive target")]
+    NonpositiveTotalBalanceMilestoneTarget { id: String },
+    #[error("configuration has a future living cost with a blank id")]
     BlankFutureLivingCostId,
-    BlankFutureLivingCostName {
-        id: String,
-    },
-    DuplicateFutureLivingCostId {
-        id: String,
-    },
-    NonpositiveFutureLivingCost {
-        id: String,
-    },
-    BlankMilestoneId {
-        scenario_id: String,
-    },
+    #[error("future living cost `{id}` has a blank name")]
+    BlankFutureLivingCostName { id: String },
+    #[error("duplicate future living cost id `{id}`")]
+    DuplicateFutureLivingCostId { id: String },
+    #[error("future living cost `{id}` must have a positive monthly cost")]
+    NonpositiveFutureLivingCost { id: String },
+    #[error("scenario `{scenario_id}` has a milestone with a blank id")]
+    BlankMilestoneId { scenario_id: String },
+    #[error("milestone `{milestone_id}` in scenario `{scenario_id}` has a blank name")]
     BlankMilestoneName {
         scenario_id: String,
         milestone_id: String,
     },
+    #[error("duplicate milestone id `{milestone_id}` in scenario `{scenario_id}`")]
     DuplicateMilestoneId {
         scenario_id: String,
         milestone_id: String,
     },
+    #[error("milestone `{milestone_id}` in scenario `{scenario_id}` must have a positive target")]
     NonpositiveMilestoneTarget {
         scenario_id: String,
         milestone_id: String,
     },
+    #[error(
+        "milestone `{milestone_id}` in scenario `{scenario_id}` targets unknown asset `{asset_id}`"
+    )]
     UnknownMilestoneAsset {
         scenario_id: String,
         milestone_id: String,
         asset_id: String,
     },
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Read { path, source } => {
-                write!(
-                    formatter,
-                    "failed to read configuration file `{}`: {source}",
-                    path.display()
-                )
-            }
-            Self::Parse { path, source } => {
-                write!(
-                    formatter,
-                    "failed to parse configuration file `{}`: {}",
-                    path.display(),
-                    source.message()
-                )
-            }
-            Self::InvalidPlanRange { start, end } => {
-                write!(
-                    formatter,
-                    "plan end month {end} is before start month {start}"
-                )
-            }
-            Self::InvalidConversionRate { from, to } => {
-                write!(
-                    formatter,
-                    "conversion rate `{from}` → `{to}` must be greater than zero"
-                )
-            }
-            Self::InvalidConversionRateCurrencies {
-                from,
-                to,
-                plan_currency,
-            } => {
-                write!(
-                    formatter,
-                    "conversion rate `{from}` → `{to}` must have exactly one endpoint matching plan currency `{plan_currency}`"
-                )
-            }
-            Self::DuplicateConversionRate { from, to } => {
-                write!(formatter, "duplicate conversion rate `{from}` → `{to}`")
-            }
-            Self::MissingAssetConversionRate {
-                scenario_id,
-                asset_id,
-                currency,
-                plan_currency,
-            } => write!(
-                formatter,
-                "asset `{asset_id}` in scenario `{scenario_id}` uses `{currency}`, but no conversion rate connects it to plan currency `{plan_currency}`"
-            ),
-            Self::NoScenarios => {
-                write!(formatter, "configuration must define at least one scenario")
-            }
-            Self::BlankScenarioId => write!(formatter, "scenario id must not be blank"),
-            Self::BlankScenarioName { id } => {
-                write!(formatter, "scenario `{id}` name must not be blank")
-            }
-            Self::DuplicateScenarioId { id } => {
-                write!(formatter, "duplicate scenario id `{id}`")
-            }
-            Self::UnknownScenarioParent { id, parent_id } => {
-                write!(
-                    formatter,
-                    "scenario `{id}` extends unknown scenario `{parent_id}`"
-                )
-            }
-            Self::ScenarioSelfExtension { id } => {
-                write!(formatter, "scenario `{id}` cannot extend itself")
-            }
-            Self::ScenarioExtensionCycle { id } => {
-                write!(formatter, "scenario extension cycle includes `{id}`")
-            }
-            Self::NoScenarioAssets { scenario_id } => {
-                write!(
-                    formatter,
-                    "scenario `{scenario_id}` must define at least one asset"
-                )
-            }
-            Self::BlankAssetId { scenario_id } => {
-                write!(
-                    formatter,
-                    "scenario `{scenario_id}` has an asset with a blank id"
-                )
-            }
-            Self::BlankAssetName {
-                scenario_id,
-                asset_id,
-            } => write!(
-                formatter,
-                "asset `{asset_id}` in scenario `{scenario_id}` has a blank name"
-            ),
-            Self::DuplicateAssetId {
-                scenario_id,
-                asset_id,
-            } => write!(
-                formatter,
-                "duplicate asset id `{asset_id}` in scenario `{scenario_id}`"
-            ),
-            Self::NegativeAssetValue {
-                scenario_id,
-                asset_id,
-                field,
-            } => write!(
-                formatter,
-                "asset `{asset_id}` in scenario `{scenario_id}` has a negative `{field}`"
-            ),
-            Self::BlankEventId { scenario_id } => {
-                write!(
-                    formatter,
-                    "scenario `{scenario_id}` has an event with a blank id"
-                )
-            }
-            Self::BlankEventName {
-                scenario_id,
-                event_id,
-            } => write!(
-                formatter,
-                "event `{event_id}` in scenario `{scenario_id}` has a blank name"
-            ),
-            Self::DuplicateEventId {
-                scenario_id,
-                event_id,
-            } => write!(
-                formatter,
-                "duplicate event id `{event_id}` in scenario `{scenario_id}`"
-            ),
-            Self::EventOutsidePlan {
-                scenario_id,
-                event_id,
-                date,
-                start,
-                end,
-            } => write!(
-                formatter,
-                "event `{event_id}` in scenario `{scenario_id}` is dated {date}, outside the plan range {start} through {end}"
-            ),
-            Self::UnknownEventAsset {
-                scenario_id,
-                event_id,
-                asset_id,
-            } => write!(
-                formatter,
-                "event `{event_id}` in scenario `{scenario_id}` targets unknown asset `{asset_id}`"
-            ),
-            Self::NegativeEventValue {
-                scenario_id,
-                event_id,
-                field,
-            } => write!(
-                formatter,
-                "event `{event_id}` in scenario `{scenario_id}` has a negative `{field}`"
-            ),
-            Self::BlankTotalBalanceMilestoneId => {
-                write!(
-                    formatter,
-                    "configuration has a total-balance milestone with a blank id"
-                )
-            }
-            Self::BlankTotalBalanceMilestoneName { id } => {
-                write!(formatter, "total-balance milestone `{id}` has a blank name")
-            }
-            Self::DuplicateTotalBalanceMilestoneId { id } => {
-                write!(formatter, "duplicate total-balance milestone id `{id}`")
-            }
-            Self::NonpositiveTotalBalanceMilestoneTarget { id } => {
-                write!(
-                    formatter,
-                    "total-balance milestone `{id}` must have a positive target"
-                )
-            }
-            Self::BlankFutureLivingCostId => {
-                write!(
-                    formatter,
-                    "configuration has a future living cost with a blank id"
-                )
-            }
-            Self::BlankFutureLivingCostName { id } => {
-                write!(formatter, "future living cost `{id}` has a blank name")
-            }
-            Self::DuplicateFutureLivingCostId { id } => {
-                write!(formatter, "duplicate future living cost id `{id}`")
-            }
-            Self::NonpositiveFutureLivingCost { id } => {
-                write!(
-                    formatter,
-                    "future living cost `{id}` must have a positive monthly cost"
-                )
-            }
-            Self::BlankMilestoneId { scenario_id } => write!(
-                formatter,
-                "scenario `{scenario_id}` has a milestone with a blank id"
-            ),
-            Self::BlankMilestoneName {
-                scenario_id,
-                milestone_id,
-            } => write!(
-                formatter,
-                "milestone `{milestone_id}` in scenario `{scenario_id}` has a blank name"
-            ),
-            Self::DuplicateMilestoneId {
-                scenario_id,
-                milestone_id,
-            } => write!(
-                formatter,
-                "duplicate milestone id `{milestone_id}` in scenario `{scenario_id}`"
-            ),
-            Self::NonpositiveMilestoneTarget {
-                scenario_id,
-                milestone_id,
-            } => write!(
-                formatter,
-                "milestone `{milestone_id}` in scenario `{scenario_id}` must have a positive target"
-            ),
-            Self::UnknownMilestoneAsset {
-                scenario_id,
-                milestone_id,
-                asset_id,
-            } => write!(
-                formatter,
-                "milestone `{milestone_id}` in scenario `{scenario_id}` targets unknown asset `{asset_id}`"
-            ),
-        }
-    }
-}
-
-impl Error for ConfigError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::Read { source, .. } => Some(source),
-            Self::Parse { source, .. } => Some(source),
-            Self::InvalidPlanRange { .. }
-            | Self::InvalidConversionRate { .. }
-            | Self::InvalidConversionRateCurrencies { .. }
-            | Self::DuplicateConversionRate { .. }
-            | Self::MissingAssetConversionRate { .. }
-            | Self::NoScenarios
-            | Self::BlankScenarioId
-            | Self::BlankScenarioName { .. }
-            | Self::DuplicateScenarioId { .. }
-            | Self::UnknownScenarioParent { .. }
-            | Self::ScenarioSelfExtension { .. }
-            | Self::ScenarioExtensionCycle { .. }
-            | Self::NoScenarioAssets { .. }
-            | Self::BlankAssetId { .. }
-            | Self::BlankAssetName { .. }
-            | Self::DuplicateAssetId { .. }
-            | Self::NegativeAssetValue { .. }
-            | Self::BlankEventId { .. }
-            | Self::BlankEventName { .. }
-            | Self::DuplicateEventId { .. }
-            | Self::EventOutsidePlan { .. }
-            | Self::UnknownEventAsset { .. }
-            | Self::NegativeEventValue { .. }
-            | Self::BlankTotalBalanceMilestoneId
-            | Self::BlankTotalBalanceMilestoneName { .. }
-            | Self::DuplicateTotalBalanceMilestoneId { .. }
-            | Self::NonpositiveTotalBalanceMilestoneTarget { .. }
-            | Self::BlankFutureLivingCostId
-            | Self::BlankFutureLivingCostName { .. }
-            | Self::DuplicateFutureLivingCostId { .. }
-            | Self::NonpositiveFutureLivingCost { .. }
-            | Self::BlankMilestoneId { .. }
-            | Self::BlankMilestoneName { .. }
-            | Self::DuplicateMilestoneId { .. }
-            | Self::NonpositiveMilestoneTarget { .. }
-            | Self::UnknownMilestoneAsset { .. } => None,
-        }
-    }
 }
 
 impl Config {
@@ -769,7 +505,12 @@ impl Config {
                 });
             }
 
-            if !seen.insert((&conversion_rate.from, &conversion_rate.to)) {
+            let non_plan_currency = if conversion_rate.from == self.plan.currency {
+                &conversion_rate.to
+            } else {
+                &conversion_rate.from
+            };
+            if !seen.insert(non_plan_currency) {
                 return Err(ConfigError::DuplicateConversionRate {
                     from: conversion_rate.from.clone(),
                     to: conversion_rate.to.clone(),

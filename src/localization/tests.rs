@@ -181,7 +181,7 @@ fn formats_compact_localized_chart_axis_labels() {
 #[test]
 fn rounds_chart_scales_to_nice_intervals() {
     assert_eq!(
-        nice_chart_scale(Decimal::new(2_071_858_51, 2)),
+        nice_chart_scale(Decimal::new(207_185_851, 2)),
         ChartScale {
             maximum: Decimal::new(2_500_000, 0),
             step: Decimal::new(500_000, 0),

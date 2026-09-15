@@ -207,6 +207,7 @@ impl<'projection> DashboardPresentation<'projection> {
             .filter(|maximum| *maximum > Decimal::ZERO)
             .unwrap_or(Decimal::ONE);
         let chart_scale = nice_chart_scale(chart_maximum);
+        let text = DashboardText::for_locale(locale);
         let chart = DashboardChartPresentation {
             y_ticks: chart_y_ticks(chart_scale, locale),
             x_grid: projection
@@ -235,7 +236,6 @@ impl<'projection> DashboardPresentation<'projection> {
 
         Self {
             locale: locale.html_language(),
-            text: DashboardText::for_locale(locale),
             plan: DashboardPlanPresentation {
                 currency: projection.plan.currency(),
                 start: projection.plan.start(),
@@ -325,6 +325,7 @@ impl<'projection> DashboardPresentation<'projection> {
                         chart_scale.maximum,
                         locale,
                         projection.plan.currency(),
+                        &text,
                     ),
                     future_living_costs: DashboardFutureLivingCostsPresentation {
                         costs: scenario
@@ -354,6 +355,7 @@ impl<'projection> DashboardPresentation<'projection> {
                         .collect(),
                 })
                 .collect(),
+            text,
         }
     }
 }
@@ -575,6 +577,7 @@ fn chart_months<'projection>(
     maximum: Decimal,
     locale: Locale,
     plan_currency: &'projection Currency,
+    text: &DashboardText,
 ) -> Vec<DashboardChartMonthPresentation<'projection>> {
     let last_index = scenario.total_net_worth.len().saturating_sub(1);
     scenario
@@ -631,7 +634,7 @@ fn chart_months<'projection>(
                                     AppliedAssetEventKind::ContributionSetting => format!(
                                         "{}{}",
                                         format_number(*event.amount, locale),
-                                        DashboardText::for_locale(locale).per_month
+                                        text.per_month
                                     ),
                                     AppliedAssetEventKind::ExpectedReturn => {
                                         format_percentage(*event.amount, locale)
