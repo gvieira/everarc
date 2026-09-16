@@ -199,6 +199,8 @@ pub struct FutureLivingCost {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_decimal")]
+    pub annual_inflation: Option<Decimal>,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub monthly_cost: Decimal,
 }
@@ -256,6 +258,18 @@ where
 {
     let value = String::deserialize(deserializer)?;
     Decimal::from_str(&value).map_err(|_| de::Error::custom("value must be a decimal string"))
+}
+
+fn deserialize_optional_decimal<'de, D>(deserializer: D) -> Result<Option<Decimal>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)?
+        .map(|value| {
+            Decimal::from_str(&value)
+                .map_err(|_| de::Error::custom("value must be a decimal string"))
+        })
+        .transpose()
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -471,6 +485,8 @@ pub enum ConfigError {
     DuplicateFutureLivingCostId { id: String },
     #[error("future living cost `{id}` must have a positive monthly cost")]
     NonpositiveFutureLivingCost { id: String },
+    #[error("future living cost `{id}` annual inflation must be greater than -1")]
+    InvalidFutureLivingCostInflation { id: String },
     #[error("scenario `{scenario_id}` has a milestone with a blank id")]
     BlankMilestoneId { scenario_id: String },
     #[error("milestone `{milestone_id}` in scenario `{scenario_id}` has a blank name")]
@@ -623,6 +639,14 @@ impl Config {
             }
             if cost.monthly_cost <= Decimal::ZERO {
                 return Err(ConfigError::NonpositiveFutureLivingCost {
+                    id: cost.id.clone(),
+                });
+            }
+            if cost
+                .annual_inflation
+                .is_some_and(|inflation| inflation <= -Decimal::ONE)
+            {
+                return Err(ConfigError::InvalidFutureLivingCostInflation {
                     id: cost.id.clone(),
                 });
             }

@@ -35,7 +35,7 @@ pub struct DashboardText {
     pub previous_outcome: &'static str,
     pub next_outcome: &'static str,
     pub future_living_costs: &'static str,
-    pub inflation_of: &'static str,
+    pub inflation_adjusted: &'static str,
     pub monthly_total: &'static str,
     pub end_of_plan_nominal_money: &'static str,
     pub no_future_living_costs: &'static str,
@@ -183,8 +183,9 @@ pub struct DashboardFutureLivingCostsPresentation<'projection> {
 pub struct DashboardFutureLivingCostPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
-    pub description: Option<&'projection str>,
-    pub share: String,
+    pub tooltip: Option<String>,
+    pub nominal_share: String,
+    pub today_money_share: String,
     pub nominal_monthly_cost: String,
     pub today_money_monthly_cost: String,
 }
@@ -356,8 +357,27 @@ impl<'projection> DashboardPresentation<'projection> {
                             .map(|cost| DashboardFutureLivingCostPresentation {
                                 id: cost.id(),
                                 name: cost.name(),
-                                description: cost.description(),
-                                share: format_rounded_percentage(
+                                tooltip: Some(match cost.description() {
+                                    Some(description) => format!(
+                                        "{description}\n{}: {}",
+                                        text.annual_inflation,
+                                        format_percentage(cost.annual_inflation, locale),
+                                    ),
+                                    None => format!(
+                                        "{}: {}",
+                                        text.annual_inflation,
+                                        format_percentage(cost.annual_inflation, locale),
+                                    ),
+                                }),
+                                nominal_share: format_rounded_percentage(
+                                    cost.nominal_monthly_cost.plan_amount()
+                                        / scenario
+                                            .future_living_costs
+                                            .nominal_monthly_total
+                                            .plan_amount(),
+                                    locale,
+                                ),
+                                today_money_share: format_rounded_percentage(
                                     cost.today_money_monthly_cost()
                                         / scenario
                                             .future_living_costs
@@ -439,7 +459,7 @@ impl DashboardText {
                 previous_outcome: "Previous outcome",
                 next_outcome: "Next outcome",
                 future_living_costs: "Future living costs",
-                inflation_of: "Inflation of",
+                inflation_adjusted: "Inflation-adjusted",
                 monthly_total: "Monthly total",
                 end_of_plan_nominal_money: "End-of-plan nominal money",
                 no_future_living_costs: "No future living costs configured.",
@@ -471,7 +491,7 @@ impl DashboardText {
                 previous_outcome: "Resultado anterior",
                 next_outcome: "Próximo resultado",
                 future_living_costs: "Custos futuros de vida",
-                inflation_of: "Inflação de",
+                inflation_adjusted: "Ajustado pela inflação",
                 monthly_total: "Total mensal",
                 end_of_plan_nominal_money: "Valores nominais ao fim do plano",
                 no_future_living_costs: "Nenhum custo futuro de vida configurado.",

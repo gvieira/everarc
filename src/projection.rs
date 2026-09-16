@@ -204,6 +204,7 @@ pub struct FutureLivingCostsProjection<'config> {
 #[derive(Debug)]
 pub struct FutureLivingCostProjection<'config> {
     cost: &'config FutureLivingCost,
+    pub annual_inflation: Decimal,
     pub nominal_monthly_cost: PlanMoney<'config>,
 }
 
@@ -230,10 +231,11 @@ impl Serialize for FutureLivingCostProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("FutureLivingCostProjection", 4)?;
+        let mut state = serializer.serialize_struct("FutureLivingCostProjection", 5)?;
         state.serialize_field("id", &self.cost.id)?;
         state.serialize_field("name", &self.cost.name)?;
         state.serialize_field("description", &self.cost.description)?;
+        state.serialize_field("annual_inflation", &self.annual_inflation.to_string())?;
         state.serialize_field("nominal_monthly_cost", &self.nominal_monthly_cost)?;
         state.end()
     }
@@ -397,16 +399,21 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                 .iter()
                 .zip(projected_asset_sets)
                 .map(|(scenario, assets)| {
-                    let inflation_factor =
-                        (Decimal::ONE + scenario.annual_inflation).powd(inflation_years);
                     let costs = config
                         .future_living_costs
                         .iter()
-                        .map(|cost| FutureLivingCostProjection {
-                            cost,
-                            nominal_monthly_cost: PlanMoney::calculated_in_plan_currency(
-                                cost.monthly_cost * inflation_factor,
-                            ),
+                        .map(|cost| {
+                            let annual_inflation =
+                                cost.annual_inflation.unwrap_or(scenario.annual_inflation);
+                            let inflation_factor =
+                                (Decimal::ONE + annual_inflation).powd(inflation_years);
+                            FutureLivingCostProjection {
+                                cost,
+                                annual_inflation,
+                                nominal_monthly_cost: PlanMoney::calculated_in_plan_currency(
+                                    cost.monthly_cost * inflation_factor,
+                                ),
+                            }
                         })
                         .collect::<Vec<_>>();
                     let nominal_monthly_total = PlanMoney::calculated_in_plan_currency(

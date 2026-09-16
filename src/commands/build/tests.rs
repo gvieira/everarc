@@ -21,17 +21,19 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
     assert!(html.contains("<span>Renda passiva</span><strong>"));
     assert!(html.contains("Inflação anual: 3,00%"));
-    assert!(html.contains("Inflação de 3,00%"));
+    assert!(html.contains("Ajustado pela inflação"));
     assert!(html.contains("type=\"checkbox\" checked data-living-cost-inflation-toggle"));
     assert!(html.contains(
-        "class=\"cost-description-trigger\" tabindex=\"0\">Moradia<span class=\"cost-description-tooltip\" role=\"tooltip\">Aluguel, condomínio e manutenção.</span>"
-    ));
-    assert!(html.contains("2.500,00</span> <small>42%</small>"));
-    assert!(html.contains(
-        "data-living-cost-value=\"adjusted\">4.515,28</span><span data-living-cost-value=\"today-money\" hidden>2.500,00"
+        "class=\"cost-description-trigger\" tabindex=\"0\">Moradia<span class=\"cost-description-tooltip\" role=\"tooltip\">Aluguel, condomínio e manutenção.\nInflação anual: 6,00%</span>"
     ));
     assert!(html.contains(
-        "data-living-cost-value=\"adjusted\">10.836,67</span><span data-living-cost-value=\"today-money\" hidden>6.000,00"
+        "data-living-cost-view=\"adjusted\">56%</span><span data-living-cost-view=\"today-money\" hidden>42%"
+    ));
+    assert!(html.contains(
+        "data-living-cost-view=\"adjusted\">8.017,84</span><span data-living-cost-view=\"today-money\" hidden>2.500,00"
+    ));
+    assert!(html.contains(
+        "data-living-cost-view=\"adjusted\">14.339,23</span><span data-living-cost-view=\"today-money\" hidden>6.000,00"
     ));
     assert!(html.contains("class=\"asset-target-line asset-line-0\""));
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));

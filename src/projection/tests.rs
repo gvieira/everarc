@@ -148,6 +148,23 @@ monthly_contribution = { amount = "0", currency = "USD" }
             .plan_amount(),
         Decimal::new(110, 0)
     );
+
+    let overridden_config = config(
+        &source
+            .replace("end = \"2026-01\"", "end = \"2026-12\"")
+            .replace(
+                "monthly_cost = \"100\"",
+                "annual_inflation = \"0.2\"\nmonthly_cost = \"100\"",
+            ),
+    );
+    let overridden_projection = PlanProjection::from(&overridden_config);
+    assert_eq!(
+        overridden_projection.scenarios[0]
+            .future_living_costs
+            .nominal_monthly_total
+            .plan_amount(),
+        Decimal::new(120, 0)
+    );
 }
 
 #[test]

@@ -201,12 +201,13 @@ locale = "en-US"
 [plan]
 currency = "USD"
 start = "2026-01"
-end = "2026-01"
+end = "2026-12"
 
 [[future_living_costs]]
 id = "housing"
 name = "Housing"
 description = "Rent and maintenance."
+annual_inflation = "0.1"
 monthly_cost = "2500"
 
 [[future_living_costs]]
@@ -234,10 +235,16 @@ monthly_contribution = { amount = "0", currency = "USD" }
     assert_eq!(dashboard.scenarios[0].description, Some("Long-term plan."));
     let costs = &dashboard.scenarios[0].future_living_costs.costs;
 
-    assert_eq!(costs[0].description, Some("Rent and maintenance."));
-    assert_eq!(costs[0].share, "83%");
-    assert_eq!(costs[1].description, None);
-    assert_eq!(costs[1].share, "17%");
+    assert_eq!(
+        costs[0].tooltip.as_deref(),
+        Some("Rent and maintenance.\nAnnual inflation: 10.00%")
+    );
+    assert_eq!(costs[0].nominal_monthly_cost, "2,750.00");
+    assert_eq!(costs[0].nominal_share, "85%");
+    assert_eq!(costs[0].today_money_share, "83%");
+    assert_eq!(costs[1].tooltip.as_deref(), Some("Annual inflation: 0.00%"));
+    assert_eq!(costs[1].nominal_share, "15%");
+    assert_eq!(costs[1].today_money_share, "17%");
 }
 
 #[test]

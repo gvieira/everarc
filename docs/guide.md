@@ -46,6 +46,8 @@ id = "health"
 name = "Health insurance"
 # Optional long-form detail shown when hovering over the dashboard row.
 description = "Private coverage and routine out-of-pocket care."
+# Optional effective annual override; otherwise the scenario's rate applies.
+annual_inflation = "0.04"
 monthly_cost = "1200.00"
 
 # Every config has one or more scenarios.
@@ -170,11 +172,15 @@ strictly positive quoted decimals.
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.
 It is not a record of current spending. Each cost has a nonblank, unique `id`,
 a nonblank `name`, an optional `description`, and a strictly positive quoted
-`monthly_cost`. The dashboard shows descriptions as hover tooltips and each
-cost's share of the monthly total. Projections convert these reference values
-to end-of-plan nominal money using each scenario's annual inflation. The
-dashboard shows these adjusted end-of-plan nominal values by default; its
-inflation switch can show the configured today-money values for comparison.
+`monthly_cost`. An optional effective annual `annual_inflation` overrides the
+scenario's rate for that cost and must be greater than `"-1"`; when omitted,
+the scenario rate applies. The dashboard shows descriptions and each cost's
+resolved annual rate in hover tooltips, plus each cost's share of the current
+monthly-total view. Projections convert
+these reference values to end-of-plan nominal money using each cost's resolved
+annual inflation. The dashboard shows these adjusted end-of-plan nominal values
+by default; its inflation switch can show the configured today-money values for
+comparison.
 
 ## Commands
 

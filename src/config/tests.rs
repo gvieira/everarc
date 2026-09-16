@@ -158,6 +158,46 @@ monthly_contribution = { amount = "100", currency = "BRL" }
 }
 
 #[test]
+fn rejects_living_cost_inflation_of_negative_one_or_less() {
+    let config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[future_living_costs]]
+id = "housing"
+name = "Housing"
+annual_inflation = "-1"
+monthly_cost = "100"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+initial_value = "0"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+"#,
+    )
+    .expect("configuration parses");
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InvalidFutureLivingCostInflation { .. })
+    ));
+}
+
+#[test]
 fn rejects_annual_inflation_of_negative_one_or_less() {
     let config: Config = toml::from_str(
         r#"
