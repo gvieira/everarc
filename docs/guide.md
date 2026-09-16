@@ -52,6 +52,8 @@ monthly_cost = "1200.00"
 [[scenarios]]
 id = "baseline"
 name = "Baseline"
+# Optional detail shown in the scenario selector and plan summary.
+description = "Expected returns and contributions under current assumptions."
 # Optional: marks the scenario you intend to follow.
 selected = true
 # Annual decimal fraction: 0.03 means 3%; negative values represent deflation.
@@ -120,7 +122,9 @@ non-plan currency to the plan currency: configuring both directions (or the
 same direction twice) is not allowed.
 
 Every scenario needs a nonblank `id` and `name`, plus an `annual_inflation`
-quoted decimal greater than `"-1"`. It is an annual fraction: `"0.03"` means
+quoted decimal greater than `"-1"`. An optional `description` appears in the
+dashboard's scenario selector and plan summary. Inflation is an annual fraction:
+`"0.03"` means
 3%, while `"-0.01"` means 1% annual deflation. Everarc uses this rate to
 convert future living costs from plan-start purchasing power to end-of-plan
 nominal money, applying it across every inclusive plan month. Scenario IDs

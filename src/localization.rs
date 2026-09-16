@@ -105,6 +105,7 @@ pub struct DashboardChartMilestone<'projection> {
 pub struct DashboardScenarioPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
+    pub description: Option<&'projection str>,
     pub selected: bool,
     pub is_default: bool,
     pub annual_inflation: String,
@@ -280,6 +281,7 @@ impl<'projection> DashboardPresentation<'projection> {
                 .map(|scenario| DashboardScenarioPresentation {
                     id: scenario.id(),
                     name: scenario.name(),
+                    description: scenario.description(),
                     selected: scenario.is_selected(),
                     is_default: Some(scenario.id()) == default_scenario_id,
                     annual_inflation: format_percentage(scenario.annual_inflation(), locale),

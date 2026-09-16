@@ -11,7 +11,7 @@
       data-scenario-tab
       data-scenario-id="{{ scenario.id }}"
       data-scenario-default="{{ scenario.is_default | lower }}"
-    >{{ scenario.name }}{% if scenario.selected %} <span class="scenario-selection-mark" aria-label="{{ text.selected }}">★</span>{% endif %}</button>
+    >{{ scenario.name }}{% if scenario.selected %} <span class="scenario-selection-mark" aria-label="{{ text.selected }}">★</span>{% endif %}{% if scenario.description %}<span class="scenario-description-tooltip" role="tooltip">{{ scenario.description }}</span>{% endif %}</button>
     {% endfor %}
   </div>
 </section>
@@ -25,6 +25,7 @@
   <p class="passive-income">{{ scenario.end_of_plan_passive_income }}</p>
   <p class="passive-income-label">{{ text.end_of_plan_passive_income }}</p>
   <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}</p>
+  {% if scenario.description %}<p class="scenario-description">{{ scenario.description }}</p>{% endif %}
   <div class="conversion-rates">
     <span tabindex="0">{{ text.conversion_rates }}</span>
     <div class="conversion-rates-popover">

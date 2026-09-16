@@ -217,6 +217,7 @@ monthly_cost = "500"
 [[scenarios]]
 id = "base"
 name = "Base"
+description = "Long-term plan."
 annual_inflation = "0"
 
 [[scenarios.assets]]
@@ -229,9 +230,9 @@ monthly_contribution = { amount = "0", currency = "USD" }
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let costs = &DashboardPresentation::new(&projection, config.display.locale).scenarios[0]
-        .future_living_costs
-        .costs;
+    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    assert_eq!(dashboard.scenarios[0].description, Some("Long-term plan."));
+    let costs = &dashboard.scenarios[0].future_living_costs.costs;
 
     assert_eq!(costs[0].description, Some("Rent and maintenance."));
     assert_eq!(costs[0].share, "83%");

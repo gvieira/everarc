@@ -75,6 +75,10 @@ impl<'config> ScenarioProjection<'config> {
         &self.scenario.name
     }
 
+    pub fn description(&self) -> Option<&'config str> {
+        self.scenario.description.as_deref()
+    }
+
     pub fn is_selected(&self) -> bool {
         self.scenario.selected
     }
@@ -89,9 +93,10 @@ impl Serialize for ScenarioProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ScenarioProjection", 10)?;
+        let mut state = serializer.serialize_struct("ScenarioProjection", 11)?;
         state.serialize_field("id", &self.scenario.id)?;
         state.serialize_field("name", &self.scenario.name)?;
+        state.serialize_field("description", &self.scenario.description)?;
         state.serialize_field("selected", &self.scenario.selected)?;
         state.serialize_field("assets", &self.assets)?;
         state.serialize_field("total_net_worth", &self.total_net_worth)?;

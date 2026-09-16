@@ -36,6 +36,12 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("class=\"asset-target-line asset-line-0\""));
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));
     assert!(html.contains("data-scenario-default=\"true\""));
+    assert!(html.contains(
+        "Base <span class=\"scenario-selection-mark\" aria-label=\"Selecionado\">★</span><span class=\"scenario-description-tooltip\" role=\"tooltip\">Projeção com retornos, inflação e aportes esperados.</span>"
+    ));
+    assert!(html.contains(
+        "<p class=\"scenario-description\">Projeção com retornos, inflação e aportes esperados.</p>"
+    ));
     assert!(html.contains("scenario-selection-mark\" aria-label=\"Selecionado\">★</span>"));
     assert!(html.contains("<p class=\"passive-income\">12.429,01</p>"));
     assert!(html.contains("<p class=\"passive-income\">14.578,81</p>"));

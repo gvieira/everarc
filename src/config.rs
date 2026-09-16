@@ -97,6 +97,7 @@ pub struct ConversionRate {
 pub struct Scenario {
     pub id: String,
     pub name: String,
+    pub description: Option<String>,
     #[serde(default)]
     pub selected: bool,
     #[serde(deserialize_with = "deserialize_decimal")]
