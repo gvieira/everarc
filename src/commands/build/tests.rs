@@ -17,7 +17,7 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(!html.contains("<title>Everarc ·"));
     assert!(html.contains("<title>Everarc</title>"));
     assert!(html.contains("↗ 7,00%"));
-    assert!(html.contains("+ 3.000,00&#x2f;mês"));
+    assert!(html.contains("+ 3.000,00 USD&#x2f;mês"));
     assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
     assert!(html.contains("<span>Renda passiva</span><strong>"));
     assert!(html.contains("Inflação anual: 3,00%"));
@@ -38,7 +38,9 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("<div class=\"conversion-rates\">"));
     assert!(html.contains("1 BTC = 85.000,00 USD"));
     assert!(html.contains("<span>Car purchase</span><strong>-25.000,00</strong>"));
-    assert!(html.contains("<span>Increase contribution</span><strong>3.000,00&#x2f;mês</strong>"));
+    assert!(
+        html.contains("<span>Increase contribution</span><strong>3.000,00 USD&#x2f;mês</strong>")
+    );
 
     for value in html
         .split("<span class=\"chart-inspector-native\">")

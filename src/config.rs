@@ -6,7 +6,7 @@ use std::{
 };
 
 use rust_decimal::Decimal;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser::SerializeStruct};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -109,6 +109,26 @@ pub struct Scenario {
     pub milestones: Vec<AssetMilestone>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MonthlyContribution {
+    #[serde(deserialize_with = "deserialize_decimal")]
+    pub amount: Decimal,
+    pub currency: Currency,
+}
+
+impl Serialize for MonthlyContribution {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("MonthlyContribution", 2)?;
+        state.serialize_field("amount", &self.amount.to_string())?;
+        state.serialize_field("currency", &self.currency)?;
+        state.end()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Asset {
@@ -120,8 +140,7 @@ pub struct Asset {
     pub initial_value: Decimal,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub annual_expected_return: Decimal,
-    #[serde(deserialize_with = "deserialize_decimal")]
-    pub monthly_contribution: Decimal,
+    pub monthly_contribution: MonthlyContribution,
 }
 
 #[derive(Debug, Deserialize)]
@@ -142,6 +161,7 @@ pub enum Event {
         asset_id: String,
         #[serde(deserialize_with = "deserialize_decimal")]
         amount: Decimal,
+        currency: Currency,
     },
     SetAnnualExpectedReturn {
         id: String,
@@ -388,6 +408,16 @@ pub enum ConfigError {
         scenario_id: String,
         asset_id: String,
         field: &'static str,
+    },
+    #[error(
+        "contribution currency `{contribution_currency}` for asset `{asset_id}` in scenario `{scenario_id}` must be the asset currency `{asset_currency}` or plan currency `{plan_currency}"
+    )]
+    InvalidContributionCurrency {
+        scenario_id: String,
+        asset_id: String,
+        contribution_currency: Currency,
+        asset_currency: Currency,
+        plan_currency: Currency,
     },
     #[error("scenario `{scenario_id}` has an event with a blank id")]
     BlankEventId { scenario_id: String },
@@ -715,7 +745,10 @@ impl Config {
             for (field, value) in [
                 ("initial_value", asset.initial_value),
                 ("annual_expected_return", asset.annual_expected_return),
-                ("monthly_contribution", asset.monthly_contribution),
+                (
+                    "monthly_contribution.amount",
+                    asset.monthly_contribution.amount,
+                ),
             ] {
                 if value < Decimal::ZERO {
                     return Err(ConfigError::NegativeAssetValue {
@@ -725,6 +758,12 @@ impl Config {
                     });
                 }
             }
+            self.validate_contribution_currency(
+                scenario,
+                &asset.id,
+                &asset.currency,
+                &asset.monthly_contribution.currency,
+            )?;
         }
 
         Ok(())
@@ -785,6 +824,12 @@ impl Config {
                     field,
                 });
             }
+            if let Event::SetMonthlyContribution { currency, .. } = event {
+                let asset = self
+                    .scenario_asset(scenario, asset_id, scenario_by_id)
+                    .expect("validated event asset exists");
+                self.validate_contribution_currency(scenario, asset_id, &asset.currency, currency)?;
+            }
         }
 
         Ok(())
@@ -831,6 +876,44 @@ impl Config {
         }
 
         Ok(())
+    }
+
+    fn validate_contribution_currency(
+        &self,
+        scenario: &Scenario,
+        asset_id: &str,
+        asset_currency: &Currency,
+        contribution_currency: &Currency,
+    ) -> Result<(), ConfigError> {
+        if contribution_currency == asset_currency || contribution_currency == &self.plan.currency {
+            Ok(())
+        } else {
+            Err(ConfigError::InvalidContributionCurrency {
+                scenario_id: scenario.id.clone(),
+                asset_id: asset_id.to_owned(),
+                contribution_currency: contribution_currency.clone(),
+                asset_currency: asset_currency.clone(),
+                plan_currency: self.plan.currency.clone(),
+            })
+        }
+    }
+
+    fn scenario_asset<'a>(
+        &'a self,
+        scenario: &'a Scenario,
+        asset_id: &str,
+        scenario_by_id: &HashMap<&str, &'a Scenario>,
+    ) -> Option<&'a Asset> {
+        let mut current = scenario;
+
+        loop {
+            if let Some(asset) = current.assets.iter().find(|asset| asset.id == asset_id) {
+                return Some(asset);
+            }
+
+            let parent_id = current.extends.as_deref()?;
+            current = scenario_by_id.get(parent_id)?;
+        }
     }
 
     fn scenario_has_asset(

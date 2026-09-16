@@ -63,7 +63,7 @@ currency = "USD"
 initial_value = "25000.00"
 # Effective annual decimal fraction: 0.06 means a 6% expected annual return.
 annual_expected_return = "0.06"
-monthly_contribution = "1000.00"
+monthly_contribution = { amount = "1000.00", currency = "USD" }
 
 # Optional events apply in their declaration order.
 [[scenarios.events]]
@@ -95,7 +95,7 @@ name = "Brokerage"
 currency = "USD"
 initial_value = "25000.00"
 annual_expected_return = "0.06"
-monthly_contribution = "1000.00"
+monthly_contribution = { amount = "1000.00", currency = "USD" }
 ```
 
 `[display]` is required. `locale` controls generated-dashboard text and number
@@ -130,18 +130,23 @@ is not copied or merged while the config loads.
 Every scenario also needs one or more `[[scenarios.assets]]` tables. Asset IDs
 and names must be nonblank; IDs are unique within their scenario. `currency`
 is a required opaque identifier, so it may be `USD`, `BTC`, or another
-consistently used currency. The three financial fields are nonnegative quoted
-decimals. `annual_expected_return` is an effective annual fraction: `"0.5"`
-means 50% per year, while `"0.06"` means 6%. Everarc compounds it monthly so
-twelve projected months produce the configured annual return. Assets outside
-`plan.currency` require a usable conversion rate.
+consistently used currency. `initial_value` is a nonnegative quoted decimal.
+`annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
+per year, while `"0.06"` means 6%. Everarc compounds it monthly so twelve
+projected months produce the configured annual return. `monthly_contribution`
+is an object with a nonnegative quoted-decimal `amount` and a `currency` equal
+to either the asset currency or `plan.currency`. Plan-currency contributions
+are converted to the asset currency using the static configured rate before
+being added to the balance. Assets outside `plan.currency` require a usable
+conversion rate.
 
 Events are optional and are processed in TOML declaration order. Every event
 has a nonblank ID unique within its scenario, a nonblank human-facing name, a
 `YYYY-MM` date within the plan range, and an `asset_id`. The asset may be local to the scenario or inherited
 from a parent scenario. `asset_adjustment` uses a signed `amount` in the
 asset's currency. `set_monthly_contribution` uses a nonnegative `amount` and
-takes effect for that month's contribution and every following month; where
+a required `currency` equal to either the asset currency or `plan.currency`;
+it takes effect for that month's contribution and every following month. Where
 multiple settings take effect in the same month, the last declaration wins.
 `set_annual_expected_return` uses a nonnegative effective annual
 decimal-fraction `rate` and takes effect for that month's return and every

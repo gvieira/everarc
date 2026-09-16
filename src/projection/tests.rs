@@ -31,7 +31,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 "#,
     );
 
@@ -77,7 +77,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0.1"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 "#,
     );
 
@@ -126,7 +126,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "0"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 "#;
 
     let one_month_config = config(source);
@@ -178,7 +178,7 @@ name = "Bitcoin"
 currency = "BTC"
 initial_value = "0.25"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios.events]]
 id = "bitcoin-deposit"
@@ -223,7 +223,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "0"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios.events]]
 id = "deposit"
@@ -268,7 +268,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.events]]
 id = "deposit"
@@ -310,7 +310,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.events]]
 id = "january-deposit"
@@ -350,6 +350,7 @@ name = "Ignored contribution change"
 type = "set_monthly_contribution"
 date = "2026-03"
 asset_id = "cash"
+currency = "USD"
 amount = "100"
 
 [[scenarios.events]]
@@ -398,7 +399,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.events]]
 id = "first-january-setting"
@@ -406,6 +407,7 @@ name = "First January setting"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "cash"
+currency = "USD"
 amount = "20"
 
 [[scenarios.events]]
@@ -414,6 +416,7 @@ name = "Second January setting"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "cash"
+currency = "USD"
 amount = "30"
 
 [[scenarios.events]]
@@ -435,7 +438,7 @@ amount = "5"
     assert!(
         balances
             .iter()
-            .all(|balance| balance.monthly_contribution == Decimal::new(30, 0))
+            .all(|balance| balance.monthly_contribution.amount == Decimal::new(30, 0))
     );
 }
 
@@ -463,7 +466,7 @@ name = "Child brokerage"
 currency = "USD"
 initial_value = "200"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.events]]
 id = "child-return"
@@ -479,6 +482,7 @@ name = "Child contribution"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "brokerage"
+currency = "USD"
 amount = "30"
 
 [[scenarios]]
@@ -492,7 +496,7 @@ name = "Parent brokerage"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.events]]
 id = "parent-return"
@@ -508,6 +512,7 @@ name = "Parent contribution"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "brokerage"
+currency = "USD"
 amount = "20"
 
 [[scenarios.events]]
@@ -530,7 +535,9 @@ amount = "50"
             + Decimal::new(80, 0)
     );
     assert_eq!(
-        child.assets[0].monthly_balances[0].monthly_contribution,
+        child.assets[0].monthly_balances[0]
+            .monthly_contribution
+            .amount,
         Decimal::new(30, 0)
     );
     assert_eq!(
@@ -564,7 +571,7 @@ name = "Child brokerage"
 currency = "USD"
 initial_value = "200"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.assets]]
 id = "savings"
@@ -572,7 +579,7 @@ name = "Savings"
 currency = "USD"
 initial_value = "50"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios]]
 id = "parent"
@@ -585,7 +592,7 @@ name = "Parent brokerage"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.assets]]
 id = "bitcoin"
@@ -593,7 +600,7 @@ name = "Bitcoin"
 currency = "USD"
 initial_value = "5"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 "#,
     );
 
@@ -628,6 +635,60 @@ monthly_contribution = "0"
 }
 
 #[test]
+fn converts_plan_currency_contributions_and_applies_currency_settings_immediately() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-02"
+
+[[conversion_rates]]
+from = "BTC"
+to = "USD"
+rate = "10000"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "bitcoin"
+name = "Bitcoin"
+currency = "BTC"
+initial_value = "0"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0.1", currency = "BTC" }
+
+[[scenarios.events]]
+id = "switch-contribution-currency"
+name = "Switch contribution currency"
+type = "set_monthly_contribution"
+date = "2026-02"
+asset_id = "bitcoin"
+currency = "USD"
+amount = "100"
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    let balances = &projection.scenarios[0].assets[0].monthly_balances;
+
+    assert_eq!(balances[0].native_balance, Decimal::new(1, 1));
+    assert_eq!(balances[0].monthly_contribution.currency.to_string(), "BTC");
+    assert_eq!(balances[1].native_balance, Decimal::new(11, 2));
+    assert_eq!(
+        balances[1].monthly_contribution.amount,
+        Decimal::new(100, 0)
+    );
+    assert_eq!(balances[1].monthly_contribution.currency.to_string(), "USD");
+}
+
+#[test]
 fn accumulates_parent_and_child_adjustments_on_an_inherited_asset() {
     let config = config(
         r#"
@@ -650,7 +711,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios.events]]
 id = "parent-adjustment"
@@ -672,7 +733,7 @@ name = "Middle marker"
 currency = "USD"
 initial_value = "0"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios.events]]
 id = "middle-adjustment"
@@ -694,7 +755,7 @@ name = "Child marker"
 currency = "USD"
 initial_value = "0"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios.events]]
 id = "child-adjustment"

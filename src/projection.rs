@@ -2,8 +2,8 @@ use rust_decimal::{Decimal, MathematicalOps};
 use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 use crate::config::{
-    Asset, AssetMilestone, Config, ConversionRate, Currency, Event, FutureLivingCost, Month, Plan,
-    Scenario, TotalBalanceMilestone,
+    Asset, AssetMilestone, Config, ConversionRate, Currency, Event, FutureLivingCost, Month,
+    MonthlyContribution, Plan, Scenario, TotalBalanceMilestone,
 };
 
 #[derive(Debug, Serialize)]
@@ -142,7 +142,7 @@ impl Serialize for AssetProjection<'_> {
 pub struct AssetMonthProjection {
     pub month: Month,
     pub annual_expected_return: Decimal,
-    pub monthly_contribution: Decimal,
+    pub monthly_contribution: MonthlyContribution,
     pub native_balance: Decimal,
     pub plan_balance: Decimal,
     pub native_passive_income: Decimal,
@@ -160,10 +160,7 @@ impl Serialize for AssetMonthProjection {
             "annual_expected_return",
             &self.annual_expected_return.to_string(),
         )?;
-        state.serialize_field(
-            "monthly_contribution",
-            &self.monthly_contribution.to_string(),
-        )?;
+        state.serialize_field("monthly_contribution", &self.monthly_contribution)?;
         state.serialize_field("native_balance", &self.native_balance.to_string())?;
         state.serialize_field("plan_balance", &self.plan_balance.to_string())?;
         state.serialize_field(
@@ -628,6 +625,7 @@ pub struct AppliedAssetEventProjection<'config> {
     pub asset_id: &'config str,
     pub kind: AppliedAssetEventKind,
     pub amount: &'config Decimal,
+    pub currency: Option<&'config Currency>,
 }
 
 impl Serialize for AppliedAssetEventProjection<'_> {
@@ -635,12 +633,13 @@ impl Serialize for AppliedAssetEventProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("AppliedAssetEventProjection", 5)?;
+        let mut state = serializer.serialize_struct("AppliedAssetEventProjection", 6)?;
         state.serialize_field("name", self.name)?;
         state.serialize_field("date", &self.date)?;
         state.serialize_field("asset_id", self.asset_id)?;
         state.serialize_field("kind", &self.kind)?;
         state.serialize_field("amount", &self.amount.to_string())?;
+        state.serialize_field("currency", &self.currency)?;
         state.end()
     }
 }
@@ -665,12 +664,14 @@ fn resolved_asset_events<'config>(
                 asset_id,
                 kind: AppliedAssetEventKind::Adjustment,
                 amount,
+                currency: None,
             },
             Event::SetMonthlyContribution {
                 name,
                 date,
                 asset_id,
                 amount,
+                currency,
                 ..
             } => AppliedAssetEventProjection {
                 name,
@@ -678,6 +679,7 @@ fn resolved_asset_events<'config>(
                 asset_id,
                 kind: AppliedAssetEventKind::ContributionSetting,
                 amount,
+                currency: Some(currency),
             },
             Event::SetAnnualExpectedReturn {
                 name,
@@ -691,6 +693,7 @@ fn resolved_asset_events<'config>(
                 asset_id,
                 kind: AppliedAssetEventKind::ExpectedReturn,
                 amount: rate,
+                currency: None,
             },
         })
         .collect()
@@ -702,6 +705,7 @@ pub struct ContributionSettingProjection<'config> {
     pub date: Month,
     pub asset_id: &'config str,
     pub amount: &'config Decimal,
+    pub currency: &'config Currency,
 }
 
 impl Serialize for ContributionSettingProjection<'_> {
@@ -709,11 +713,12 @@ impl Serialize for ContributionSettingProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ContributionSettingProjection", 4)?;
+        let mut state = serializer.serialize_struct("ContributionSettingProjection", 5)?;
         state.serialize_field("name", self.name)?;
         state.serialize_field("date", &self.date)?;
         state.serialize_field("asset_id", self.asset_id)?;
         state.serialize_field("amount", &self.amount.to_string())?;
+        state.serialize_field("currency", self.currency)?;
         state.end()
     }
 }
@@ -731,12 +736,14 @@ fn resolved_contribution_settings<'config>(
                 date,
                 asset_id,
                 amount,
+                currency,
                 ..
             } => Some(ContributionSettingProjection {
                 name,
                 date: *date,
                 asset_id,
                 amount,
+                currency,
             }),
             Event::AssetAdjustment { .. } | Event::SetAnnualExpectedReturn { .. } => None,
         })
@@ -790,7 +797,7 @@ fn project_asset<'config>(
     let mut month = config.plan.start;
     let mut native_balance = asset.initial_value;
     let mut annual_expected_return = asset.annual_expected_return;
-    let mut monthly_contribution = asset.monthly_contribution;
+    let mut monthly_contribution = asset.monthly_contribution.clone();
     let month_count = config.plan.inclusive_month_count();
     let monthly_balances = (0..month_count)
         .map(|index| {
@@ -806,7 +813,10 @@ fn project_asset<'config>(
                 .rev()
                 .find(|setting| setting.date == month && setting.asset_id == asset.id)
             {
-                monthly_contribution = *setting.amount;
+                monthly_contribution = MonthlyContribution {
+                    amount: *setting.amount,
+                    currency: setting.currency.clone(),
+                };
             }
             let adjustment_total = adjustments
                 .iter()
@@ -816,13 +826,18 @@ fn project_asset<'config>(
             let monthly_expected_return = monthly_rate(annual_expected_return);
             let native_passive_income = native_balance * monthly_expected_return;
             let plan_passive_income = native_passive_income * conversion_rate;
+            let native_monthly_contribution = if monthly_contribution.currency == asset.currency {
+                monthly_contribution.amount
+            } else {
+                monthly_contribution.amount / conversion_rate
+            };
             native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
-                + monthly_contribution
+                + native_monthly_contribution
                 + adjustment_total;
             let projection = AssetMonthProjection {
                 month,
                 annual_expected_return,
-                monthly_contribution,
+                monthly_contribution: monthly_contribution.clone(),
                 native_balance,
                 plan_balance: native_balance * conversion_rate,
                 native_passive_income,

@@ -37,7 +37,7 @@ name = "Cash"
 currency = "USD"
 initial_value = "100"
 annual_expected_return = "0"
-monthly_contribution = "10"
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.milestones]]
 id = "cash-goal"
@@ -101,7 +101,7 @@ name = "Bitcoin"
 currency = "BTC"
 initial_value = "0.25"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 
 [[scenarios.events]]
 id = "start-contribution"
@@ -109,6 +109,7 @@ name = "Start contribution"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "bitcoin"
+currency = "BTC"
 amount = "0.2"
 
 [[scenarios.events]]
@@ -139,6 +140,7 @@ amount = "-0.1"
     assert_eq!(asset.native_balance, "0.36");
     assert_eq!(asset.annual_expected_return, "50.00%");
     assert_eq!(asset.monthly_contribution, "0.20");
+    assert_eq!(asset.monthly_contribution_currency.to_string(), "BTC");
     assert_eq!(asset.passive_income, "85.92");
     assert_eq!(asset.y, "112.27");
     assert_eq!(asset.color_index, 0);
@@ -149,7 +151,7 @@ amount = "-0.1"
     );
     assert_eq!(asset.events.len(), 3);
     assert_eq!(asset.events[0].name, "Start contribution");
-    assert_eq!(asset.events[0].value, "0.20/month");
+    assert_eq!(asset.events[0].value, "0.20 BTC/month");
     assert_eq!(asset.events[1].name, "Ignored return");
     assert_eq!(asset.events[1].value, "50.00%");
     assert_eq!(asset.events[2].name, "Rebalance");
@@ -212,7 +214,7 @@ name = "Cash"
 currency = "BRL"
 initial_value = "0"
 annual_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "BRL" }
 "#,
     );
     let projection = PlanProjection::from(&config);

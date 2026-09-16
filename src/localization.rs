@@ -155,6 +155,7 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub native_balance: String,
     pub annual_expected_return: String,
     pub monthly_contribution: String,
+    pub monthly_contribution_currency: &'projection Currency,
     pub passive_income: String,
     pub is_plan_currency: bool,
     pub y: String,
@@ -645,7 +646,11 @@ fn chart_months<'projection>(
                             balance.annual_expected_return,
                             locale,
                         ),
-                        monthly_contribution: format_number(balance.monthly_contribution, locale),
+                        monthly_contribution: format_number(
+                            balance.monthly_contribution.amount,
+                            locale,
+                        ),
+                        monthly_contribution_currency: &balance.monthly_contribution.currency,
                         passive_income: format_number(balance.plan_passive_income, locale),
                         is_plan_currency: asset.currency() == plan_currency,
                         y: chart_y(balance.plan_balance, maximum),
@@ -665,8 +670,11 @@ fn chart_months<'projection>(
                                         format_signed_number(*event.amount, locale)
                                     }
                                     AppliedAssetEventKind::ContributionSetting => format!(
-                                        "{}{}",
+                                        "{} {}{}",
                                         format_number(*event.amount, locale),
+                                        event
+                                            .currency
+                                            .expect("contribution events have a currency"),
                                         text.per_month
                                     ),
                                     AppliedAssetEventKind::ExpectedReturn => {

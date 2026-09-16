@@ -111,11 +111,50 @@ currency = "USD"
 initial_value = "0"
 annual_expected_return = "0"
 monthly_expected_return = "0"
-monthly_contribution = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
 "#
         )
         .is_err()
     );
+}
+
+#[test]
+fn rejects_contributions_in_unrelated_currencies() {
+    let config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[conversion_rates]]
+from = "BTC"
+to = "USD"
+rate = "10000"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "bitcoin"
+name = "Bitcoin"
+currency = "BTC"
+initial_value = "0"
+annual_expected_return = "0"
+monthly_contribution = { amount = "100", currency = "BRL" }
+"#,
+    )
+    .expect("configuration parses");
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InvalidContributionCurrency { .. })
+    ));
 }
 
 #[test]
