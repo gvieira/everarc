@@ -182,6 +182,8 @@ pub struct DashboardFutureLivingCostsPresentation<'projection> {
 pub struct DashboardFutureLivingCostPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
+    pub description: Option<&'projection str>,
+    pub share: String,
     pub nominal_monthly_cost: String,
     pub today_money_monthly_cost: String,
 }
@@ -352,6 +354,17 @@ impl<'projection> DashboardPresentation<'projection> {
                             .map(|cost| DashboardFutureLivingCostPresentation {
                                 id: cost.id(),
                                 name: cost.name(),
+                                description: cost.description(),
+                                share: format_rounded_percentage(
+                                    cost.today_money_monthly_cost()
+                                        / scenario
+                                            .future_living_costs
+                                            .costs
+                                            .iter()
+                                            .map(|cost| cost.today_money_monthly_cost())
+                                            .sum::<Decimal>(),
+                                    locale,
+                                ),
                                 nominal_monthly_cost: format_plan_money(
                                     &cost.nominal_monthly_cost,
                                     locale,
@@ -809,6 +822,10 @@ fn format_percentage(rate: Decimal, locale: Locale) -> String {
     format!("{}%", format_decimal(rate * Decimal::from(100), 2, locale))
 }
 
+fn format_rounded_percentage(rate: Decimal, locale: Locale) -> String {
+    format!("{}%", format_decimal(rate * Decimal::from(100), 0, locale))
+}
+
 fn format_number(amount: Decimal, locale: Locale) -> String {
     format_decimal(amount, 2, locale)
 }
@@ -824,9 +841,7 @@ fn format_decimal(amount: Decimal, decimal_places: usize, locale: Locale) -> Str
     let (sign, absolute) = formatted
         .strip_prefix('-')
         .map_or(("", formatted.as_str()), |absolute| ("-", absolute));
-    let (whole, fraction) = absolute
-        .split_once('.')
-        .expect("a Decimal formatted with decimal places always has a decimal point");
+    let (whole, fraction) = absolute.split_once('.').unwrap_or((absolute, ""));
     let (group_separator, decimal_separator) = match locale {
         Locale::EnUs => (',', '.'),
         Locale::PtBr => ('.', ','),
@@ -846,5 +861,9 @@ fn format_decimal(amount: Decimal, decimal_places: usize, locale: Locale) -> Str
         .rev()
         .collect::<String>();
 
-    format!("{sign}{grouped_whole}{decimal_separator}{fraction}")
+    if decimal_places == 0 {
+        format!("{sign}{grouped_whole}")
+    } else {
+        format!("{sign}{grouped_whole}{decimal_separator}{fraction}")
+    }
 }

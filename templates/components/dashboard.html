@@ -71,7 +71,7 @@
     </label>
     <div class="cost-list">
       {% for cost in scenario.future_living_costs.costs %}
-      <div class="cost-row"><span>{{ cost.name }}</span><strong><span data-living-cost-value="adjusted">{{ cost.nominal_monthly_cost }}</span><span data-living-cost-value="today-money" hidden>{{ cost.today_money_monthly_cost }}</span></strong></div>
+      <div class="cost-row"><span{% if cost.description %} class="cost-description-trigger" tabindex="0"{% endif %}>{{ cost.name }}{% if cost.description %}<span class="cost-description-tooltip" role="tooltip">{{ cost.description }}</span>{% endif %}</span><strong><span data-living-cost-value="adjusted">{{ cost.nominal_monthly_cost }}</span><span data-living-cost-value="today-money" hidden>{{ cost.today_money_monthly_cost }}</span> <small>{{ cost.share }}</small></strong></div>
       {% endfor %}
     </div>
     <div class="cost-total"><span>{{ dashboard.text.monthly_total }}</span><strong><span data-living-cost-value="adjusted">{{ scenario.future_living_costs.nominal_monthly_total }}</span><span data-living-cost-value="today-money" hidden>{{ scenario.future_living_costs.today_money_monthly_total }}</span></strong></div>

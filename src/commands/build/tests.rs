@@ -24,6 +24,10 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("Inflação de 3,00%"));
     assert!(html.contains("type=\"checkbox\" checked data-living-cost-inflation-toggle"));
     assert!(html.contains(
+        "class=\"cost-description-trigger\" tabindex=\"0\">Moradia<span class=\"cost-description-tooltip\" role=\"tooltip\">Aluguel, condomínio e manutenção.</span>"
+    ));
+    assert!(html.contains("2.500,00</span> <small>42%</small>"));
+    assert!(html.contains(
         "data-living-cost-value=\"adjusted\">4.515,28</span><span data-living-cost-value=\"today-money\" hidden>2.500,00"
     ));
     assert!(html.contains(

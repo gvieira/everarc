@@ -192,6 +192,54 @@ fn rounds_chart_scales_to_nice_intervals() {
 }
 
 #[test]
+fn presents_living_cost_descriptions_and_shares() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[future_living_costs]]
+id = "housing"
+name = "Housing"
+description = "Rent and maintenance."
+monthly_cost = "2500"
+
+[[future_living_costs]]
+id = "food"
+name = "Food"
+monthly_cost = "500"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+initial_value = "0"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+"#,
+    );
+    let projection = PlanProjection::from(&config);
+    let costs = &DashboardPresentation::new(&projection, config.display.locale).scenarios[0]
+        .future_living_costs
+        .costs;
+
+    assert_eq!(costs[0].description, Some("Rent and maintenance."));
+    assert_eq!(costs[0].share, "83%");
+    assert_eq!(costs[1].description, None);
+    assert_eq!(costs[1].share, "17%");
+}
+
+#[test]
 fn localizes_plan_duration() {
     let config = config(
         r#"

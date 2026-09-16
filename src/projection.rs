@@ -211,6 +211,10 @@ impl<'config> FutureLivingCostProjection<'config> {
         &self.cost.name
     }
 
+    pub fn description(&self) -> Option<&'config str> {
+        self.cost.description.as_deref()
+    }
+
     pub fn today_money_monthly_cost(&self) -> Decimal {
         self.cost.monthly_cost
     }
@@ -221,9 +225,10 @@ impl Serialize for FutureLivingCostProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("FutureLivingCostProjection", 3)?;
+        let mut state = serializer.serialize_struct("FutureLivingCostProjection", 4)?;
         state.serialize_field("id", &self.cost.id)?;
         state.serialize_field("name", &self.cost.name)?;
+        state.serialize_field("description", &self.cost.description)?;
         state.serialize_field("nominal_monthly_cost", &self.nominal_monthly_cost)?;
         state.end()
     }

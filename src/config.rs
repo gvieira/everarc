@@ -197,6 +197,7 @@ pub struct AssetMilestone {
 pub struct FutureLivingCost {
     pub id: String,
     pub name: String,
+    pub description: Option<String>,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub monthly_cost: Decimal,
 }

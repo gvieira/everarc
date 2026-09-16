@@ -59,6 +59,11 @@
       .cost-row, .cost-total { display: flex; justify-content: space-between; gap: 1rem; font: .73rem/1.35 "Space Mono", monospace; }
       .cost-row { color: var(--muted); }
       .cost-row strong, .cost-total strong { color: var(--ink); white-space: nowrap; }
+      .cost-row small { color: var(--muted); font: inherit; }
+      .cost-description-trigger { position: relative; cursor: help; text-decoration: underline dotted; text-underline-offset: .2em; }
+      .cost-description-trigger:focus-visible { outline: 2px solid var(--lavender); outline-offset: 3px; }
+      .cost-description-tooltip { position: absolute; z-index: 2; bottom: calc(100% + .45rem); left: 0; width: max-content; max-width: 18rem; padding: .5rem .6rem; color: var(--ink); background: var(--card); border: 1px solid var(--ink); border-radius: .25rem; box-shadow: 2px 2px 0 rgba(30, 30, 30, .16); font: 500 .68rem/1.45 "Space Mono", monospace; opacity: 0; pointer-events: none; transform: translateY(.2rem); visibility: hidden; transition: opacity .12s ease, transform .12s ease, visibility .12s; white-space: normal; }
+      .cost-description-trigger:hover .cost-description-tooltip, .cost-description-trigger:focus-visible .cost-description-tooltip { opacity: 1; transform: translateY(0); visibility: visible; }
       .cost-total { padding: .65rem .5rem; border-top: 1px dashed var(--line); color: var(--ink); background: var(--outcome-wash); font-size: .82rem; }
       .outcome-target { display: inline-block; margin: .8rem 0 1.1rem; padding: 0 .35rem; color: var(--ink); background: var(--outcome-wash); font: 700 clamp(1.8rem, 3vw, 2.5rem)/1 "Bricolage Grotesque", serif; letter-spacing: -.05em; }
       .outcome-note { margin: 0; color: var(--muted); font: .65rem/1.4 "Space Mono", monospace; }

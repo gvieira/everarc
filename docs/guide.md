@@ -44,6 +44,8 @@ target = "1000000.00"
 [[future_living_costs]]
 id = "health"
 name = "Health insurance"
+# Optional long-form detail shown when hovering over the dashboard row.
+description = "Private coverage and routine out-of-pocket care."
 monthly_cost = "1200.00"
 
 # Every config has one or more scenarios.
@@ -163,11 +165,12 @@ strictly positive quoted decimals.
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.
 It is not a record of current spending. Each cost has a nonblank, unique `id`,
-a nonblank `name`, and a strictly positive quoted `monthly_cost`. Dashboard
-projections convert these reference values to end-of-plan nominal money using
-each scenario's annual inflation. The dashboard shows these adjusted end-of-plan
-nominal values by default; its inflation switch can show the configured
-today-money values for comparison.
+a nonblank `name`, an optional `description`, and a strictly positive quoted
+`monthly_cost`. The dashboard shows descriptions as hover tooltips and each
+cost's share of the monthly total. Projections convert these reference values
+to end-of-plan nominal money using each scenario's annual inflation. The
+dashboard shows these adjusted end-of-plan nominal values by default; its
+inflation switch can show the configured today-money values for comparison.
 
 ## Commands
 
