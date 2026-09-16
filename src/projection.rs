@@ -141,7 +141,7 @@ impl Serialize for AssetProjection<'_> {
 #[derive(Clone, Debug)]
 pub struct AssetMonthProjection {
     pub month: Month,
-    pub monthly_expected_return: Decimal,
+    pub annual_expected_return: Decimal,
     pub monthly_contribution: Decimal,
     pub native_balance: Decimal,
     pub plan_balance: Decimal,
@@ -157,8 +157,8 @@ impl Serialize for AssetMonthProjection {
         let mut state = serializer.serialize_struct("AssetMonthProjection", 7)?;
         state.serialize_field("month", &self.month)?;
         state.serialize_field(
-            "monthly_expected_return",
-            &self.monthly_expected_return.to_string(),
+            "annual_expected_return",
+            &self.annual_expected_return.to_string(),
         )?;
         state.serialize_field(
             "monthly_contribution",
@@ -608,7 +608,7 @@ fn resolved_asset_adjustments<'config>(
                 asset_id,
                 amount,
             }),
-            Event::SetMonthlyContribution { .. } | Event::SetMonthlyExpectedReturn { .. } => None,
+            Event::SetMonthlyContribution { .. } | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
 }
@@ -679,7 +679,7 @@ fn resolved_asset_events<'config>(
                 kind: AppliedAssetEventKind::ContributionSetting,
                 amount,
             },
-            Event::SetMonthlyExpectedReturn {
+            Event::SetAnnualExpectedReturn {
                 name,
                 date,
                 asset_id,
@@ -738,7 +738,7 @@ fn resolved_contribution_settings<'config>(
                 asset_id,
                 amount,
             }),
-            Event::AssetAdjustment { .. } | Event::SetMonthlyExpectedReturn { .. } => None,
+            Event::AssetAdjustment { .. } | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
 }
@@ -758,7 +758,7 @@ fn resolved_return_settings<'config>(
         .into_iter()
         .flat_map(|scenario| scenario.events.iter())
         .filter_map(|event| match event {
-            Event::SetMonthlyExpectedReturn {
+            Event::SetAnnualExpectedReturn {
                 date,
                 asset_id,
                 rate,
@@ -773,6 +773,10 @@ fn resolved_return_settings<'config>(
         .collect()
 }
 
+fn monthly_rate(annual_rate: Decimal) -> Decimal {
+    (Decimal::ONE + annual_rate).powd(Decimal::ONE / Decimal::from(12)) - Decimal::ONE
+}
+
 fn project_asset<'config>(
     config: &'config Config,
     asset: &'config Asset,
@@ -785,7 +789,7 @@ fn project_asset<'config>(
         .expect("validated asset currencies have a conversion rate");
     let mut month = config.plan.start;
     let mut native_balance = asset.initial_value;
-    let mut monthly_expected_return = asset.monthly_expected_return;
+    let mut annual_expected_return = asset.annual_expected_return;
     let mut monthly_contribution = asset.monthly_contribution;
     let month_count = config.plan.inclusive_month_count();
     let monthly_balances = (0..month_count)
@@ -795,7 +799,7 @@ fn project_asset<'config>(
                 .rev()
                 .find(|setting| setting.date == month && setting.asset_id == asset.id)
             {
-                monthly_expected_return = *setting.rate;
+                annual_expected_return = *setting.rate;
             }
             if let Some(setting) = contribution_settings
                 .iter()
@@ -809,6 +813,7 @@ fn project_asset<'config>(
                 .filter(|adjustment| adjustment.date == month && adjustment.asset_id == asset.id)
                 .map(|adjustment| *adjustment.amount)
                 .sum::<Decimal>();
+            let monthly_expected_return = monthly_rate(annual_expected_return);
             let native_passive_income = native_balance * monthly_expected_return;
             let plan_passive_income = native_passive_income * conversion_rate;
             native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
@@ -816,7 +821,7 @@ fn project_asset<'config>(
                 + adjustment_total;
             let projection = AssetMonthProjection {
                 month,
-                monthly_expected_return,
+                annual_expected_return,
                 monthly_contribution,
                 native_balance,
                 plan_balance: native_balance * conversion_rate,

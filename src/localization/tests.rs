@@ -36,7 +36,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.milestones]]
@@ -100,7 +100,7 @@ id = "bitcoin"
 name = "Bitcoin"
 currency = "BTC"
 initial_value = "0.25"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios.events]]
@@ -114,7 +114,7 @@ amount = "0.2"
 [[scenarios.events]]
 id = "ignored-return"
 name = "Ignored return"
-type = "set_monthly_expected_return"
+type = "set_annual_expected_return"
 date = "2026-01"
 asset_id = "bitcoin"
 rate = "0.5"
@@ -136,16 +136,16 @@ amount = "-0.1"
     assert_eq!(dashboard.plan.conversion_rates[0].to.to_string(), "USD");
     let asset = &dashboard.scenarios[0].chart_months[0].assets[0];
 
-    assert_eq!(asset.native_balance, "0.48");
-    assert_eq!(asset.monthly_expected_return, "50.00%");
+    assert_eq!(asset.native_balance, "0.36");
+    assert_eq!(asset.annual_expected_return, "50.00%");
     assert_eq!(asset.monthly_contribution, "0.20");
-    assert_eq!(asset.passive_income, "1,250.00");
-    assert_eq!(asset.y, "93.00");
+    assert_eq!(asset.passive_income, "85.92");
+    assert_eq!(asset.y, "112.27");
     assert_eq!(asset.color_index, 0);
-    assert_eq!(asset.comparable_plan_balance.as_deref(), Some("4,750.00"));
+    assert_eq!(asset.comparable_plan_balance.as_deref(), Some("3,585.92"));
     assert_eq!(
         dashboard.scenarios[0].chart_months[0].passive_income,
-        "1,250.00"
+        "85.92"
     );
     assert_eq!(asset.events.len(), 3);
     assert_eq!(asset.events[0].name, "Start contribution");
@@ -211,7 +211,7 @@ id = "cash"
 name = "Cash"
 currency = "BRL"
 initial_value = "0"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 "#,
     );
@@ -220,7 +220,7 @@ monthly_contribution = "0"
 
     assert_eq!(dashboard.plan.duration, "1 mês");
     assert_eq!(dashboard.scenarios[0].end_of_plan_passive_income, "0,00");
-    assert_eq!(dashboard.text.monthly_return, "Retorno mensal");
+    assert_eq!(dashboard.text.annual_return, "Retorno anual");
     assert_eq!(dashboard.text.monthly_contribution, "Contribuição mensal");
     assert_eq!(dashboard.text.per_month, "/mês");
 }

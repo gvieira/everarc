@@ -30,7 +30,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0.1"
+annual_expected_return = "0"
 monthly_contribution = "10"
 "#,
     );
@@ -40,17 +40,62 @@ monthly_contribution = "10"
 
     assert_eq!(balances.len(), 2);
     assert_eq!(balances[0].month.to_string(), "2026-01");
-    assert_eq!(balances[0].native_balance, Decimal::new(120, 0));
-    assert_eq!(balances[0].plan_balance, Decimal::new(120, 0));
-    assert_eq!(balances[0].native_passive_income, Decimal::new(10, 0));
-    assert_eq!(balances[0].plan_passive_income, Decimal::new(10, 0));
+    assert_eq!(balances[0].native_balance, Decimal::new(110, 0));
+    assert_eq!(balances[0].plan_balance, Decimal::new(110, 0));
+    assert_eq!(balances[0].native_passive_income, Decimal::ZERO);
+    assert_eq!(balances[0].plan_passive_income, Decimal::ZERO);
     assert_eq!(balances[1].month.to_string(), "2026-02");
-    assert_eq!(balances[1].native_balance, Decimal::new(142, 0));
-    assert_eq!(balances[1].native_passive_income, Decimal::new(12, 0));
-    assert_eq!(balances[1].plan_passive_income, Decimal::new(12, 0));
+    assert_eq!(balances[1].native_balance, Decimal::new(120, 0));
+    assert_eq!(balances[1].native_passive_income, Decimal::ZERO);
+    assert_eq!(balances[1].plan_passive_income, Decimal::ZERO);
     assert_eq!(
         projection.scenarios[0].total_net_worth[1].balance,
-        Decimal::new(142, 0)
+        Decimal::new(120, 0)
+    );
+}
+
+#[test]
+fn compounds_annual_expected_returns_over_twelve_months() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-12"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+initial_value = "100"
+annual_expected_return = "0.1"
+monthly_contribution = "0"
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    let balances = &projection.scenarios[0].assets[0].monthly_balances;
+
+    assert_eq!(
+        balances
+            .last()
+            .expect("twelve monthly balances")
+            .native_balance
+            .round_dp(20),
+        Decimal::new(110, 0)
+    );
+    assert!(
+        balances
+            .iter()
+            .all(|balance| balance.annual_expected_return == Decimal::new(1, 1))
     );
 }
 
@@ -80,7 +125,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "0"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 "#;
 
@@ -132,7 +177,7 @@ id = "bitcoin"
 name = "Bitcoin"
 currency = "BTC"
 initial_value = "0.25"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios.events]]
@@ -177,7 +222,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "0"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios.events]]
@@ -222,7 +267,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0.1"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.events]]
@@ -238,7 +283,7 @@ amount = "5"
     let projection = PlanProjection::from(&config);
     assert_eq!(
         projection.scenarios[0].assets[0].monthly_balances[0].native_balance,
-        Decimal::new(125, 0)
+        Decimal::new(115, 0)
     );
 }
 
@@ -264,7 +309,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.events]]
@@ -310,7 +355,7 @@ amount = "100"
 [[scenarios.events]]
 id = "ignored-return-change"
 name = "Ignored return change"
-type = "set_monthly_expected_return"
+type = "set_annual_expected_return"
 date = "2026-03"
 asset_id = "cash"
 rate = "0.5"
@@ -322,7 +367,12 @@ rate = "0.5"
 
     assert_eq!(balances[0].native_balance, Decimal::new(115, 0));
     assert_eq!(balances[1].native_balance, Decimal::new(105, 0));
-    assert_eq!(balances[2].native_balance, Decimal::new(2625, 1));
+    assert_eq!(balances[2].annual_expected_return, Decimal::new(5, 1));
+    assert_eq!(
+        balances[2].native_balance,
+        balances[1].native_balance * (Decimal::ONE + monthly_rate(Decimal::new(5, 1)))
+            + Decimal::new(105, 0)
+    );
 }
 
 #[test]
@@ -347,7 +397,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.events]]
@@ -412,13 +462,13 @@ id = "brokerage"
 name = "Child brokerage"
 currency = "USD"
 initial_value = "200"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.events]]
 id = "child-return"
 name = "Child return"
-type = "set_monthly_expected_return"
+type = "set_annual_expected_return"
 date = "2026-01"
 asset_id = "brokerage"
 rate = "0.2"
@@ -441,13 +491,13 @@ id = "brokerage"
 name = "Parent brokerage"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.events]]
 id = "parent-return"
 name = "Parent return"
-type = "set_monthly_expected_return"
+type = "set_annual_expected_return"
 date = "2026-01"
 asset_id = "brokerage"
 rate = "0.1"
@@ -476,7 +526,8 @@ amount = "50"
 
     assert_eq!(
         child.assets[0].monthly_balances[0].native_balance,
-        Decimal::new(320, 0)
+        Decimal::new(200, 0) * (Decimal::ONE + monthly_rate(Decimal::new(2, 1)))
+            + Decimal::new(80, 0)
     );
     assert_eq!(
         child.assets[0].monthly_balances[0].monthly_contribution,
@@ -484,7 +535,8 @@ amount = "50"
     );
     assert_eq!(
         parent.assets[0].monthly_balances[0].native_balance,
-        Decimal::new(180, 0)
+        Decimal::new(100, 0) * (Decimal::ONE + monthly_rate(Decimal::new(1, 1)))
+            + Decimal::new(70, 0)
     );
 }
 
@@ -511,7 +563,7 @@ id = "brokerage"
 name = "Child brokerage"
 currency = "USD"
 initial_value = "200"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.assets]]
@@ -519,7 +571,7 @@ id = "savings"
 name = "Savings"
 currency = "USD"
 initial_value = "50"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios]]
@@ -532,7 +584,7 @@ id = "brokerage"
 name = "Parent brokerage"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "10"
 
 [[scenarios.assets]]
@@ -540,7 +592,7 @@ id = "bitcoin"
 name = "Bitcoin"
 currency = "USD"
 initial_value = "5"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 "#,
     );
@@ -597,7 +649,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 initial_value = "100"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios.events]]
@@ -619,7 +671,7 @@ id = "middle-marker"
 name = "Middle marker"
 currency = "USD"
 initial_value = "0"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios.events]]
@@ -641,7 +693,7 @@ id = "child-marker"
 name = "Child marker"
 currency = "USD"
 initial_value = "0"
-monthly_expected_return = "0"
+annual_expected_return = "0"
 monthly_contribution = "0"
 
 [[scenarios.events]]

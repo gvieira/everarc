@@ -61,8 +61,8 @@ id = "brokerage"
 name = "Brokerage"
 currency = "USD"
 initial_value = "25000.00"
-# Decimal fraction: 0.5 means a 50% expected monthly return.
-monthly_expected_return = "0.005"
+# Effective annual decimal fraction: 0.06 means a 6% expected annual return.
+annual_expected_return = "0.06"
 monthly_contribution = "1000.00"
 
 # Optional events apply in their declaration order.
@@ -94,7 +94,7 @@ id = "brokerage"
 name = "Brokerage"
 currency = "USD"
 initial_value = "25000.00"
-monthly_expected_return = "0.005"
+annual_expected_return = "0.06"
 monthly_contribution = "1000.00"
 ```
 
@@ -131,9 +131,10 @@ Every scenario also needs one or more `[[scenarios.assets]]` tables. Asset IDs
 and names must be nonblank; IDs are unique within their scenario. `currency`
 is a required opaque identifier, so it may be `USD`, `BTC`, or another
 consistently used currency. The three financial fields are nonnegative quoted
-decimals. `monthly_expected_return` is a fraction: `"0.5"` means 50% per
-month, while `"0.005"` means 0.5%. Assets outside `plan.currency` require a
-usable conversion rate.
+decimals. `annual_expected_return` is an effective annual fraction: `"0.5"`
+means 50% per year, while `"0.06"` means 6%. Everarc compounds it monthly so
+twelve projected months produce the configured annual return. Assets outside
+`plan.currency` require a usable conversion rate.
 
 Events are optional and are processed in TOML declaration order. Every event
 has a nonblank ID unique within its scenario, a nonblank human-facing name, a
@@ -142,10 +143,10 @@ from a parent scenario. `asset_adjustment` uses a signed `amount` in the
 asset's currency. `set_monthly_contribution` uses a nonnegative `amount` and
 takes effect for that month's contribution and every following month; where
 multiple settings take effect in the same month, the last declaration wins.
-`set_monthly_expected_return` uses a nonnegative decimal-fraction `rate` and
-takes effect for that month's return and every following month; multiple
-same-month settings use the last declaration. Inflation-changing events are not
-supported yet.
+`set_annual_expected_return` uses a nonnegative effective annual
+decimal-fraction `rate` and takes effect for that month's return and every
+following month; multiple same-month settings use the last declaration.
+Inflation-changing events are not supported yet.
 
 Milestones are optional balance thresholds with no date. Root `[[milestones]]`
 are total-balance goals shared by every scenario and use `plan.currency`.
@@ -169,7 +170,6 @@ today-money values for comparison.
 
 ```sh
 everarc --version
-# everarc 0.1.0
 ```
 
 ### Check

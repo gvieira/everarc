@@ -110,6 +110,7 @@ pub struct Scenario {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Asset {
     pub id: String,
     pub name: String,
@@ -118,7 +119,7 @@ pub struct Asset {
     #[serde(deserialize_with = "deserialize_decimal")]
     pub initial_value: Decimal,
     #[serde(deserialize_with = "deserialize_decimal")]
-    pub monthly_expected_return: Decimal,
+    pub annual_expected_return: Decimal,
     #[serde(deserialize_with = "deserialize_decimal")]
     pub monthly_contribution: Decimal,
 }
@@ -142,7 +143,7 @@ pub enum Event {
         #[serde(deserialize_with = "deserialize_decimal")]
         amount: Decimal,
     },
-    SetMonthlyExpectedReturn {
+    SetAnnualExpectedReturn {
         id: String,
         name: String,
         date: Month,
@@ -185,7 +186,7 @@ impl Event {
         match self {
             Self::AssetAdjustment { id, .. }
             | Self::SetMonthlyContribution { id, .. }
-            | Self::SetMonthlyExpectedReturn { id, .. } => id,
+            | Self::SetAnnualExpectedReturn { id, .. } => id,
         }
     }
 
@@ -193,7 +194,7 @@ impl Event {
         match self {
             Self::AssetAdjustment { name, .. }
             | Self::SetMonthlyContribution { name, .. }
-            | Self::SetMonthlyExpectedReturn { name, .. } => name,
+            | Self::SetAnnualExpectedReturn { name, .. } => name,
         }
     }
 
@@ -201,7 +202,7 @@ impl Event {
         match self {
             Self::AssetAdjustment { date, .. }
             | Self::SetMonthlyContribution { date, .. }
-            | Self::SetMonthlyExpectedReturn { date, .. } => *date,
+            | Self::SetAnnualExpectedReturn { date, .. } => *date,
         }
     }
 
@@ -210,7 +211,7 @@ impl Event {
             Self::SetMonthlyContribution { amount, .. } if *amount < Decimal::ZERO => {
                 Some("amount")
             }
-            Self::SetMonthlyExpectedReturn { rate, .. } if *rate < Decimal::ZERO => Some("rate"),
+            Self::SetAnnualExpectedReturn { rate, .. } if *rate < Decimal::ZERO => Some("rate"),
             _ => None,
         }
     }
@@ -713,7 +714,7 @@ impl Config {
 
             for (field, value) in [
                 ("initial_value", asset.initial_value),
-                ("monthly_expected_return", asset.monthly_expected_return),
+                ("annual_expected_return", asset.annual_expected_return),
                 ("monthly_contribution", asset.monthly_contribution),
             ] {
                 if value < Decimal::ZERO {
@@ -768,7 +769,7 @@ impl Config {
             let asset_id = match event {
                 Event::AssetAdjustment { asset_id, .. }
                 | Event::SetMonthlyContribution { asset_id, .. }
-                | Event::SetMonthlyExpectedReturn { asset_id, .. } => asset_id,
+                | Event::SetAnnualExpectedReturn { asset_id, .. } => asset_id,
             };
             if !self.scenario_has_asset(scenario, asset_id, scenario_by_id) {
                 return Err(ConfigError::UnknownEventAsset {

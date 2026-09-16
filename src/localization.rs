@@ -51,7 +51,7 @@ pub struct DashboardText {
     pub total: &'static str,
     pub passive_income: &'static str,
     pub assets: &'static str,
-    pub monthly_return: &'static str,
+    pub annual_return: &'static str,
     pub monthly_contribution: &'static str,
     pub per_month: &'static str,
     pub total_net_worth_legend: &'static str,
@@ -153,7 +153,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
 pub struct DashboardChartAssetPresentation<'projection> {
     pub name: &'projection str,
     pub native_balance: String,
-    pub monthly_expected_return: String,
+    pub annual_expected_return: String,
     pub monthly_contribution: String,
     pub passive_income: String,
     pub is_plan_currency: bool,
@@ -439,7 +439,7 @@ impl DashboardText {
                 total: "Total",
                 passive_income: "Passive income",
                 assets: "Assets",
-                monthly_return: "Monthly return",
+                annual_return: "Annual return",
                 monthly_contribution: "Monthly contribution",
                 per_month: "/month",
                 total_net_worth_legend: "Total net worth",
@@ -471,7 +471,7 @@ impl DashboardText {
                 total: "Total",
                 passive_income: "Renda passiva",
                 assets: "Ativos",
-                monthly_return: "Retorno mensal",
+                annual_return: "Retorno anual",
                 monthly_contribution: "Contribuição mensal",
                 per_month: "/mês",
                 total_net_worth_legend: "Patrimônio líquido total",
@@ -641,8 +641,8 @@ fn chart_months<'projection>(
                     DashboardChartAssetPresentation {
                         name: asset.name(),
                         native_balance: format_number(balance.native_balance, locale),
-                        monthly_expected_return: format_percentage(
-                            balance.monthly_expected_return,
+                        annual_expected_return: format_percentage(
+                            balance.annual_expected_return,
                             locale,
                         ),
                         monthly_contribution: format_number(balance.monthly_contribution, locale),

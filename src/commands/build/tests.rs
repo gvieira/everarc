@@ -16,7 +16,7 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(!html.contains("Car purchase -25.000,00"));
     assert!(!html.contains("<title>Everarc ·"));
     assert!(html.contains("<title>Everarc</title>"));
-    assert!(html.contains("↗ 0,50%"));
+    assert!(html.contains("↗ 7,00%"));
     assert!(html.contains("+ 3.000,00&#x2f;mês"));
     assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
     assert!(html.contains("<span>Renda passiva</span><strong>"));
@@ -33,8 +33,8 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));
     assert!(html.contains("data-scenario-default=\"true\""));
     assert!(html.contains("scenario-selection-mark\" aria-label=\"Selecionado\">★</span>"));
-    assert!(html.contains("<p class=\"passive-income\">14.590,12</p>"));
-    assert!(html.contains("<p class=\"passive-income\">17.247,94</p>"));
+    assert!(html.contains("<p class=\"passive-income\">12.429,01</p>"));
+    assert!(html.contains("<p class=\"passive-income\">14.578,81</p>"));
     assert!(html.contains("<div class=\"conversion-rates\">"));
     assert!(html.contains("1 BTC = 85.000,00 USD"));
     assert!(html.contains("<span>Car purchase</span><strong>-25.000,00</strong>"));

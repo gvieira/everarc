@@ -87,6 +87,38 @@ assets = []
 }
 
 #[test]
+fn rejects_monthly_expected_return_configuration() {
+    assert!(
+        toml::from_str::<Config>(
+            r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+initial_value = "0"
+annual_expected_return = "0"
+monthly_expected_return = "0"
+monthly_contribution = "0"
+"#
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn rejects_annual_inflation_of_negative_one_or_less() {
     let config: Config = toml::from_str(
         r#"
