@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "everarc", about = "Everarc command-line interface")]
+#[command(name = "everarc", version, about = "Everarc command-line interface")]
 pub struct Cli {
     /// Path to the Everarc configuration file.
     #[arg(

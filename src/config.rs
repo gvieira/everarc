@@ -358,6 +358,8 @@ pub enum ConfigError {
     MultipleSelectedScenarios,
     #[error("scenario `{id}` name must not be blank")]
     BlankScenarioName { id: String },
+    #[error("scenario `{id}` annual inflation must be greater than -1")]
+    InvalidAnnualInflation { id: String },
     #[error("duplicate scenario id `{id}`")]
     DuplicateScenarioId { id: String },
     #[error("scenario `{id}` extends unknown scenario `{parent_id}`")]
@@ -609,6 +611,11 @@ impl Config {
             }
             if scenario.name.trim().is_empty() {
                 return Err(ConfigError::BlankScenarioName {
+                    id: scenario.id.clone(),
+                });
+            }
+            if scenario.annual_inflation <= -Decimal::ONE {
+                return Err(ConfigError::InvalidAnnualInflation {
                     id: scenario.id.clone(),
                 });
             }

@@ -85,3 +85,30 @@ assets = []
         Err(ConfigError::MultipleSelectedScenarios)
     ));
 }
+
+#[test]
+fn rejects_annual_inflation_of_negative_one_or_less() {
+    let config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "-1"
+assets = []
+"#,
+    )
+    .expect("configuration parses");
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InvalidAnnualInflation { .. })
+    ));
+}

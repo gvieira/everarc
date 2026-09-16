@@ -65,13 +65,16 @@
   <section class="outcome-slide outcome-future-living-costs" data-outcome-slide data-outcome-accent="peach">
     <h2>{{ dashboard.text.future_living_costs }}</h2>
     {% if scenario.future_living_costs.costs %}
+    <label class="living-cost-inflation-toggle">
+      <input type="checkbox" checked data-living-cost-inflation-toggle>
+      <span>{{ dashboard.text.inflation_of }} {{ scenario.annual_inflation }}</span>
+    </label>
     <div class="cost-list">
       {% for cost in scenario.future_living_costs.costs %}
-      <div class="cost-row"><span>{{ cost.name }}</span><strong>{{ cost.nominal_monthly_cost }}</strong></div>
+      <div class="cost-row"><span>{{ cost.name }}</span><strong><span data-living-cost-value="adjusted">{{ cost.nominal_monthly_cost }}</span><span data-living-cost-value="today-money" hidden>{{ cost.today_money_monthly_cost }}</span></strong></div>
       {% endfor %}
     </div>
-    <div class="cost-total"><span>{{ dashboard.text.monthly_total }}</span><strong>{{ scenario.future_living_costs.nominal_monthly_total }}</strong></div>
-    <p class="outcome-note">{{ dashboard.text.end_of_plan_nominal_money }}</p>
+    <div class="cost-total"><span>{{ dashboard.text.monthly_total }}</span><strong><span data-living-cost-value="adjusted">{{ scenario.future_living_costs.nominal_monthly_total }}</span><span data-living-cost-value="today-money" hidden>{{ scenario.future_living_costs.today_money_monthly_total }}</span></strong></div>
     {% else %}
     <p class="milestone-copy">{{ dashboard.text.no_future_living_costs }}</p>
     {% endif %}
@@ -82,7 +85,6 @@
     <h2>{{ milestone.name }}</h2>
     <p class="milestone-copy">{{ dashboard.text.total_balance_target }}</p>
     <p class="outcome-target">{{ milestone.target }}</p>
-    <p class="outcome-note">{{ dashboard.text.projection_progress }}</p>
   </section>
   {% endfor %}
 
@@ -91,7 +93,6 @@
     <h2>{{ milestone.name }}</h2>
     <p class="milestone-copy">{{ dashboard.text.asset_balance_target }}</p>
     <p class="outcome-target">{{ milestone.target }}</p>
-    <p class="outcome-note">{{ dashboard.text.projection_progress }}</p>
   </section>
   {% endfor %}
 </section>
@@ -103,6 +104,7 @@
 <section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="chart-heading">
     <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
+    <p class="chart-note">{{ text.annual_inflation }}: {{ scenario.annual_inflation }}</p>
   </div>
   <div class="chart-frame">
     <svg aria-label="{{ text.projection }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 500">

@@ -49,6 +49,12 @@
       .outcome-future-living-costs { --outcome-wash: rgba(255, 201, 201, .68); }
       .outcome-total-milestone { --outcome-wash: rgba(137, 133, 253, .32); }
       .outcome-asset-milestone { --outcome-wash: rgba(165, 216, 255, .55); }
+      .living-cost-inflation-toggle { display: inline-flex; gap: .5rem; align-items: center; margin-top: 1rem; color: var(--ink); cursor: pointer; font: 700 .7rem/1.2 "Space Mono", monospace; }
+      .living-cost-inflation-toggle input { position: relative; width: 2.15rem; height: 1.2rem; margin: 0; appearance: none; background: rgba(30, 30, 30, .2); border: 1px solid rgba(30, 30, 30, .3); border-radius: 999px; cursor: pointer; transition: background .15s ease; }
+      .living-cost-inflation-toggle input::after { position: absolute; top: .12rem; left: .12rem; width: .72rem; height: .72rem; content: ""; background: var(--card); border: 1px solid rgba(30, 30, 30, .25); border-radius: 50%; transition: transform .15s ease; }
+      .living-cost-inflation-toggle input:checked { background: var(--peach); }
+      .living-cost-inflation-toggle input:checked::after { transform: translateX(.9rem); }
+      .living-cost-inflation-toggle input:focus-visible { outline: 3px solid var(--lavender); outline-offset: 2px; }
       .cost-list { display: grid; gap: .6rem; margin: 0.95rem 0 1rem; }
       .cost-row, .cost-total { display: flex; justify-content: space-between; gap: 1rem; font: .73rem/1.35 "Space Mono", monospace; }
       .cost-row { color: var(--muted); }
@@ -150,6 +156,7 @@
         const decks = [...document.querySelectorAll("[data-scenario-deck]")];
         const planSummaryCards = [...document.querySelectorAll("[data-scenario-plan-summary]")];
         const charts = [...document.querySelectorAll("[data-scenario-chart]")];
+        const livingCostSlides = [...document.querySelectorAll(".outcome-future-living-costs")];
         if (tabs.length === 0) return;
 
         let previousScenarioId = null;
@@ -203,6 +210,11 @@
           deck.querySelector("[data-outcome-counter]").textContent = `${index + 1} / ${slides.length}`;
           deck.dataset.outcomeIndex = index;
           deck.dataset.outcomeAccent = slides[index].dataset.outcomeAccent;
+        };
+        const selectLivingCostView = (slide, view) => {
+          slide.querySelectorAll("[data-living-cost-value]").forEach((element) => {
+            element.hidden = element.dataset.livingCostValue !== view;
+          });
         };
         const showScenarioViews = (scenarioId) => {
           decks.forEach((deck) => { deck.hidden = deck.dataset.scenarioId !== scenarioId; });
@@ -259,6 +271,13 @@
             event.preventDefault();
             tabs[nextIndex].focus();
             select(tabs[nextIndex].dataset.scenarioId, true);
+          });
+        }
+        for (const slide of livingCostSlides) {
+          const toggle = slide.querySelector("[data-living-cost-inflation-toggle]");
+          if (!toggle) continue;
+          toggle.addEventListener("change", () => {
+            selectLivingCostView(slide, toggle.checked ? "adjusted" : "today-money");
           });
         }
         for (const chart of charts) {

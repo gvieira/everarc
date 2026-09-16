@@ -78,6 +78,10 @@ impl<'config> ScenarioProjection<'config> {
     pub fn is_selected(&self) -> bool {
         self.scenario.selected
     }
+
+    pub fn annual_inflation(&self) -> Decimal {
+        self.scenario.annual_inflation
+    }
 }
 
 impl Serialize for ScenarioProjection<'_> {
@@ -208,6 +212,10 @@ impl<'config> FutureLivingCostProjection<'config> {
 
     pub fn name(&self) -> &'config str {
         &self.cost.name
+    }
+
+    pub fn today_money_monthly_cost(&self) -> Decimal {
+        self.cost.monthly_cost
     }
 }
 

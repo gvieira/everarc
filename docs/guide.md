@@ -118,8 +118,11 @@ non-plan currency to the plan currency: configuring both directions (or the
 same direction twice) is not allowed.
 
 Every scenario needs a nonblank `id` and `name`, plus an `annual_inflation`
-quoted decimal. It is an annual fraction: `"0.03"` means 3%, while `"-0.01"`
-means 1% annual deflation. Scenario IDs must be unique. `extends` is optional and refers to another scenario ID; it may point forward
+quoted decimal greater than `"-1"`. It is an annual fraction: `"0.03"` means
+3%, while `"-0.01"` means 1% annual deflation. Everarc uses this rate to
+convert future living costs from plan-start purchasing power to end-of-plan
+nominal money, applying it across every inclusive plan month. Scenario IDs
+must be unique. `extends` is optional and refers to another scenario ID; it may point forward
 or backward in the file. Everarc rejects unknown parent IDs, self-extension,
 and extension cycles. Inheritance is preserved for later runtime expansion; it
 is not copied or merged while the config loads.
@@ -156,9 +159,18 @@ costs at the plan's end, expressed in today's `plan.currency` purchasing power.
 It is not a record of current spending. Each cost has a nonblank, unique `id`,
 a nonblank `name`, and a strictly positive quoted `monthly_cost`. Dashboard
 projections convert these reference values to end-of-plan nominal money using
-each scenario's annual inflation.
+each scenario's annual inflation. The dashboard shows these adjusted end-of-plan
+nominal values by default; its inflation switch can show the configured
+today-money values for comparison.
 
 ## Commands
+
+### Version
+
+```sh
+everarc --version
+# everarc 0.1.0
+```
 
 ### Check
 

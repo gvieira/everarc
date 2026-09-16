@@ -55,6 +55,57 @@ monthly_contribution = "10"
 }
 
 #[test]
+fn inflates_end_of_plan_living_costs_across_inclusive_months() {
+    let source = r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[future_living_costs]]
+id = "living"
+name = "Living"
+monthly_cost = "100"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0.1"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+initial_value = "0"
+monthly_expected_return = "0"
+monthly_contribution = "0"
+"#;
+
+    let one_month_config = config(source);
+    let one_month_projection = PlanProjection::from(&one_month_config);
+    assert!(
+        one_month_projection.scenarios[0]
+            .future_living_costs
+            .nominal_monthly_total
+            .plan_amount()
+            > Decimal::new(100, 0)
+    );
+
+    let twelve_month_config = config(&source.replace("end = \"2026-01\"", "end = \"2026-12\""));
+    let twelve_month_projection = PlanProjection::from(&twelve_month_config);
+    assert_eq!(
+        twelve_month_projection.scenarios[0]
+            .future_living_costs
+            .nominal_monthly_total
+            .plan_amount(),
+        Decimal::new(110, 0)
+    );
+}
+
+#[test]
 fn projects_converted_assets_in_plan_currency() {
     let config = config(
         r#"

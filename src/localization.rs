@@ -30,16 +30,17 @@ pub struct DashboardText {
     pub choose_scenario: &'static str,
     pub selected: &'static str,
     pub scenarios: &'static str,
+    pub annual_inflation: &'static str,
     pub outcomes: &'static str,
     pub previous_outcome: &'static str,
     pub next_outcome: &'static str,
     pub future_living_costs: &'static str,
+    pub inflation_of: &'static str,
     pub monthly_total: &'static str,
     pub end_of_plan_nominal_money: &'static str,
     pub no_future_living_costs: &'static str,
     pub total_balance_target: &'static str,
     pub asset_balance_target: &'static str,
-    pub projection_progress: &'static str,
     pub total_net_worth: &'static str,
     pub plan_summary: &'static str,
     pub end_of_plan_passive_income: &'static str,
@@ -106,6 +107,7 @@ pub struct DashboardScenarioPresentation<'projection> {
     pub name: &'projection str,
     pub selected: bool,
     pub is_default: bool,
+    pub annual_inflation: String,
     pub end_of_plan_passive_income: String,
     pub chart_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
@@ -172,6 +174,7 @@ pub struct DashboardAssetEventPresentation<'projection> {
 pub struct DashboardFutureLivingCostsPresentation<'projection> {
     pub costs: Vec<DashboardFutureLivingCostPresentation<'projection>>,
     pub nominal_monthly_total: String,
+    pub today_money_monthly_total: String,
 }
 
 #[derive(Serialize)]
@@ -179,6 +182,7 @@ pub struct DashboardFutureLivingCostPresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
     pub nominal_monthly_cost: String,
+    pub today_money_monthly_cost: String,
 }
 
 #[derive(Serialize)]
@@ -275,6 +279,7 @@ impl<'projection> DashboardPresentation<'projection> {
                     name: scenario.name(),
                     selected: scenario.is_selected(),
                     is_default: Some(scenario.id()) == default_scenario_id,
+                    annual_inflation: format_percentage(scenario.annual_inflation(), locale),
                     end_of_plan_passive_income: format_number(
                         scenario
                             .assets
@@ -350,10 +355,23 @@ impl<'projection> DashboardPresentation<'projection> {
                                     &cost.nominal_monthly_cost,
                                     locale,
                                 ),
+                                today_money_monthly_cost: format_number(
+                                    cost.today_money_monthly_cost(),
+                                    locale,
+                                ),
                             })
                             .collect(),
                         nominal_monthly_total: format_plan_money(
                             &scenario.future_living_costs.nominal_monthly_total,
+                            locale,
+                        ),
+                        today_money_monthly_total: format_number(
+                            scenario
+                                .future_living_costs
+                                .costs
+                                .iter()
+                                .map(|cost| cost.today_money_monthly_cost())
+                                .sum(),
                             locale,
                         ),
                     },
@@ -400,16 +418,17 @@ impl DashboardText {
                 choose_scenario: "Choose a scenario",
                 selected: "Selected",
                 scenarios: "scenarios",
+                annual_inflation: "Annual inflation",
                 outcomes: "Outcomes",
                 previous_outcome: "Previous outcome",
                 next_outcome: "Next outcome",
                 future_living_costs: "Future living costs",
+                inflation_of: "Inflation of",
                 monthly_total: "Monthly total",
                 end_of_plan_nominal_money: "End-of-plan nominal money",
                 no_future_living_costs: "No future living costs configured.",
                 total_balance_target: "Total-balance target",
                 asset_balance_target: "Asset-balance target",
-                projection_progress: "Progress will appear with projections.",
                 total_net_worth: "Total net worth",
                 plan_summary: "Plan summary",
                 end_of_plan_passive_income: "Monthly passive income at the end of the plan",
@@ -431,16 +450,17 @@ impl DashboardText {
                 choose_scenario: "Escolha um cenário",
                 selected: "Selecionado",
                 scenarios: "cenários",
+                annual_inflation: "Inflação anual",
                 outcomes: "Resultados",
                 previous_outcome: "Resultado anterior",
                 next_outcome: "Próximo resultado",
                 future_living_costs: "Custos futuros de vida",
+                inflation_of: "Inflação de",
                 monthly_total: "Total mensal",
                 end_of_plan_nominal_money: "Valores nominais ao fim do plano",
                 no_future_living_costs: "Nenhum custo futuro de vida configurado.",
                 total_balance_target: "Meta de saldo total",
                 asset_balance_target: "Meta de saldo do ativo",
-                projection_progress: "O progresso aparecerá com as projeções.",
                 total_net_worth: "Patrimônio líquido total",
                 plan_summary: "Resumo do plano",
                 end_of_plan_passive_income: "Renda passiva mensal ao fim do plano",

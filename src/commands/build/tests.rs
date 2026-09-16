@@ -4,6 +4,9 @@ use super::*;
 fn renders_inherited_event_rows_without_plan_currency_codes() {
     let mut config: Config =
         toml::from_str(include_str!("../../../everarc.toml")).expect("sample configuration parses");
+    for scenario in &mut config.scenarios {
+        scenario.selected = false;
+    }
     config.scenarios[0].selected = true;
     config.validate().expect("sample configuration validates");
     let projection = PlanProjection::from(&config);
@@ -17,6 +20,15 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("+ 3.000,00&#x2f;mês"));
     assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
     assert!(html.contains("<span>Renda passiva</span><strong>"));
+    assert!(html.contains("Inflação anual: 3,00%"));
+    assert!(html.contains("Inflação de 3,00%"));
+    assert!(html.contains("type=\"checkbox\" checked data-living-cost-inflation-toggle"));
+    assert!(html.contains(
+        "data-living-cost-value=\"adjusted\">4.515,28</span><span data-living-cost-value=\"today-money\" hidden>2.500,00"
+    ));
+    assert!(html.contains(
+        "data-living-cost-value=\"adjusted\">10.836,67</span><span data-living-cost-value=\"today-money\" hidden>6.000,00"
+    ));
     assert!(html.contains("class=\"asset-target-line asset-line-0\""));
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));
     assert!(html.contains("data-scenario-default=\"true\""));
