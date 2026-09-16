@@ -33,9 +33,10 @@ can see and review them directly.
 
 Gui owns the Git index. Never run commands that change it, including `git add`,
 `git restore --staged`, `git reset`, `git commit -a`, or `git commit <file>`.
-When asked to commit or push, report unstaged changes and wait for Gui to stage
-the intended content. Run `git commit` only after Gui explicitly says the index
-is ready.
+When Gui tells you to commit, treat that as confirmation that the current index
+is ready and commit it without asking for separate confirmation. If unstaged
+changes exist, report that they will not be included, but do not stage or alter
+them.
 
 ## Mistake log
 
