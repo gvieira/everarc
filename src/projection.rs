@@ -812,7 +812,19 @@ fn project_asset<'config>(
         .conversion_rate_to_plan_currency(&asset.currency)
         .expect("validated asset currencies have a conversion rate");
     let mut month = config.plan.start;
-    let mut native_balance = asset.initial_value;
+    let mut native_balance = asset
+        .holdings
+        .iter()
+        .map(|holding| {
+            holding.value
+                * config
+                    .conversion_rate_to_plan_currency(&holding.currency)
+                    .expect("validated holding currencies have a conversion rate")
+                / config
+                    .conversion_rate_to_plan_currency(&asset.currency)
+                    .expect("validated asset currencies have a conversion rate")
+        })
+        .sum();
     let mut annual_expected_return = asset.annual_expected_return;
     let mut monthly_contribution = asset.monthly_contribution.clone();
     let month_count = config.plan.inclusive_month_count();

@@ -66,10 +66,15 @@ annual_inflation = "0.03"
 id = "brokerage"
 name = "Brokerage"
 currency = "USD"
-initial_value = "25000.00"
 # Effective annual decimal fraction: 0.06 means a 6% expected annual return.
 annual_expected_return = "0.06"
 monthly_contribution = { amount = "1000.00", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "world-etf"
+name = "World ETF"
+currency = "USD"
+value = "25000.00"
 
 # Optional events apply in their declaration order.
 [[scenarios.events]]
@@ -99,9 +104,14 @@ extends = "baseline"
 id = "brokerage"
 name = "Brokerage"
 currency = "USD"
-initial_value = "25000.00"
 annual_expected_return = "0.06"
 monthly_contribution = { amount = "1000.00", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "world-etf"
+name = "World ETF"
+currency = "USD"
+value = "25000.00"
 ```
 
 `[display]` is required. `locale` controls generated-dashboard text and number
@@ -116,12 +126,44 @@ scenario.
 Each conversion rate must connect exactly one currency to `plan.currency`; for
 a USD plan, `BTC` → `USD` is valid but `BTC` → `BRL` is not. `rate` is a
 positive quoted decimal, and its direction is `1 from = rate to`. Rates are
-optional when all assets use the plan currency. Every asset in another currency
-needs a rate connecting it to `plan.currency`; Everarc uses a direct
+optional when all assets and holdings use the plan currency. Every asset or
+holding in another currency needs a rate connecting it to `plan.currency`; Everarc uses a direct
 asset-currency → plan-currency rate when available, or reciprocates a reverse
 plan-currency → asset-currency rate. Only one rate may connect a given
 non-plan currency to the plan currency: configuring both directions (or the
 same direction twice) is not allowed.
+
+A holding may use a different currency from its parent asset. For example, a
+BRL plan can value a BTC holding inside a USD asset using each currency's rate
+to BRL:
+
+```toml
+[[conversion_rates]]
+from = "USD"
+to = "BRL"
+rate = "5.00"
+
+[[conversion_rates]]
+from = "BTC"
+to = "BRL"
+rate = "500000.00"
+
+[[scenarios.assets]]
+id = "crypto"
+name = "Crypto account"
+currency = "USD"
+annual_expected_return = "0.08"
+monthly_contribution = { amount = "100", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "bitcoin"
+name = "Bitcoin"
+currency = "BTC"
+value = "0.10"
+```
+
+Everarc converts the holding from BTC to BRL, then from BRL to USD, to derive
+the asset's initial value.
 
 Every scenario needs a nonblank `id` and `name`, plus an `annual_inflation`
 quoted decimal greater than `"-1"`. An optional `description` appears in the
@@ -138,8 +180,14 @@ is not copied or merged while the config loads.
 Every scenario also needs one or more `[[scenarios.assets]]` tables. Asset IDs
 and names must be nonblank; IDs are unique within their scenario. `currency`
 is a required opaque identifier, so it may be `USD`, `BTC`, or another
-consistently used currency. `initial_value` is a nonnegative quoted decimal.
-`annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
+consistently used currency. Each asset must define one or more nested
+`[[scenarios.assets.holdings]]` tables. Holdings have nonblank, unique IDs and
+names within their asset, an optional `description`, a currency, and a nonnegative quoted-decimal `value`.
+Their values are converted into the asset currency and summed to derive the
+asset's initial value. A holding may use a different currency; Everarc converts
+it through `plan.currency` using the configured static rates. In an extending
+scenario, an asset with an inherited ID replaces that complete asset and its
+holdings. `annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
 per year, while `"0.06"` means 6%. Everarc compounds it monthly so twelve
 projected months produce the configured annual return. `monthly_contribution`
 is an object with a nonnegative quoted-decimal `amount` and a `currency` equal

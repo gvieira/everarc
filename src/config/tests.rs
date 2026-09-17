@@ -108,10 +108,15 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 "#
         )
         .is_err()
@@ -144,9 +149,14 @@ annual_inflation = "0"
 id = "bitcoin"
 name = "Bitcoin"
 currency = "BTC"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "100", currency = "BRL" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "BTC"
+value = "0"
 "#,
     )
     .expect("configuration parses");
@@ -184,9 +194,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 "#,
     )
     .expect("configuration parses");

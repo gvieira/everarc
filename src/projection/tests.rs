@@ -29,9 +29,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 "#,
     );
 
@@ -75,9 +80,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0.1"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 "#,
     );
 
@@ -124,9 +134,14 @@ annual_inflation = "0.1"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 "#;
 
     let one_month_config = config(source);
@@ -193,9 +208,14 @@ annual_inflation = "0"
 id = "bitcoin"
 name = "Bitcoin"
 currency = "BTC"
-initial_value = "0.25"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "exchange-balance"
+name = "Exchange balance"
+currency = "USD"
+value = "2500"
 
 [[scenarios.events]]
 id = "bitcoin-deposit"
@@ -238,9 +258,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 
 [[scenarios.events]]
 id = "deposit"
@@ -283,9 +308,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.events]]
 id = "deposit"
@@ -325,9 +355,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.events]]
 id = "january-deposit"
@@ -414,9 +449,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.events]]
 id = "first-january-setting"
@@ -481,9 +521,14 @@ extends = "parent"
 id = "brokerage"
 name = "Child brokerage"
 currency = "USD"
-initial_value = "200"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "200"
 
 [[scenarios.events]]
 id = "child-return"
@@ -511,9 +556,14 @@ annual_inflation = "0"
 id = "brokerage"
 name = "Parent brokerage"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.events]]
 id = "parent-return"
@@ -586,17 +636,27 @@ extends = "parent"
 id = "brokerage"
 name = "Child brokerage"
 currency = "USD"
-initial_value = "200"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "200"
 
 [[scenarios.assets]]
 id = "savings"
 name = "Savings"
 currency = "USD"
-initial_value = "50"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "50"
 
 [[scenarios]]
 id = "parent"
@@ -607,17 +667,27 @@ annual_inflation = "0"
 id = "brokerage"
 name = "Parent brokerage"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.assets]]
 id = "bitcoin"
 name = "Bitcoin"
 currency = "USD"
-initial_value = "5"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "5"
 "#,
     );
 
@@ -677,9 +747,14 @@ annual_inflation = "0"
 id = "bitcoin"
 name = "Bitcoin"
 currency = "BTC"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0.1", currency = "BTC" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "BTC"
+value = "0"
 
 [[scenarios.events]]
 id = "switch-contribution-currency"
@@ -726,9 +801,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.events]]
 id = "parent-adjustment"
@@ -748,9 +828,14 @@ extends = "parent"
 id = "middle-marker"
 name = "Middle marker"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 
 [[scenarios.events]]
 id = "middle-adjustment"
@@ -770,9 +855,14 @@ extends = "middle"
 id = "child-marker"
 name = "Child marker"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 
 [[scenarios.events]]
 id = "child-adjustment"

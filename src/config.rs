@@ -138,10 +138,35 @@ pub struct Asset {
     // Every asset currency must connect directly to the plan currency.
     pub currency: Currency,
     #[serde(deserialize_with = "deserialize_decimal")]
-    pub initial_value: Decimal,
-    #[serde(deserialize_with = "deserialize_decimal")]
     pub annual_expected_return: Decimal,
     pub monthly_contribution: MonthlyContribution,
+    pub holdings: Vec<Holding>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Holding {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub currency: Currency,
+    #[serde(deserialize_with = "deserialize_decimal")]
+    pub value: Decimal,
+}
+
+impl Serialize for Holding {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Holding", 5)?;
+        state.serialize_field("id", &self.id)?;
+        state.serialize_field("name", &self.name)?;
+        state.serialize_field("description", &self.description)?;
+        state.serialize_field("currency", &self.currency)?;
+        state.serialize_field("value", &self.value.to_string())?;
+        state.end()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -387,6 +412,16 @@ pub enum ConfigError {
         currency: Currency,
         plan_currency: Currency,
     },
+    #[error(
+        "holding `{holding_id}` in asset `{asset_id}` in scenario `{scenario_id}` uses `{currency}`, but no conversion rate connects it to plan currency `{plan_currency}`"
+    )]
+    MissingHoldingConversionRate {
+        scenario_id: String,
+        asset_id: String,
+        holding_id: String,
+        currency: Currency,
+        plan_currency: Currency,
+    },
     #[error("configuration must define at least one scenario")]
     NoScenarios,
     #[error("scenario id must not be blank")]
@@ -424,6 +459,40 @@ pub enum ConfigError {
         scenario_id: String,
         asset_id: String,
         field: &'static str,
+    },
+    #[error("asset `{asset_id}` in scenario `{scenario_id}` must define at least one holding")]
+    NoAssetHoldings {
+        scenario_id: String,
+        asset_id: String,
+    },
+    #[error("asset `{asset_id}` in scenario `{scenario_id}` has a holding with a blank id")]
+    BlankHoldingId {
+        scenario_id: String,
+        asset_id: String,
+    },
+    #[error(
+        "holding `{holding_id}` in asset `{asset_id}` in scenario `{scenario_id}` has a blank name"
+    )]
+    BlankHoldingName {
+        scenario_id: String,
+        asset_id: String,
+        holding_id: String,
+    },
+    #[error(
+        "duplicate holding id `{holding_id}` in asset `{asset_id}` in scenario `{scenario_id}`"
+    )]
+    DuplicateHoldingId {
+        scenario_id: String,
+        asset_id: String,
+        holding_id: String,
+    },
+    #[error(
+        "holding `{holding_id}` in asset `{asset_id}` in scenario `{scenario_id}` has a negative value"
+    )]
+    NegativeHoldingValue {
+        scenario_id: String,
+        asset_id: String,
+        holding_id: String,
     },
     #[error(
         "contribution currency `{contribution_currency}` for asset `{asset_id}` in scenario `{scenario_id}` must be the asset currency `{asset_currency}` or plan currency `{plan_currency}"
@@ -769,7 +838,6 @@ impl Config {
             }
 
             for (field, value) in [
-                ("initial_value", asset.initial_value),
                 ("annual_expected_return", asset.annual_expected_return),
                 (
                     "monthly_contribution.amount",
@@ -790,6 +858,7 @@ impl Config {
                 &asset.currency,
                 &asset.monthly_contribution.currency,
             )?;
+            self.validate_holdings(scenario, asset)?;
         }
 
         Ok(())
@@ -901,6 +970,58 @@ impl Config {
             }
         }
 
+        Ok(())
+    }
+
+    fn validate_holdings(&self, scenario: &Scenario, asset: &Asset) -> Result<(), ConfigError> {
+        if asset.holdings.is_empty() {
+            return Err(ConfigError::NoAssetHoldings {
+                scenario_id: scenario.id.clone(),
+                asset_id: asset.id.clone(),
+            });
+        }
+        let mut holding_ids = HashSet::new();
+        for holding in &asset.holdings {
+            if holding.id.trim().is_empty() {
+                return Err(ConfigError::BlankHoldingId {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                });
+            }
+            if holding.name.trim().is_empty() {
+                return Err(ConfigError::BlankHoldingName {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                    holding_id: holding.id.clone(),
+                });
+            }
+            if !holding_ids.insert(holding.id.as_str()) {
+                return Err(ConfigError::DuplicateHoldingId {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                    holding_id: holding.id.clone(),
+                });
+            }
+            if holding.value < Decimal::ZERO {
+                return Err(ConfigError::NegativeHoldingValue {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                    holding_id: holding.id.clone(),
+                });
+            }
+            if self
+                .conversion_rate_to_plan_currency(&holding.currency)
+                .is_none()
+            {
+                return Err(ConfigError::MissingHoldingConversionRate {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                    holding_id: holding.id.clone(),
+                    currency: holding.currency.clone(),
+                    plan_currency: self.plan.currency.clone(),
+                });
+            }
+        }
         Ok(())
     }
 

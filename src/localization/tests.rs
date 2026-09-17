@@ -35,9 +35,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "100"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "100"
 
 [[scenarios.milestones]]
 id = "cash-goal"
@@ -99,9 +104,14 @@ annual_inflation = "0"
 id = "bitcoin"
 name = "Bitcoin"
 currency = "BTC"
-initial_value = "0.25"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "BTC"
+value = "0.25"
 
 [[scenarios.events]]
 id = "start-contribution"
@@ -225,9 +235,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "USD"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
 "#,
     );
     let projection = PlanProjection::from(&config);
@@ -268,9 +283,14 @@ annual_inflation = "0"
 id = "cash"
 name = "Cash"
 currency = "BRL"
-initial_value = "0"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "BRL" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "BRL"
+value = "0"
 "#,
     );
     let projection = PlanProjection::from(&config);

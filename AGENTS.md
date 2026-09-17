@@ -49,7 +49,7 @@ Every entry records a real violation of Everarc's working rules, not a style
 nitpick. Each violation costs one of Gui's 10 cats. Gui chooses which cat is
 lost—no exceptions, negotiation, or repeat selections.
 
-**Cats (10 → 10):** Mochi, Waffles, Biscuit, Nimbus, Pixel, Garfunkel, Soot,
-Tofu, Captain, Olive
+**Cats (10 → 9):** Mochi, Waffles, Biscuit, Nimbus, Pixel, Garfunkel, Soot,
+Tofu, ~~Captain~~, Olive
 
-No entries yet.
+- Captain — Reported the staging state without explicitly inspecting the Git index first.
