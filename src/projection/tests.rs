@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use super::*;
 
 fn config(source: &str) -> Config {
-    let config: Config = toml::from_str(source).expect("test configuration parses");
+    let mut config: Config = toml::from_str(source).expect("test configuration parses");
     config.validate().expect("test configuration validates");
     config
 }
@@ -279,7 +279,7 @@ amount = "1"
     assert!(toml::from_str::<Config>(&format!("version = 1\n\n{source}")).is_err());
     assert!(toml::from_str::<Config>(&source.replace("name = \"Deposit\"\n", "")).is_err());
 
-    let blank_name: Config = toml::from_str(&source.replace("Deposit", "   "))
+    let mut blank_name: Config = toml::from_str(&source.replace("Deposit", "   "))
         .expect("blank names parse before semantic validation");
     assert!(matches!(
         blank_name.validate(),

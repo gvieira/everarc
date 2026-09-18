@@ -4,7 +4,7 @@ use super::*;
 use crate::{config::Config, projection::PlanProjection};
 
 fn config(source: &str) -> Config {
-    let config: Config = toml::from_str(source).expect("test configuration parses");
+    let mut config: Config = toml::from_str(source).expect("test configuration parses");
     config.validate().expect("test configuration validates");
     config
 }

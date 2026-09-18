@@ -16,7 +16,7 @@ fn formats_and_chains_configuration_read_errors() {
 
 #[test]
 fn rejects_conversion_rates_configured_in_both_directions() {
-    let config: Config = toml::from_str(
+    let mut config: Config = toml::from_str(
         r#"
 [display]
 locale = "en-US"
@@ -63,8 +63,60 @@ fn rejects_scenario_names_longer_than_32_characters() {
 }
 
 #[test]
+fn inherits_omitted_scenario_and_asset_values_from_parent() {
+    let mut config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-12"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0.03"
+
+[[scenarios.assets]]
+id = "brokerage"
+name = "Brokerage"
+currency = "USD"
+annual_expected_return = "0.06"
+monthly_contribution = { amount = "1000", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "etf"
+name = "ETF"
+currency = "USD"
+value = "10000"
+
+[[scenarios]]
+id = "optimistic"
+name = "Optimistic"
+extends = "base"
+
+[[scenarios.assets]]
+id = "brokerage"
+annual_expected_return = "0.08"
+"#,
+    )
+    .unwrap();
+
+    config.validate().unwrap();
+    let scenario = &config.scenarios[1];
+    let asset = &scenario.assets[0];
+    assert_eq!(scenario.annual_inflation, Decimal::new(3, 2));
+    assert_eq!(asset.name, "Brokerage");
+    assert_eq!(asset.annual_expected_return, Decimal::new(8, 2));
+    assert_eq!(asset.monthly_contribution.amount, Decimal::new(1000, 0));
+    assert_eq!(asset.holdings.len(), 1);
+}
+
+#[test]
 fn rejects_multiple_selected_scenarios() {
-    let config: Config = toml::from_str(
+    let mut config: Config = toml::from_str(
         r#"
 [display]
 locale = "en-US"
@@ -136,7 +188,7 @@ value = "0"
 
 #[test]
 fn rejects_contributions_in_unrelated_currencies() {
-    let config: Config = toml::from_str(
+    let mut config: Config = toml::from_str(
         r#"
 [display]
 locale = "en-US"
@@ -180,7 +232,7 @@ value = "0"
 
 #[test]
 fn rejects_living_cost_inflation_of_negative_one_or_less() {
-    let config: Config = toml::from_str(
+    let mut config: Config = toml::from_str(
         r#"
 [display]
 locale = "en-US"
@@ -225,7 +277,7 @@ value = "0"
 
 #[test]
 fn rejects_annual_inflation_of_negative_one_or_less() {
-    let config: Config = toml::from_str(
+    let mut config: Config = toml::from_str(
         r#"
 [display]
 locale = "en-US"

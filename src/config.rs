@@ -10,6 +10,8 @@ use std::{
 use rust_decimal::Decimal;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser::SerializeStruct};
 
+const INHERIT_DECIMAL: Decimal = Decimal::MIN;
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -78,7 +80,7 @@ impl Plan {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Currency(String);
 
 impl fmt::Display for Currency {
@@ -95,16 +97,17 @@ pub struct ConversionRate {
     pub rate: Decimal,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Scenario {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
     #[serde(default)]
     pub selected: bool,
-    #[serde(deserialize_with = "deserialize_decimal")]
+    #[serde(default = "inherit_decimal", deserialize_with = "deserialize_decimal")]
     pub annual_inflation: Decimal,
     pub extends: Option<String>,
+    #[serde(default)]
     pub assets: Vec<Asset>,
     #[serde(default)]
     pub events: Vec<Event>,
@@ -120,6 +123,15 @@ pub struct MonthlyContribution {
     pub currency: Currency,
 }
 
+impl Default for MonthlyContribution {
+    fn default() -> Self {
+        Self {
+            amount: INHERIT_DECIMAL,
+            currency: Currency::default(),
+        }
+    }
+}
+
 impl Serialize for MonthlyContribution {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -132,20 +144,24 @@ impl Serialize for MonthlyContribution {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Asset {
     pub id: String,
+    #[serde(default)]
     pub name: String,
     // Every asset currency must connect directly to the plan currency.
+    #[serde(default)]
     pub currency: Currency,
-    #[serde(deserialize_with = "deserialize_decimal")]
+    #[serde(default = "inherit_decimal", deserialize_with = "deserialize_decimal")]
     pub annual_expected_return: Decimal,
+    #[serde(default)]
     pub monthly_contribution: MonthlyContribution,
+    #[serde(default)]
     pub holdings: Vec<Holding>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Holding {
     pub id: String,
@@ -171,7 +187,7 @@ impl Serialize for Holding {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
     AssetAdjustment {
@@ -210,7 +226,7 @@ pub struct TotalBalanceMilestone {
     pub target: Decimal,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AssetMilestone {
     pub id: String,
@@ -266,6 +282,41 @@ impl Event {
             _ => None,
         }
     }
+}
+
+fn merge_asset(parent: &Asset, child: &Asset) -> Asset {
+    Asset {
+        id: child.id.clone(),
+        name: if !child.name.is_empty() {
+            child.name.clone()
+        } else {
+            parent.name.clone()
+        },
+        currency: if !child.currency.0.is_empty() {
+            child.currency.clone()
+        } else {
+            parent.currency.clone()
+        },
+        annual_expected_return: if child.annual_expected_return != INHERIT_DECIMAL {
+            child.annual_expected_return
+        } else {
+            parent.annual_expected_return
+        },
+        monthly_contribution: if child.monthly_contribution.amount != INHERIT_DECIMAL {
+            child.monthly_contribution.clone()
+        } else {
+            parent.monthly_contribution.clone()
+        },
+        holdings: if !child.holdings.is_empty() {
+            child.holdings.clone()
+        } else {
+            parent.holdings.clone()
+        },
+    }
+}
+
+fn inherit_decimal() -> Decimal {
+    INHERIT_DECIMAL
 }
 
 fn deserialize_rate<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
@@ -601,7 +652,7 @@ impl Config {
             path: path.to_path_buf(),
             source,
         })?;
-        let config: Self = toml::from_str(&contents).map_err(|source| ConfigError::Parse {
+        let mut config: Self = toml::from_str(&contents).map_err(|source| ConfigError::Parse {
             path: path.to_path_buf(),
             source,
         })?;
@@ -610,12 +661,82 @@ impl Config {
         Ok(config)
     }
 
-    pub fn validate(&self) -> Result<(), ConfigError> {
+    pub fn validate(&mut self) -> Result<(), ConfigError> {
+        self.resolve_scenario_inheritance()?;
         self.plan.validate()?;
         self.validate_conversion_rates()?;
         self.validate_total_balance_milestones()?;
         self.validate_future_living_costs()?;
         self.validate_scenarios()
+    }
+
+    fn resolve_scenario_inheritance(&mut self) -> Result<(), ConfigError> {
+        let scenarios = self.scenarios.clone();
+        let mut resolved: Vec<Option<Scenario>> = vec![None; scenarios.len()];
+
+        while resolved.iter().any(Option::is_none) {
+            let mut made_progress = false;
+            for (index, scenario) in scenarios.iter().enumerate() {
+                if resolved[index].is_some() {
+                    continue;
+                }
+                let parent = match scenario.extends.as_deref() {
+                    None => None,
+                    Some(parent_id) => {
+                        let Some(parent_index) = scenarios
+                            .iter()
+                            .position(|candidate| candidate.id == parent_id)
+                        else {
+                            return Err(ConfigError::UnknownScenarioParent {
+                                id: scenario.id.clone(),
+                                parent_id: parent_id.to_owned(),
+                            });
+                        };
+                        let Some(parent) = resolved[parent_index].as_ref() else {
+                            continue;
+                        };
+                        Some(parent)
+                    }
+                };
+
+                let mut scenario = scenario.clone();
+                if let Some(parent) = parent {
+                    if scenario.annual_inflation == INHERIT_DECIMAL {
+                        scenario.annual_inflation = parent.annual_inflation;
+                    }
+                    let mut assets = parent.assets.clone();
+                    for child_asset in &scenario.assets {
+                        if let Some(index) =
+                            assets.iter().position(|asset| asset.id == child_asset.id)
+                        {
+                            assets[index] = merge_asset(&assets[index], child_asset);
+                        } else {
+                            assets.push(child_asset.clone());
+                        }
+                    }
+                    scenario.assets = assets;
+                }
+                resolved[index] = Some(scenario);
+                made_progress = true;
+            }
+            if !made_progress {
+                let scenario = scenarios
+                    .iter()
+                    .zip(&resolved)
+                    .find(|(_, resolved)| resolved.is_none())
+                    .expect("unresolved scenario exists")
+                    .0;
+                return Err(ConfigError::ScenarioExtensionCycle {
+                    id: scenario.id.clone(),
+                });
+            }
+        }
+
+        self.scenarios = resolved
+            .into_iter()
+            .map(|scenario| scenario.expect("all scenarios resolve"))
+            .collect();
+        Ok(())
     }
 
     fn validate_conversion_rates(&self) -> Result<(), ConfigError> {

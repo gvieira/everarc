@@ -62,7 +62,7 @@ selected = true
 # Annual decimal fraction: 0.03 means 3%; negative values represent deflation.
 annual_inflation = "0.03"
 
-# Every scenario has one or more assets.
+# Root scenarios have one or more assets.
 [[scenarios.assets]]
 id = "brokerage"
 name = "Brokerage"
@@ -98,21 +98,12 @@ target = "100000.00"
 [[scenarios]]
 id = "optimistic"
 name = "Optimistic"
-annual_inflation = "0.02"
 extends = "baseline"
 
+# Omitted fields inherit from the same-ID parent asset and scenario.
 [[scenarios.assets]]
 id = "brokerage"
-name = "Brokerage"
-currency = "USD"
-annual_expected_return = "0.06"
-monthly_contribution = { amount = "1000.00", currency = "USD" }
-
-[[scenarios.assets.holdings]]
-id = "world-etf"
-name = "World ETF"
-currency = "USD"
-value = "25000.00"
+annual_expected_return = "0.07"
 ```
 
 `[display]` is required. `locale` controls generated-dashboard text and number
@@ -178,7 +169,9 @@ or backward in the file. Everarc rejects unknown parent IDs, self-extension,
 and extension cycles. Inheritance is preserved for later runtime expansion; it
 is not copied or merged while the config loads.
 
-Every scenario also needs one or more `[[scenarios.assets]]` tables. Asset IDs
+Each root scenario needs one or more `[[scenarios.assets]]` tables. An extending
+scenario may omit assets entirely or declare only the fields it overrides on a
+same-ID inherited asset. Asset IDs
 and names must be nonblank; IDs are unique within their scenario. `currency`
 is a required opaque identifier, so it may be `USD`, `BTC`, or another
 consistently used currency. Each asset must define one or more nested
