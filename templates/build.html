@@ -74,12 +74,11 @@
       .chart-frame { position: relative; margin-top: 1rem; padding: 1rem .25rem .25rem; background-color: #fffdf8; }
       svg { display: block; width: 100%; height: auto; overflow: visible; }
       .chart-grid path { stroke: var(--line); stroke-dasharray: 5 6; stroke-width: 1.4; }
-      .chart-grid .chart-month-grid { stroke-dasharray: none; stroke-width: 1; opacity: .32; }
+      .chart-grid .chart-five-year-grid { stroke-dasharray: none; stroke-width: 1; opacity: .32; }
       .chart-labels { fill: var(--muted); font: 13px "Space Mono", monospace; }
       .target-line { fill: none; stroke: #d55151; stroke-dasharray: 8 7; stroke-width: 2; }
       .target-label { fill: #b63f3f; font: 700 11px "Space Mono", monospace; }
-      .asset-target-line { fill: none; stroke-dasharray: 3 6; stroke-width: 1.8; }
-      .asset-target-label { fill: var(--muted); font: 700 10px "Space Mono", monospace; }
+      .chart-asset-milestone { fill: var(--card); stroke-width: 2.8; stroke-linejoin: round; cursor: help; }
       .axis { fill: none; stroke: var(--ink); stroke-width: 2.4; }
       .total-shadow { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; transform: translate(2px, 2px); }
       .asset-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; opacity: .78; }
@@ -93,11 +92,11 @@
       .chart-cursor-point { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
       .chart-asset-marker, .chart-event-marker { fill: var(--card); stroke-width: 2.5; }
       .chart-event-marker { opacity: 1; }
-      .chart-asset-marker.asset-line-0, .chart-event-marker.asset-line-0 { stroke: #62a7dc; }
-      .chart-asset-marker.asset-line-1, .chart-event-marker.asset-line-1 { stroke: #d99a74; }
-      .chart-asset-marker.asset-line-2, .chart-event-marker.asset-line-2 { stroke: #8580d7; }
-      .chart-asset-marker.asset-line-3, .chart-event-marker.asset-line-3 { stroke: #5eae78; }
-      .chart-asset-marker.asset-line-4, .chart-event-marker.asset-line-4 { stroke: #bb7fa6; }
+      .chart-asset-marker.asset-line-0, .chart-event-marker.asset-line-0, .chart-asset-milestone.asset-line-0 { stroke: #62a7dc; }
+      .chart-asset-marker.asset-line-1, .chart-event-marker.asset-line-1, .chart-asset-milestone.asset-line-1 { stroke: #d99a74; }
+      .chart-asset-marker.asset-line-2, .chart-event-marker.asset-line-2, .chart-asset-milestone.asset-line-2 { stroke: #8580d7; }
+      .chart-asset-marker.asset-line-3, .chart-event-marker.asset-line-3, .chart-asset-milestone.asset-line-3 { stroke: #5eae78; }
+      .chart-asset-marker.asset-line-4, .chart-event-marker.asset-line-4, .chart-asset-milestone.asset-line-4 { stroke: #bb7fa6; }
       .chart-hit-area { fill: transparent; cursor: crosshair; }
       .chart-hit-area:focus { outline: none; }
       .chart-hit-area:focus-visible { stroke: var(--lavender); stroke-width: 3; }
@@ -211,6 +210,22 @@
           hitArea.setAttribute("aria-valuetext", selected.dataset.chartMonthLabel);
           chart.dataset.chartMonthIndex = index;
         };
+        const showChartMilestone = (chart, marker) => {
+          const hoverCard = chart.querySelector("[data-chart-hover-card]");
+          hoverCard.replaceChildren(document.createTextNode(marker.getAttribute("aria-label")));
+          hoverCard.hidden = false;
+          const frame = chart.querySelector(".chart-frame");
+          const markerBounds = marker.getBoundingClientRect();
+          const frameBounds = frame.getBoundingClientRect();
+          const pointX = markerBounds.left - frameBounds.left + markerBounds.width / 2;
+          const pointY = markerBounds.top - frameBounds.top + markerBounds.height / 2;
+          const cardLeft = pointX + hoverCard.offsetWidth + 16 > frame.clientWidth
+            ? pointX - hoverCard.offsetWidth - 16
+            : pointX + 16;
+          const cardTop = Math.max(12, Math.min(pointY - hoverCard.offsetHeight / 2, frame.clientHeight - hoverCard.offsetHeight - 12));
+          hoverCard.style.left = `${cardLeft}px`;
+          hoverCard.style.top = `${cardTop}px`;
+        };
         const showOutcome = (deck, requestedIndex) => {
           const slides = [...deck.querySelectorAll("[data-outcome-slide]")];
           const index = (requestedIndex + slides.length) % slides.length;
@@ -309,6 +324,15 @@
             event.preventDefault();
             showChartMonth(chart, nextIndex);
           });
+          for (const marker of chart.querySelectorAll("[data-chart-milestone-marker]")) {
+            const restoreMonthHover = () => {
+              showChartMonth(chart, Number(chart.dataset.chartMonthIndex ?? 0));
+            };
+            marker.addEventListener("pointerenter", () => showChartMilestone(chart, marker));
+            marker.addEventListener("pointerleave", restoreMonthHover);
+            marker.addEventListener("focus", () => showChartMilestone(chart, marker));
+            marker.addEventListener("blur", restoreMonthHover);
+          }
         }
         for (const deck of decks) {
           deck.querySelector("[data-outcome-previous]").addEventListener("click", () => {

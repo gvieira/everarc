@@ -3,10 +3,7 @@ use serde::Serialize;
 
 use crate::{
     config::{Currency, Locale, Month},
-    projection::{
-        AppliedAssetEventKind, AssetMilestoneProjection, PlanMoney, PlanProjection,
-        TotalBalanceMilestoneProjection,
-    },
+    projection::{AppliedAssetEventKind, PlanMoney, PlanProjection},
 };
 
 const CHART_LEFT: u32 = 80;
@@ -19,7 +16,6 @@ pub struct DashboardPresentation<'projection> {
     pub locale: &'static str,
     pub text: DashboardText,
     pub plan: DashboardPlanPresentation<'projection>,
-    pub total_balance_milestones: Vec<DashboardMilestonePresentation<'projection>>,
     pub chart: DashboardChartPresentation<'projection>,
     pub scenarios: Vec<DashboardScenarioPresentation<'projection>>,
 }
@@ -41,6 +37,8 @@ pub struct DashboardText {
     pub no_future_living_costs: &'static str,
     pub total_balance_target: &'static str,
     pub asset_balance_target: &'static str,
+    pub reached_in: &'static str,
+    pub not_reached_by: &'static str,
     pub total_net_worth: &'static str,
     pub plan_summary: &'static str,
     pub end_of_plan_passive_income: &'static str,
@@ -61,8 +59,8 @@ pub struct DashboardText {
 #[derive(Serialize)]
 pub struct DashboardPlanPresentation<'projection> {
     pub currency: &'projection Currency,
-    pub start: Month,
-    pub end: Month,
+    pub start: String,
+    pub end: String,
     pub duration: String,
     pub conversion_rates: Vec<DashboardConversionRatePresentation<'projection>>,
 }
@@ -112,9 +110,9 @@ pub struct DashboardScenarioPresentation<'projection> {
     pub end_of_plan_passive_income: String,
     pub chart_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
-    pub chart_asset_milestones: Vec<DashboardChartAssetMilestone<'projection>>,
     pub chart_months: Vec<DashboardChartMonthPresentation<'projection>>,
     pub future_living_costs: DashboardFutureLivingCostsPresentation<'projection>,
+    pub total_balance_milestones: Vec<DashboardMilestonePresentation<'projection>>,
     pub asset_milestones: Vec<DashboardMilestonePresentation<'projection>>,
 }
 
@@ -124,6 +122,7 @@ pub struct DashboardChartAssetLinePresentation<'projection> {
     pub path: String,
     pub color_index: usize,
     pub event_markers: Vec<DashboardChartEventMarker>,
+    pub milestone_markers: Vec<DashboardChartAssetMilestone<'projection>>,
 }
 
 #[derive(Serialize)]
@@ -135,9 +134,9 @@ pub struct DashboardChartEventMarker {
 #[derive(Serialize)]
 pub struct DashboardChartAssetMilestone<'projection> {
     pub name: &'projection str,
-    pub line_y: String,
-    pub label_y: String,
-    pub color_index: usize,
+    pub target: String,
+    pub x: String,
+    pub y: String,
 }
 
 #[derive(Serialize)]
@@ -195,6 +194,7 @@ pub struct DashboardMilestonePresentation<'projection> {
     pub id: &'projection str,
     pub name: &'projection str,
     pub target: String,
+    pub timing: String,
 }
 
 impl<'projection> DashboardPresentation<'projection> {
@@ -236,7 +236,7 @@ impl<'projection> DashboardPresentation<'projection> {
             x_labels: projection
                 .scenarios
                 .first()
-                .map(|scenario| chart_x_labels(&scenario.total_net_worth))
+                .map(|scenario| chart_x_labels(&scenario.total_net_worth, locale))
                 .unwrap_or_default(),
             milestones: projection
                 .total_balance_milestones
@@ -256,8 +256,8 @@ impl<'projection> DashboardPresentation<'projection> {
             locale: locale.html_language(),
             plan: DashboardPlanPresentation {
                 currency: projection.plan.currency(),
-                start: projection.plan.start(),
-                end: projection.plan.end(),
+                start: format_month(projection.plan.start(), locale),
+                end: format_month(projection.plan.end(), locale),
                 duration: format_duration(projection.plan.inclusive_month_count(), locale),
                 conversion_rates: projection
                     .plan
@@ -270,11 +270,6 @@ impl<'projection> DashboardPresentation<'projection> {
                     })
                     .collect(),
             },
-            total_balance_milestones: projection
-                .total_balance_milestones
-                .iter()
-                .map(|milestone| DashboardMilestonePresentation::from_total(milestone, locale))
-                .collect(),
             chart,
             scenarios: projection
                 .scenarios
@@ -318,28 +313,26 @@ impl<'projection> DashboardPresentation<'projection> {
                                     y: chart_y(balance.plan_balance, chart_scale.maximum),
                                 })
                                 .collect(),
-                        })
-                        .collect(),
-                    chart_asset_milestones: scenario
-                        .asset_milestones
-                        .iter()
-                        .filter_map(|milestone| {
-                            scenario
-                                .assets
+                            milestone_markers: scenario
+                                .asset_milestones
                                 .iter()
-                                .position(|asset| asset.id() == milestone.asset_id())
-                                .map(|color_index| DashboardChartAssetMilestone {
-                                    name: milestone.name(),
-                                    line_y: chart_y(
-                                        milestone.target.plan_amount(),
-                                        chart_scale.maximum,
-                                    ),
-                                    label_y: chart_milestone_label_y(
-                                        milestone.target.plan_amount(),
-                                        chart_scale.maximum,
-                                    ),
-                                    color_index,
+                                .filter(|milestone| milestone.asset_id() == asset.id())
+                                .filter_map(|milestone| {
+                                    asset
+                                        .monthly_balances
+                                        .iter()
+                                        .enumerate()
+                                        .find(|(_, balance)| {
+                                            balance.plan_balance >= milestone.target.plan_amount()
+                                        })
+                                        .map(|(index, balance)| DashboardChartAssetMilestone {
+                                            name: milestone.name(),
+                                            target: format_plan_money(&milestone.target, locale),
+                                            x: chart_x(index, asset.monthly_balances.len() - 1),
+                                            y: chart_y(balance.plan_balance, chart_scale.maximum),
+                                        })
                                 })
+                                .collect(),
                         })
                         .collect(),
                     chart_months: chart_months(
@@ -411,11 +404,47 @@ impl<'projection> DashboardPresentation<'projection> {
                             locale,
                         ),
                     },
+                    total_balance_milestones: projection
+                        .total_balance_milestones
+                        .iter()
+                        .map(|milestone| DashboardMilestonePresentation {
+                            id: milestone.id(),
+                            name: milestone.name(),
+                            target: format_plan_money(&milestone.target, locale),
+                            timing: milestone_timing(
+                                scenario
+                                    .total_net_worth
+                                    .iter()
+                                    .find(|month| month.balance >= milestone.target.plan_amount())
+                                    .map(|month| month.month),
+                                projection.plan.end(),
+                                &text,
+                                locale,
+                            ),
+                        })
+                        .collect(),
                     asset_milestones: scenario
                         .asset_milestones
                         .iter()
-                        .map(|milestone| {
-                            DashboardMilestonePresentation::from_asset(milestone, locale)
+                        .map(|milestone| DashboardMilestonePresentation {
+                            id: milestone.id(),
+                            name: milestone.name(),
+                            target: format_plan_money(&milestone.target, locale),
+                            timing: milestone_timing(
+                                scenario
+                                    .assets
+                                    .iter()
+                                    .find(|asset| asset.id() == milestone.asset_id())
+                                    .and_then(|asset| {
+                                        asset.monthly_balances.iter().find(|month| {
+                                            month.plan_balance >= milestone.target.plan_amount()
+                                        })
+                                    })
+                                    .map(|month| month.month),
+                                projection.plan.end(),
+                                &text,
+                                locale,
+                            ),
                         })
                         .collect(),
                 })
@@ -425,25 +454,20 @@ impl<'projection> DashboardPresentation<'projection> {
     }
 }
 
-impl<'projection> DashboardMilestonePresentation<'projection> {
-    fn from_total(
-        milestone: &TotalBalanceMilestoneProjection<'projection>,
-        locale: Locale,
-    ) -> Self {
-        DashboardMilestonePresentation {
-            id: milestone.id(),
-            name: milestone.name(),
-            target: format_plan_money(&milestone.target, locale),
-        }
+fn milestone_timing(
+    reached: Option<Month>,
+    plan_end: Month,
+    text: &DashboardText,
+    locale: Locale,
+) -> String {
+    match reached {
+        Some(month) => format!("{} {}", text.reached_in, format_month(month, locale)),
+        None => format!("{} {}", text.not_reached_by, format_month(plan_end, locale)),
     }
+}
 
-    fn from_asset(milestone: &AssetMilestoneProjection<'projection>, locale: Locale) -> Self {
-        DashboardMilestonePresentation {
-            id: milestone.id(),
-            name: milestone.name(),
-            target: format_plan_money(&milestone.target, locale),
-        }
-    }
+fn format_month(month: Month, _locale: Locale) -> String {
+    format!("{:02}/{}", month.month(), month.year())
 }
 
 impl DashboardText {
@@ -465,6 +489,8 @@ impl DashboardText {
                 no_future_living_costs: "No future living costs configured.",
                 total_balance_target: "Total-balance target",
                 asset_balance_target: "Asset-balance target",
+                reached_in: "Reached in",
+                not_reached_by: "Not reached by",
                 total_net_worth: "Total net worth",
                 plan_summary: "Plan summary",
                 end_of_plan_passive_income: "Monthly passive income at the end of the plan",
@@ -497,6 +523,8 @@ impl DashboardText {
                 no_future_living_costs: "Nenhum custo futuro de vida configurado.",
                 total_balance_target: "Meta de saldo total",
                 asset_balance_target: "Meta de saldo do ativo",
+                reached_in: "Atingida em",
+                not_reached_by: "Não atingida até",
                 total_net_worth: "Patrimônio líquido total",
                 plan_summary: "Resumo do plano",
                 end_of_plan_passive_income: "Renda passiva mensal ao fim do plano",
@@ -568,6 +596,7 @@ fn chart_y_ticks(scale: ChartScale, locale: Locale) -> Vec<DashboardChartTick> {
 
 fn chart_x_labels(
     months: &[crate::projection::TotalNetWorthMonthProjection],
+    locale: Locale,
 ) -> Vec<DashboardChartLabel> {
     let last_index = months.len().saturating_sub(1);
     [
@@ -590,7 +619,7 @@ fn chart_x_labels(
         };
         labels.push(DashboardChartLabel {
             x: chart_x(index, last_index),
-            label: month.month.to_string(),
+            label: format_month(month.month, locale),
         });
         labels
     })
@@ -598,8 +627,15 @@ fn chart_x_labels(
 
 fn chart_x_grid(months: &[crate::projection::TotalNetWorthMonthProjection]) -> Vec<String> {
     let last_index = months.len().saturating_sub(1);
-    (0..months.len())
-        .map(|index| chart_x(index, last_index))
+    months
+        .iter()
+        .enumerate()
+        .filter(|(index, projection)| {
+            *index == 0
+                || *index == last_index
+                || (projection.month.month() == 1 && projection.month.year().is_multiple_of(5))
+        })
+        .map(|(index, _)| chart_x(index, last_index))
         .collect()
 }
 
@@ -654,7 +690,7 @@ fn chart_months<'projection>(
         .iter()
         .enumerate()
         .map(|(index, total)| DashboardChartMonthPresentation {
-            month: total.month.to_string(),
+            month: format_month(total.month, locale),
             x: chart_x(index, last_index),
             y: chart_y(total.balance, maximum),
             total: format_number(total.balance, locale),

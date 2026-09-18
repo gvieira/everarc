@@ -304,6 +304,14 @@ pub struct Month {
 }
 
 impl Month {
+    pub fn year(self) -> u16 {
+        self.year
+    }
+
+    pub fn month(self) -> u8 {
+        self.month
+    }
+
     pub fn next(self) -> Self {
         if self.month == 12 {
             Self {

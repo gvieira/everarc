@@ -56,15 +56,20 @@ target = "1500"
 
     assert_eq!(dashboard.chart.y_ticks.last().unwrap().label, "1.5k");
     assert_eq!(dashboard.chart.milestones[0].line_y, "195.00");
-    assert_eq!(
-        dashboard.scenarios[0].chart_asset_milestones[0].line_y,
-        "75"
-    );
-    assert_eq!(
-        dashboard.scenarios[0].chart_asset_milestones[0].color_index,
-        0
+    assert!(
+        dashboard.scenarios[0].chart_assets[0]
+            .milestone_markers
+            .is_empty()
     );
     assert_eq!(dashboard.chart.x_grid, vec!["80", "950"]);
+    assert_eq!(
+        dashboard.scenarios[0].total_balance_milestones[0].timing,
+        "Not reached by 02/2026"
+    );
+    assert_eq!(
+        dashboard.scenarios[0].asset_milestones[0].timing,
+        "Not reached by 02/2026"
+    );
     assert_eq!(dashboard.scenarios[0].chart_assets.len(), 1);
     assert!(
         dashboard.scenarios[0].chart_assets[0]
@@ -176,6 +181,26 @@ amount = "-0.1"
             .path
             .starts_with("M 80 ")
     );
+}
+
+#[test]
+fn localizes_month_displays() {
+    let month: Month = "2043-05".parse().unwrap();
+
+    assert_eq!(format_month(month, Locale::EnUs), "05/2043");
+    assert_eq!(format_month(month, Locale::PtBr), "05/2043");
+}
+
+#[test]
+fn adds_vertical_chart_grid_lines_at_five_year_calendar_marks() {
+    let config = config(include_str!("../../everarc.toml"));
+    let projection = PlanProjection::from(&config);
+    let months = &projection.scenarios[0].total_net_worth;
+
+    let grid = chart_x_grid(months);
+    assert_eq!(grid.len(), 6);
+    assert!(grid.contains(&chart_x(48, months.len() - 1)));
+    assert!(grid.contains(&chart_x(228, months.len() - 1)));
 }
 
 #[test]

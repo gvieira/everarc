@@ -81,11 +81,12 @@
     {% endif %}
   </section>
 
-  {% for milestone in dashboard.total_balance_milestones %}
+  {% for milestone in scenario.total_balance_milestones %}
   <section class="outcome-slide outcome-total-milestone" data-outcome-slide data-outcome-accent="lavender" hidden>
     <h2>{{ milestone.name }}</h2>
     <p class="milestone-copy">{{ dashboard.text.total_balance_target }}</p>
     <p class="outcome-target">{{ milestone.target }}</p>
+    <p class="milestone-copy">{{ milestone.timing }}</p>
   </section>
   {% endfor %}
 
@@ -94,6 +95,7 @@
     <h2>{{ milestone.name }}</h2>
     <p class="milestone-copy">{{ dashboard.text.asset_balance_target }}</p>
     <p class="outcome-target">{{ milestone.target }}</p>
+    <p class="milestone-copy">{{ milestone.timing }}</p>
   </section>
   {% endfor %}
 </section>
@@ -105,13 +107,12 @@
 <section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="chart-heading">
     <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
-    <p class="chart-note">{{ text.annual_inflation }}: {{ scenario.annual_inflation }}</p>
   </div>
   <div class="chart-frame">
     <svg aria-label="{{ text.projection }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 500">
       <g class="chart-grid">
         {% for tick in chart.y_ticks %}<path d="M80 {{ tick.y }} H950" />{% endfor %}
-        {% for x in chart.x_grid %}<path class="chart-month-grid" d="M{{ x }} 75 V435" />{% endfor %}
+        {% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}
       </g>
       <g class="chart-labels">
         {% for tick in chart.y_ticks %}<text x="65" y="{{ tick.y }}" text-anchor="end">{{ tick.label }}</text>{% endfor %}
@@ -120,10 +121,6 @@
       {% for milestone in chart.milestones %}
       <path class="target-line" d="M80 {{ milestone.line_y }} H950" />
       <text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>
-      {% endfor %}
-      {% for milestone in scenario.chart_asset_milestones %}
-      <path class="asset-target-line asset-line-{{ milestone.color_index }}" d="M80 {{ milestone.line_y }} H950" />
-      <text class="asset-target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>
       {% endfor %}
       <path class="axis" d="M80 435 H950" />
       {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
@@ -134,6 +131,7 @@
         <circle class="chart-cursor-point" data-chart-cursor-point r="6" />
       </g>
       <rect class="chart-hit-area" data-chart-hit-area x="80" y="75" width="870" height="360" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
+      {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
   </div>
