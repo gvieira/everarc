@@ -36,6 +36,8 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
         "data-living-cost-view=\"adjusted\">14.339,23</span><span data-living-cost-view=\"today-money\" hidden>6.000,00"
     ));
     assert!(html.contains("class=\"chart-asset-milestone asset-line-0\""));
+    assert!(html.contains("data-chart-total-balance="));
+    assert!(html.contains("data-chart-asset-balance="));
     assert!(html.contains("Atingida em 05&#x2f;2043"));
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));
     assert!(html.contains("data-scenario-default=\"true\""));

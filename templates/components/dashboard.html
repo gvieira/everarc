@@ -107,37 +107,43 @@
 <section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="chart-heading">
     <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
+    <div class="chart-zoom-controls" aria-label="{{ text.projection }}">
+      <button type="button" data-chart-zoom-out aria-label="{{ text.zoom_out }}">−</button>
+      <button type="button" data-chart-zoom-in aria-label="{{ text.zoom_in }}">+</button>
+      <button type="button" data-chart-zoom-reset aria-label="{{ text.reset_zoom }}" title="{{ text.reset_zoom }}">⛶</button>
+    </div>
   </div>
   <div class="chart-frame">
     <svg aria-label="{{ text.projection }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 500">
+      <defs><clipPath id="chart-plot-{{ scenario.id }}"><rect x="80" y="75" width="870" height="405" /></clipPath></defs>
       <g class="chart-grid">
         {% for tick in chart.y_ticks %}<path d="M80 {{ tick.y }} H950" />{% endfor %}
-        {% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}
       </g>
       <g class="chart-labels">
         {% for tick in chart.y_ticks %}<text x="65" y="{{ tick.y }}" text-anchor="end">{{ tick.label }}</text>{% endfor %}
-        {% for label in chart.x_labels %}<text x="{{ label.x }}" y="465" text-anchor="middle">{{ label.label }}</text>{% endfor %}
       </g>
-      {% for milestone in chart.milestones %}
-      <path class="target-line" d="M80 {{ milestone.line_y }} H950" />
-      <text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>
-      {% endfor %}
-      <path class="axis" d="M80 435 H950" />
-      {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
-      <path class="total-line" d="{{ scenario.chart_path }}" />
-      <g class="chart-cursor" data-chart-cursor hidden>
+      <g clip-path="url(#chart-plot-{{ scenario.id }})"><g data-chart-viewport>
+        <g class="chart-grid">{% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}</g>
+        {% for milestone in chart.milestones %}<path class="target-line" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
+        {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
+        <path class="total-line" d="{{ scenario.chart_path }}" />
+        <g class="chart-cursor" data-chart-cursor hidden>
         <path class="chart-cursor-line" data-chart-cursor-line />
         <g data-chart-asset-markers></g>
         <circle class="chart-cursor-point" data-chart-cursor-point r="6" />
-      </g>
+        </g>
+        {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
+      </g></g>
+      <g class="chart-labels">{% for label in chart.x_labels %}<text data-chart-x-label x="{{ label.x }}" y="465" text-anchor="middle">{{ label.label }}</text>{% endfor %}</g>
+      {% for milestone in chart.milestones %}<text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>{% endfor %}
+      <path class="axis" d="M80 435 H950" />
       <rect class="chart-hit-area" data-chart-hit-area x="80" y="75" width="870" height="360" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
-      {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
   </div>
   <div data-chart-month-data hidden>
     {% for month in scenario.chart_months %}
-    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" {% if not loop.first %}hidden{% endif %}>
+    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" data-chart-total-balance="{{ month.balance }}" {% if not loop.first %}hidden{% endif %}>
       <div class="chart-inspector-summary">
         <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
@@ -146,7 +152,7 @@
       <p class="chart-inspector-assets-label">{{ text.assets }}</p>
       <div class="chart-inspector-assets">
         {% for asset in month.assets %}
-        <div class="chart-inspector-asset" data-chart-asset data-chart-asset-y="{{ asset.y }}" data-chart-asset-color="{{ asset.color_index }}">
+        <div class="chart-inspector-asset" data-chart-asset data-chart-asset-y="{{ asset.y }}" data-chart-asset-balance="{{ asset.balance }}" data-chart-asset-color="{{ asset.color_index }}">
           <strong>{{ asset.name }}</strong>
           <span class="chart-inspector-values"><span class="chart-inspector-native">{{ asset.native_balance }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}</span>{% if asset.comparable_plan_balance %}<span class="chart-inspector-comparable"> ≈ {{ asset.comparable_plan_balance }}</span>{% endif %}</span>
           <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.annual_return }}: {{ asset.annual_expected_return }}">↗ {{ asset.annual_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}">+ {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}{{ text.per_month }}</span><span class="chart-asset-assumption" aria-label="{{ text.passive_income }}: {{ asset.passive_income }}">☼ {{ asset.passive_income }}</span></span>

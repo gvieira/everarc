@@ -70,6 +70,9 @@
       .outcome-note { margin: 0; color: var(--muted); font: .65rem/1.4 "Space Mono", monospace; }
       .chart-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; padding-bottom: 1rem; border-bottom: 1px dashed var(--line); }
       .chart-heading h2 { margin-bottom: 0; }
+      .chart-zoom-controls { display: flex; gap: .4rem; align-items: center; }
+      .chart-zoom-controls button { padding: .35rem .6rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
+      .chart-zoom-controls button:disabled { cursor: default; opacity: .45; }
       .chart-note { margin: .15rem 0 0; color: var(--muted); font: .7rem/1.3 "Space Mono", monospace; text-align: right; }
       .chart-frame { position: relative; margin-top: 1rem; padding: 1rem .25rem .25rem; background-color: #fffdf8; }
       svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -88,6 +91,7 @@
       .asset-line-3 { stroke: #5eae78; }
       .asset-line-4 { stroke: #bb7fa6; }
       .total-line { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 4.5; }
+      .chart-cursor[hidden] { display: none; }
       .chart-cursor-line { stroke: var(--ink); stroke-dasharray: 4 5; stroke-width: 1.5; }
       .chart-cursor-point { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
       .chart-asset-marker, .chart-event-marker { fill: var(--card); stroke-width: 2.5; }
@@ -177,7 +181,7 @@
           const selected = months[index];
           months.forEach((month, monthIndex) => { month.hidden = monthIndex !== index; });
           const cursor = chart.querySelector("[data-chart-cursor]");
-          cursor.hidden = false;
+          cursor.toggleAttribute("hidden", false);
           cursor.querySelector("[data-chart-cursor-line]").setAttribute("d", `M${selected.dataset.chartX} 75 V435`);
           const assetMarkers = cursor.querySelector("[data-chart-asset-markers]");
           assetMarkers.replaceChildren(...[...selected.querySelectorAll("[data-chart-asset]")].map((asset) => {
@@ -305,14 +309,126 @@
         }
         for (const chart of charts) {
           const hitArea = chart.querySelector("[data-chart-hit-area]");
+          const viewport = chart.querySelector("[data-chart-viewport]");
+          const count = chart.querySelectorAll("[data-chart-month]").length;
+          let viewportStart = 0;
+          let viewportEnd = count - 1;
+          const updateViewport = () => {
+            const xForMonth = (index) => 80 + 870 * (index - viewportStart) / (viewportEnd - viewportStart);
+            const monthIndexForX = (x) => Math.round((x - 80) / 870 * (count - 1));
+            const months = [...chart.querySelectorAll("[data-chart-month]")];
+            viewport.removeAttribute("transform");
+            months.forEach((month, index) => { month.dataset.chartX = xForMonth(index); });
+            const pathFor = (points) => points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
+            chart.querySelector(".total-line").setAttribute("d", pathFor(months.map((month) => ({ x: month.dataset.chartX, y: month.dataset.chartY }))));
+            const assets = months[0].querySelectorAll("[data-chart-asset]");
+            assets.forEach((_, assetIndex) => {
+              const points = months.map((month) => {
+                const asset = month.querySelectorAll("[data-chart-asset]")[assetIndex];
+                return { x: month.dataset.chartX, y: asset.dataset.chartAssetY };
+              });
+              chart.querySelector(`.asset-line-${assetIndex}`).setAttribute("d", pathFor(points));
+            });
+            chart.querySelectorAll(".chart-event-marker, [data-chart-milestone-marker]").forEach((marker) => {
+              const x = Number(marker.getAttribute("cx") ?? marker.getAttribute("d").split(" ")[0]);
+              const index = marker.dataset.chartMonthIndex ??= String(monthIndexForX(x));
+              const visible = Number(index) >= viewportStart && Number(index) <= viewportEnd;
+              marker.hidden = !visible;
+              if (marker.hasAttribute("cx")) marker.setAttribute("cx", xForMonth(Number(index)));
+              else marker.setAttribute("d", marker.getAttribute("d").replace(/^[^ ]+ [^ ]+/, `${xForMonth(Number(index))} ${marker.getAttribute("d").split(" ")[1]}`));
+            });
+            const labels = [...chart.querySelectorAll("[data-chart-x-label]")];
+            labels.forEach((label, index) => {
+              const monthIndex = Math.round(viewportStart + index * (viewportEnd - viewportStart) / Math.max(1, labels.length - 1));
+              label.setAttribute("x", xForMonth(monthIndex));
+              label.textContent = months[monthIndex].dataset.chartMonthLabel;
+            });
+            chart.querySelector("[data-chart-zoom-out]").disabled = viewportStart === 0 && viewportEnd === count - 1;
+            chart.querySelector("[data-chart-zoom-reset]").disabled = viewportStart === 0 && viewportEnd === count - 1;
+          };
+          let viewportAnimation;
+          const animateViewport = (fromStart, fromEnd, afterAnimation) => {
+            const targetStart = viewportStart;
+            const targetEnd = viewportEnd;
+            const startedAt = performance.now();
+            const duration = 220;
+            cancelAnimationFrame(viewportAnimation);
+            const renderFrame = (now) => {
+              const progress = Math.min(1, (now - startedAt) / duration);
+              const eased = 1 - (1 - progress) ** 3;
+              viewportStart = fromStart + (targetStart - fromStart) * eased;
+              viewportEnd = fromEnd + (targetEnd - fromEnd) * eased;
+              updateViewport();
+              if (progress < 1) {
+                viewportAnimation = requestAnimationFrame(renderFrame);
+                return;
+              }
+              viewportStart = targetStart;
+              viewportEnd = targetEnd;
+              updateViewport();
+              afterAnimation();
+            };
+            viewportAnimation = requestAnimationFrame(renderFrame);
+          };
+          const zoom = (direction) => {
+            const previousStart = viewportStart;
+            const previousEnd = viewportEnd;
+            const visible = viewportEnd - viewportStart + 1;
+            const nextVisible = Math.max(6, Math.min(count, direction > 0 ? Math.ceil(visible / 2) : visible * 2));
+            const center = Number(chart.dataset.chartMonthIndex ?? Math.round((viewportStart + viewportEnd) / 2));
+            viewportStart = Math.max(0, Math.min(count - nextVisible, center - Math.floor(nextVisible / 2)));
+            viewportEnd = viewportStart + nextVisible - 1;
+            animateViewport(previousStart, previousEnd, () => {
+              showChartMonth(chart, Math.max(viewportStart, Math.min(viewportEnd, center)));
+            });
+          };
+          chart.querySelector("[data-chart-zoom-in]").addEventListener("click", () => zoom(1));
+          chart.querySelector("[data-chart-zoom-out]").addEventListener("click", () => zoom(-1));
+          chart.querySelector("[data-chart-zoom-reset]").addEventListener("click", () => {
+            const previousStart = viewportStart;
+            const previousEnd = viewportEnd;
+            viewportStart = 0;
+            viewportEnd = count - 1;
+            animateViewport(previousStart, previousEnd, () => {});
+          });
+          updateViewport();
           const selectPointerMonth = (event) => {
             const bounds = hitArea.getBoundingClientRect();
-            const count = chart.querySelectorAll("[data-chart-month]").length;
             const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
-            showChartMonth(chart, Math.round(ratio * (count - 1)));
+            showChartMonth(chart, Math.round(viewportStart + ratio * (viewportEnd - viewportStart)));
           };
-          hitArea.addEventListener("pointermove", selectPointerMonth);
-          hitArea.addEventListener("pointerdown", selectPointerMonth);
+          let panStartX;
+          let panViewportStart;
+          hitArea.addEventListener("pointerdown", (event) => {
+            if (viewportStart === 0 && viewportEnd === count - 1) {
+              selectPointerMonth(event);
+              return;
+            }
+            cancelAnimationFrame(viewportAnimation);
+            panStartX = event.clientX;
+            panViewportStart = viewportStart;
+            chart.querySelector("[data-chart-hover-card]").hidden = true;
+            chart.querySelector("[data-chart-cursor]").toggleAttribute("hidden", true);
+            hitArea.setPointerCapture(event.pointerId);
+          });
+          hitArea.addEventListener("pointermove", (event) => {
+            if (panStartX === undefined) {
+              selectPointerMonth(event);
+              return;
+            }
+            const bounds = hitArea.getBoundingClientRect();
+            const shift = Math.round((panStartX - event.clientX) / bounds.width * (viewportEnd - viewportStart));
+            const visible = viewportEnd - viewportStart + 1;
+            viewportStart = Math.max(0, Math.min(count - visible, panViewportStart + shift));
+            viewportEnd = viewportStart + visible - 1;
+            updateViewport();
+          });
+          hitArea.addEventListener("pointerup", (event) => {
+            if (panStartX === undefined) return;
+            panStartX = undefined;
+            hitArea.releasePointerCapture(event.pointerId);
+          });
+          hitArea.addEventListener("pointercancel", () => { panStartX = undefined; });
           hitArea.addEventListener("keydown", (event) => {
             const currentIndex = Number(chart.dataset.chartMonthIndex ?? 0);
             let nextIndex;

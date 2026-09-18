@@ -54,6 +54,9 @@ pub struct DashboardText {
     pub per_month: &'static str,
     pub total_net_worth_legend: &'static str,
     pub goals_legend: &'static str,
+    pub zoom_in: &'static str,
+    pub zoom_out: &'static str,
+    pub reset_zoom: &'static str,
 }
 
 #[derive(Serialize)]
@@ -144,6 +147,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub month: String,
     pub x: String,
     pub y: String,
+    pub balance: String,
     pub total: String,
     pub passive_income: String,
     pub assets: Vec<DashboardChartAssetPresentation<'projection>>,
@@ -159,6 +163,7 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub passive_income: String,
     pub is_plan_currency: bool,
     pub y: String,
+    pub balance: String,
     pub color_index: usize,
     pub currency: &'projection Currency,
     pub comparable_plan_balance: Option<String>,
@@ -506,6 +511,9 @@ impl DashboardText {
                 per_month: "/month",
                 total_net_worth_legend: "Total net worth",
                 goals_legend: "Goals",
+                zoom_in: "Zoom in",
+                zoom_out: "Zoom out",
+                reset_zoom: "Show full plan",
             },
             Locale::PtBr => Self {
                 scenario: "Cenário",
@@ -540,6 +548,9 @@ impl DashboardText {
                 per_month: "/mês",
                 total_net_worth_legend: "Patrimônio líquido total",
                 goals_legend: "Metas",
+                zoom_in: "Aumentar zoom",
+                zoom_out: "Diminuir zoom",
+                reset_zoom: "Mostrar plano completo",
             },
         }
     }
@@ -693,6 +704,7 @@ fn chart_months<'projection>(
             month: format_month(total.month, locale),
             x: chart_x(index, last_index),
             y: chart_y(total.balance, maximum),
+            balance: total.balance.to_string(),
             total: format_number(total.balance, locale),
             passive_income: format_number(
                 scenario
@@ -725,6 +737,7 @@ fn chart_months<'projection>(
                         passive_income: format_number(balance.plan_passive_income, locale),
                         is_plan_currency: asset.currency() == plan_currency,
                         y: chart_y(balance.plan_balance, maximum),
+                        balance: balance.plan_balance.to_string(),
                         color_index: asset_index,
                         currency: asset.currency(),
                         comparable_plan_balance,
