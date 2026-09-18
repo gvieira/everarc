@@ -53,6 +53,7 @@ monthly_cost = "1200.00"
 # Every config has one or more scenarios.
 [[scenarios]]
 id = "baseline"
+# Scenario names are limited to 32 characters for the dashboard picker.
 name = "Baseline"
 # Optional detail shown in the scenario selector and plan summary.
 description = "Expected returns and contributions under current assumptions."
@@ -220,7 +221,9 @@ The dashboard chart has `↤` to focus its first three years, `+` and `−` to
 change its visible month range, and `⛶` to restore the full plan. When zoomed,
 drag across the plot to pan. The chart recalculates its Y-axis from visible
 balances, so shorter periods use their available vertical space; milestones
-above that visible range are hidden.
+above that visible range are hidden. Its hover panel shows the current month's
+plan-currency contribution total and the annualized passive-income yield
+(monthly passive income multiplied by twelve, divided by total balance).
 
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.

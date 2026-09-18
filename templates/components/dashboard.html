@@ -131,7 +131,6 @@
         <path class="total-line" d="{{ scenario.chart_path }}" />
         <g class="chart-cursor" data-chart-cursor hidden>
         <path class="chart-cursor-line" data-chart-cursor-line />
-        <g data-chart-asset-markers></g>
         <circle class="chart-cursor-point" data-chart-cursor-point r="6" />
         </g>
         {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
@@ -148,7 +147,8 @@
       <div class="chart-inspector-summary">
         <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
-        <p><span>{{ text.passive_income }}</span><strong>{{ month.passive_income }}</strong></p>
+        <p><span>{{ text.passive_income }}</span><strong>{% if month.annualized_passive_income_yield %}<small aria-label="{{ text.annualized_passive_income_yield }}">{{ month.annualized_passive_income_yield }}</small> {% endif %}{{ month.passive_income }}</strong></p>
+        <p><span>{{ text.contribution }}</span><strong>{{ month.monthly_contributions }}</strong></p>
       </div>
       <p class="chart-inspector-assets-label">{{ text.assets }}</p>
       <div class="chart-inspector-assets">

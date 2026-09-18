@@ -1,3 +1,5 @@
+const MAX_SCENARIO_NAME_LENGTH: usize = 32;
+
 use std::{
     collections::{HashMap, HashSet},
     fmt, fs, io,
@@ -438,6 +440,8 @@ pub enum ConfigError {
     MultipleSelectedScenarios,
     #[error("scenario `{id}` name must not be blank")]
     BlankScenarioName { id: String },
+    #[error("scenario `{id}` name must be at most {maximum} characters")]
+    ScenarioNameTooLong { id: String, maximum: usize },
     #[error("scenario `{id}` annual inflation must be greater than -1")]
     InvalidAnnualInflation { id: String },
     #[error("duplicate scenario id `{id}`")]
@@ -746,6 +750,12 @@ impl Config {
             if scenario.name.trim().is_empty() {
                 return Err(ConfigError::BlankScenarioName {
                     id: scenario.id.clone(),
+                });
+            }
+            if scenario.name.chars().count() > MAX_SCENARIO_NAME_LENGTH {
+                return Err(ConfigError::ScenarioNameTooLong {
+                    id: scenario.id.clone(),
+                    maximum: MAX_SCENARIO_NAME_LENGTH,
                 });
             }
             if scenario.annual_inflation <= -Decimal::ONE {

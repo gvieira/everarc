@@ -51,6 +51,8 @@ pub struct DashboardText {
     pub assets: &'static str,
     pub annual_return: &'static str,
     pub monthly_contribution: &'static str,
+    pub contribution: &'static str,
+    pub annualized_passive_income_yield: &'static str,
     pub per_month: &'static str,
     pub total_net_worth_legend: &'static str,
     pub goals_legend: &'static str,
@@ -151,7 +153,9 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub y: String,
     pub balance: String,
     pub total: String,
+    pub monthly_contributions: String,
     pub passive_income: String,
+    pub annualized_passive_income_yield: Option<String>,
     pub assets: Vec<DashboardChartAssetPresentation<'projection>>,
 }
 
@@ -348,6 +352,7 @@ impl<'projection> DashboardPresentation<'projection> {
                         chart_scale.maximum,
                         locale,
                         projection.plan.currency(),
+                        projection.plan.conversion_rates(),
                         &text,
                     ),
                     future_living_costs: DashboardFutureLivingCostsPresentation {
@@ -511,6 +516,8 @@ impl DashboardText {
                 assets: "Assets",
                 annual_return: "Annual return",
                 monthly_contribution: "Monthly contribution",
+                contribution: "Contribution",
+                annualized_passive_income_yield: "Annualized passive-income yield",
                 per_month: "/month",
                 total_net_worth_legend: "Total net worth",
                 goals_legend: "Goals",
@@ -549,6 +556,8 @@ impl DashboardText {
                 assets: "Ativos",
                 annual_return: "Retorno anual",
                 monthly_contribution: "Contribuição mensal",
+                contribution: "Contribuição",
+                annualized_passive_income_yield: "Rendimento anualizado da renda passiva",
                 per_month: "/mês",
                 total_net_worth_legend: "Patrimônio líquido total",
                 goals_legend: "Metas",
@@ -693,11 +702,34 @@ fn asset_chart_path(asset: &crate::projection::AssetProjection<'_>, maximum: Dec
         .join(" ")
 }
 
+fn plan_contribution_amount(
+    contribution: &crate::config::MonthlyContribution,
+    plan_currency: &Currency,
+    conversion_rates: &[crate::config::ConversionRate],
+) -> Decimal {
+    if &contribution.currency == plan_currency {
+        return contribution.amount;
+    }
+    let conversion_rate = conversion_rates
+        .iter()
+        .find_map(|rate| {
+            (rate.from == contribution.currency && &rate.to == plan_currency)
+                .then_some(rate.rate)
+                .or_else(|| {
+                    (&rate.from == plan_currency && rate.to == contribution.currency)
+                        .then_some(Decimal::ONE / rate.rate)
+                })
+        })
+        .expect("validated contribution conversion rate");
+    contribution.amount * conversion_rate
+}
+
 fn chart_months<'projection>(
     scenario: &'projection crate::projection::ScenarioProjection<'projection>,
     maximum: Decimal,
     locale: Locale,
     plan_currency: &'projection Currency,
+    conversion_rates: &[crate::config::ConversionRate],
     text: &DashboardText,
 ) -> Vec<DashboardChartMonthPresentation<'projection>> {
     let last_index = scenario.total_net_worth.len().saturating_sub(1);
@@ -711,6 +743,20 @@ fn chart_months<'projection>(
             y: chart_y(total.balance, maximum),
             balance: total.balance.to_string(),
             total: format_number(total.balance, locale),
+            monthly_contributions: format_number(
+                scenario
+                    .assets
+                    .iter()
+                    .map(|asset| {
+                        plan_contribution_amount(
+                            &asset.monthly_balances[index].monthly_contribution,
+                            plan_currency,
+                            conversion_rates,
+                        )
+                    })
+                    .sum(),
+                locale,
+            ),
             passive_income: format_number(
                 scenario
                     .assets
@@ -719,6 +765,18 @@ fn chart_months<'projection>(
                     .sum(),
                 locale,
             ),
+            annualized_passive_income_yield: (total.balance > Decimal::ZERO).then(|| {
+                format_percentage(
+                    scenario
+                        .assets
+                        .iter()
+                        .map(|asset| asset.monthly_balances[index].plan_passive_income)
+                        .sum::<Decimal>()
+                        * Decimal::from(12)
+                        / total.balance,
+                    locale,
+                )
+            }),
             assets: scenario
                 .assets
                 .iter()

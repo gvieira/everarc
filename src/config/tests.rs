@@ -52,6 +52,17 @@ assets = []
 }
 
 #[test]
+fn rejects_scenario_names_longer_than_32_characters() {
+    let mut config: Config = toml::from_str(include_str!("../../everarc.toml")).unwrap();
+    config.scenarios[0].name = "A scenario name that exceeds 32 chars".into();
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::ScenarioNameTooLong { maximum: 32, .. })
+    ));
+}
+
+#[test]
 fn rejects_multiple_selected_scenarios() {
     let config: Config = toml::from_str(
         r#"
