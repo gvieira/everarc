@@ -317,8 +317,59 @@
             const xForMonth = (index) => 80 + 870 * (index - viewportStart) / (viewportEnd - viewportStart);
             const monthIndexForX = (x) => Math.round((x - 80) / 870 * (count - 1));
             const months = [...chart.querySelectorAll("[data-chart-month]")];
+            const visibleMonths = months.filter((_, index) => index >= Math.ceil(viewportStart) && index <= Math.floor(viewportEnd));
+            const balances = visibleMonths.flatMap((month) => [
+              Number(month.dataset.chartTotalBalance),
+              ...[...month.querySelectorAll("[data-chart-asset]")].map((asset) => Number(asset.dataset.chartAssetBalance)),
+            ]);
+            const dataMaximum = Math.max(...balances, 1);
+            const goals = [...chart.querySelectorAll("[data-chart-total-milestone]")];
+            const relevantGoalBalances = goals
+              .map((goal) => Number(goal.dataset.chartTotalMilestoneBalance))
+              .filter((balance) => balance <= dataMaximum);
+            const maximum = Math.max(dataMaximum, ...relevantGoalBalances);
+            const desiredStep = maximum / 4;
+            const magnitude = 10 ** Math.floor(Math.log10(desiredStep));
+            const normalizedStep = desiredStep / magnitude;
+            const factor = normalizedStep <= 1.5 ? 1 : normalizedStep <= 2.25 ? 2 : normalizedStep <= 3.5 ? 2.5 : normalizedStep <= 7.5 ? 5 : 10;
+            const step = factor * magnitude;
+            const scaleMaximum = Math.ceil(maximum / step) * step;
+            const yForBalance = (balance) => 435 - 360 * balance / scaleMaximum;
             viewport.removeAttribute("transform");
-            months.forEach((month, index) => { month.dataset.chartX = xForMonth(index); });
+            months.forEach((month, index) => {
+              month.dataset.chartX = xForMonth(index);
+              month.dataset.chartY = yForBalance(Number(month.dataset.chartTotalBalance));
+              month.querySelectorAll("[data-chart-asset]").forEach((asset) => {
+                asset.dataset.chartAssetY = yForBalance(Number(asset.dataset.chartAssetBalance));
+              });
+            });
+            const ticks = Array.from({ length: Math.floor(scaleMaximum / step) + 1 }, (_, index) => index * step);
+            const gridLines = [...chart.querySelectorAll("[data-chart-y-grid]")];
+            const tickLabels = [...chart.querySelectorAll("[data-chart-y-label]")];
+            const axisFormatter = new Intl.NumberFormat(document.documentElement.lang, { notation: "compact", maximumFractionDigits: 1 });
+            gridLines.forEach((line, index) => {
+              line.style.display = index < ticks.length ? "" : "none";
+              if (index < ticks.length) line.setAttribute("d", `M80 ${yForBalance(ticks[index])} H950`);
+            });
+            tickLabels.forEach((label, index) => {
+              label.style.display = index < ticks.length ? "" : "none";
+              if (index < ticks.length) {
+                label.setAttribute("y", yForBalance(ticks[index]));
+                label.textContent = axisFormatter.format(ticks[index]);
+              }
+            });
+            goals.forEach((goal) => {
+              const balance = Number(goal.dataset.chartTotalMilestoneBalance);
+              const visible = balance <= scaleMaximum;
+              goal.style.display = visible ? "" : "none";
+              const label = chart.querySelector(`[data-chart-total-milestone-label="${goal.dataset.chartTotalMilestoneIndex}"]`);
+              label.style.display = visible ? "" : "none";
+              if (visible) {
+                const y = yForBalance(balance);
+                goal.setAttribute("d", `M80 ${y} H950`);
+                label.setAttribute("y", Math.max(90, y - 10));
+              }
+            });
             const pathFor = (points) => points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
             chart.querySelector(".total-line").setAttribute("d", pathFor(months.map((month) => ({ x: month.dataset.chartX, y: month.dataset.chartY }))));
             const assets = months[0].querySelectorAll("[data-chart-asset]");
@@ -335,8 +386,15 @@
               const index = marker.dataset.chartMonthIndex ??= String(monthIndexForX(x));
               const visible = Number(index) >= viewportStart && Number(index) <= viewportEnd;
               marker.hidden = !visible;
-              if (marker.hasAttribute("cx")) marker.setAttribute("cx", xForMonth(Number(index)));
-              else marker.setAttribute("d", marker.getAttribute("d").replace(/^M[^ ]+ [^ ]+/, `M${xForMonth(Number(index))} ${pathCoordinates[2]}`));
+              const assetIndex = Number([...marker.classList].find((name) => name.startsWith("asset-line-"))?.slice("asset-line-".length));
+              const asset = months[Number(index)]?.querySelectorAll("[data-chart-asset]")[assetIndex];
+              const y = yForBalance(Number(asset?.dataset.chartAssetBalance));
+              if (marker.hasAttribute("cx")) {
+                marker.setAttribute("cx", xForMonth(Number(index)));
+                marker.setAttribute("cy", y);
+              } else {
+                marker.setAttribute("d", marker.getAttribute("d").replace(/^M[^ ]+ [^ ]+/, `M${xForMonth(Number(index))} ${y}`));
+              }
             });
             const labels = [...chart.querySelectorAll("[data-chart-x-label]")];
             labels.forEach((label, index) => {
@@ -344,6 +402,8 @@
               label.setAttribute("x", xForMonth(monthIndex));
               label.textContent = months[monthIndex].dataset.chartMonthLabel;
             });
+            const initialRangeEnd = Math.min(35, count - 1);
+            chart.querySelector("[data-chart-focus-start]").disabled = viewportStart === 0 && viewportEnd === initialRangeEnd;
             chart.querySelector("[data-chart-zoom-out]").disabled = viewportStart === 0 && viewportEnd === count - 1;
             chart.querySelector("[data-chart-zoom-reset]").disabled = viewportStart === 0 && viewportEnd === count - 1;
           };
@@ -383,6 +443,13 @@
               showChartMonth(chart, Math.max(viewportStart, Math.min(viewportEnd, center)));
             });
           };
+          chart.querySelector("[data-chart-focus-start]").addEventListener("click", () => {
+            const previousStart = viewportStart;
+            const previousEnd = viewportEnd;
+            viewportStart = 0;
+            viewportEnd = Math.min(35, count - 1);
+            animateViewport(previousStart, previousEnd, () => showChartMonth(chart, 0));
+          });
           chart.querySelector("[data-chart-zoom-in]").addEventListener("click", () => zoom(1));
           chart.querySelector("[data-chart-zoom-out]").addEventListener("click", () => zoom(-1));
           chart.querySelector("[data-chart-zoom-reset]").addEventListener("click", () => {

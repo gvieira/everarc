@@ -56,6 +56,7 @@ pub struct DashboardText {
     pub goals_legend: &'static str,
     pub zoom_in: &'static str,
     pub zoom_out: &'static str,
+    pub focus_start: &'static str,
     pub reset_zoom: &'static str,
 }
 
@@ -98,6 +99,7 @@ pub struct DashboardChartLabel {
 #[derive(Serialize)]
 pub struct DashboardChartMilestone<'projection> {
     pub name: &'projection str,
+    pub balance: String,
     pub line_y: String,
     pub label_y: String,
 }
@@ -248,6 +250,7 @@ impl<'projection> DashboardPresentation<'projection> {
                 .iter()
                 .map(|milestone| DashboardChartMilestone {
                     name: milestone.name(),
+                    balance: milestone.target.plan_amount().to_string(),
                     line_y: chart_y(milestone.target.plan_amount(), chart_scale.maximum),
                     label_y: chart_milestone_label_y(
                         milestone.target.plan_amount(),
@@ -513,6 +516,7 @@ impl DashboardText {
                 goals_legend: "Goals",
                 zoom_in: "Zoom in",
                 zoom_out: "Zoom out",
+                focus_start: "Focus first three years",
                 reset_zoom: "Show full plan",
             },
             Locale::PtBr => Self {
@@ -550,6 +554,7 @@ impl DashboardText {
                 goals_legend: "Metas",
                 zoom_in: "Aumentar zoom",
                 zoom_out: "Diminuir zoom",
+                focus_start: "Focar nos primeiros três anos",
                 reset_zoom: "Mostrar plano completo",
             },
         }

@@ -216,6 +216,12 @@ asset's currency and may target inherited assets. IDs and names must be
 nonblank, IDs are unique within their own scope, and all `target` values are
 strictly positive quoted decimals.
 
+The dashboard chart has `↤` to focus its first three years, `+` and `−` to
+change its visible month range, and `⛶` to restore the full plan. When zoomed,
+drag across the plot to pan. The chart recalculates its Y-axis from visible
+balances, so shorter periods use their available vertical space; milestones
+above that visible range are hidden.
+
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.
 It is not a record of current spending. Each cost has a nonblank, unique `id`,

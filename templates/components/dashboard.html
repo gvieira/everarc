@@ -108,6 +108,7 @@
   <div class="chart-heading">
     <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
     <div class="chart-zoom-controls" aria-label="{{ text.projection }}">
+      <button type="button" data-chart-focus-start aria-label="{{ text.focus_start }}" title="{{ text.focus_start }}">↤</button>
       <button type="button" data-chart-zoom-out aria-label="{{ text.zoom_out }}">−</button>
       <button type="button" data-chart-zoom-in aria-label="{{ text.zoom_in }}">+</button>
       <button type="button" data-chart-zoom-reset aria-label="{{ text.reset_zoom }}" title="{{ text.reset_zoom }}">⛶</button>
@@ -117,15 +118,15 @@
     <svg aria-label="{{ text.projection }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 500">
       <defs><clipPath id="chart-plot-{{ scenario.id }}"><rect x="80" y="75" width="870" height="405" /></clipPath></defs>
       <g class="chart-grid">
-        {% for tick in chart.y_ticks %}<path d="M80 {{ tick.y }} H950" />{% endfor %}
+        {% for tick in chart.y_ticks %}<path data-chart-y-grid d="M80 {{ tick.y }} H950" />{% endfor %}
       </g>
       <g class="chart-labels">
-        {% for tick in chart.y_ticks %}<text x="65" y="{{ tick.y }}" text-anchor="end">{{ tick.label }}</text>{% endfor %}
+        {% for tick in chart.y_ticks %}<text data-chart-y-label x="65" y="{{ tick.y }}" text-anchor="end">{{ tick.label }}</text>{% endfor %}
       </g>
       <rect class="chart-hit-area" data-chart-hit-area x="80" y="75" width="870" height="360" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
       <g clip-path="url(#chart-plot-{{ scenario.id }})"><g data-chart-viewport>
         <g class="chart-grid">{% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}</g>
-        {% for milestone in chart.milestones %}<path class="target-line" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
+        {% for milestone in chart.milestones %}<path class="target-line" data-chart-total-milestone data-chart-total-milestone-index="{{ loop.index0 }}" data-chart-total-milestone-balance="{{ milestone.balance }}" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
         {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
         <path class="total-line" d="{{ scenario.chart_path }}" />
         <g class="chart-cursor" data-chart-cursor hidden>
@@ -136,7 +137,7 @@
         {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
       </g></g>
       <g class="chart-labels">{% for label in chart.x_labels %}<text data-chart-x-label x="{{ label.x }}" y="465" text-anchor="middle">{{ label.label }}</text>{% endfor %}</g>
-      {% for milestone in chart.milestones %}<text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>{% endfor %}
+      {% for milestone in chart.milestones %}<text class="target-label" data-chart-total-milestone-label="{{ loop.index0 }}" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>{% endfor %}
       <path class="axis" d="M80 435 H950" />
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
