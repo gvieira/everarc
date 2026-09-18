@@ -81,7 +81,7 @@
       .chart-labels { fill: var(--muted); font: 13px "Space Mono", monospace; }
       .target-line { fill: none; stroke: #d55151; stroke-dasharray: 8 7; stroke-width: 2; }
       .target-label { fill: #b63f3f; font: 700 11px "Space Mono", monospace; }
-      .chart-asset-milestone { fill: var(--card); stroke-width: 2.8; stroke-linejoin: round; cursor: help; }
+      .chart-asset-milestone { fill: var(--card); stroke-width: 2.8; stroke-linejoin: round; }
       .axis { fill: none; stroke: var(--ink); stroke-width: 2.4; }
       .total-shadow { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; transform: translate(2px, 2px); }
       .asset-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; opacity: .78; }
@@ -330,12 +330,13 @@
               chart.querySelector(`.asset-line-${assetIndex}`).setAttribute("d", pathFor(points));
             });
             chart.querySelectorAll(".chart-event-marker, [data-chart-milestone-marker]").forEach((marker) => {
-              const x = Number(marker.getAttribute("cx") ?? marker.getAttribute("d").split(" ")[0]);
+              const pathCoordinates = marker.getAttribute("d")?.match(/^M([^ ]+) ([^ ]+)/);
+              const x = Number(marker.getAttribute("cx") ?? pathCoordinates?.[1]);
               const index = marker.dataset.chartMonthIndex ??= String(monthIndexForX(x));
               const visible = Number(index) >= viewportStart && Number(index) <= viewportEnd;
               marker.hidden = !visible;
               if (marker.hasAttribute("cx")) marker.setAttribute("cx", xForMonth(Number(index)));
-              else marker.setAttribute("d", marker.getAttribute("d").replace(/^[^ ]+ [^ ]+/, `${xForMonth(Number(index))} ${marker.getAttribute("d").split(" ")[1]}`));
+              else marker.setAttribute("d", marker.getAttribute("d").replace(/^M[^ ]+ [^ ]+/, `M${xForMonth(Number(index))} ${pathCoordinates[2]}`));
             });
             const labels = [...chart.querySelectorAll("[data-chart-x-label]")];
             labels.forEach((label, index) => {

@@ -122,6 +122,7 @@
       <g class="chart-labels">
         {% for tick in chart.y_ticks %}<text x="65" y="{{ tick.y }}" text-anchor="end">{{ tick.label }}</text>{% endfor %}
       </g>
+      <rect class="chart-hit-area" data-chart-hit-area x="80" y="75" width="870" height="360" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
       <g clip-path="url(#chart-plot-{{ scenario.id }})"><g data-chart-viewport>
         <g class="chart-grid">{% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}</g>
         {% for milestone in chart.milestones %}<path class="target-line" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
@@ -137,7 +138,6 @@
       <g class="chart-labels">{% for label in chart.x_labels %}<text data-chart-x-label x="{{ label.x }}" y="465" text-anchor="middle">{{ label.label }}</text>{% endfor %}</g>
       {% for milestone in chart.milestones %}<text class="target-label" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>{% endfor %}
       <path class="axis" d="M80 435 H950" />
-      <rect class="chart-hit-area" data-chart-hit-area x="80" y="75" width="870" height="360" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
   </div>
