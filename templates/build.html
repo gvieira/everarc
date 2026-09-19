@@ -171,6 +171,7 @@
         if (tabs.length === 0) return;
 
         let previousScenarioId = null;
+        const sharedChartViewport = { start: 0, end: null, monthIndex: 0 };
         const tabForId = (id) => tabs.find((tab) => tab.dataset.scenarioId === id);
         const deckForId = (id) => decks.find((deck) => deck.dataset.scenarioId === id);
         const chartForId = (id) => charts.find((chart) => chart.dataset.scenarioId === id);
@@ -204,6 +205,7 @@
           hitArea.setAttribute("aria-valuenow", String(index + 1));
           hitArea.setAttribute("aria-valuetext", selected.dataset.chartMonthLabel);
           chart.dataset.chartMonthIndex = index;
+          sharedChartViewport.monthIndex = index;
         };
         const showChartMilestone = (chart, marker) => {
           const hoverCard = chart.querySelector("[data-chart-hover-card]");
@@ -241,7 +243,11 @@
           const deck = deckForId(scenarioId);
           if (deck) showOutcome(deck, 0);
           const chart = chartForId(scenarioId);
-          if (chart) showChartMonth(chart, 0);
+          if (chart?.applySharedViewport) {
+            chart.applySharedViewport();
+          } else if (chart) {
+            showChartMonth(chart, sharedChartViewport.monthIndex);
+          }
         };
         const select = (requestedId, updateHash = false) => {
           const tab = tabForId(requestedId)
@@ -309,6 +315,8 @@
           let viewportStart = 0;
           let viewportEnd = count - 1;
           const updateViewport = () => {
+            sharedChartViewport.start = viewportStart;
+            sharedChartViewport.end = viewportEnd;
             const xForMonth = (index) => 80 + 870 * (index - viewportStart) / (viewportEnd - viewportStart);
             const monthIndexForX = (x) => Math.round((x - 80) / 870 * (count - 1));
             const months = [...chart.querySelectorAll("[data-chart-month]")];
@@ -454,6 +462,15 @@
             viewportEnd = count - 1;
             animateViewport(previousStart, previousEnd, () => {});
           });
+          chart.applySharedViewport = () => {
+            const visible = sharedChartViewport.end === null
+              ? count
+              : Math.min(count, sharedChartViewport.end - sharedChartViewport.start + 1);
+            viewportStart = Math.max(0, Math.min(count - visible, sharedChartViewport.start));
+            viewportEnd = viewportStart + visible - 1;
+            updateViewport();
+            showChartMonth(chart, Math.max(viewportStart, Math.min(viewportEnd, sharedChartViewport.monthIndex)));
+          };
           updateViewport();
           const selectPointerMonth = (event) => {
             const bounds = hitArea.getBoundingClientRect();

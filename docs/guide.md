@@ -180,8 +180,9 @@ names within their asset, an optional `description`, a currency, and a nonnegati
 Their values are converted into the asset currency and summed to derive the
 asset's initial value. A holding may use a different currency; Everarc converts
 it through `plan.currency` using the configured static rates. In an extending
-scenario, an asset with an inherited ID replaces that complete asset and its
-holdings. `annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
+scenario, an asset with an inherited ID overrides only its declared fields;
+omitted fields, including holdings, inherit from the parent asset.
+`annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
 per year, while `"0.06"` means 6%. Everarc compounds it monthly so twelve
 projected months produce the configured annual return. `monthly_contribution`
 is an object with a nonnegative quoted-decimal `amount` and a `currency` equal
@@ -206,14 +207,16 @@ Inflation-changing events are not supported yet.
 Milestones are optional balance thresholds with no date. Root `[[milestones]]`
 are total-balance goals shared by every scenario and use `plan.currency`.
 `[[scenarios.milestones]]` are asset-balance goals; they use their target
-asset's currency and may target inherited assets. IDs and names must be
-nonblank, IDs are unique within their own scope, and all `target` values are
+asset's currency and may target inherited assets. Child scenarios inherit
+parent asset milestones in addition to their own. IDs and names must be
+nonblank, IDs are unique within their resolved scenario, and all `target` values are
 strictly positive quoted decimals.
 
 The dashboard chart has `↤` to focus its first three years, `+` and `−` to
 change its visible month range, and `⛶` to restore the full plan. When zoomed,
-drag across the plot to pan. The chart recalculates its Y-axis from visible
-balances, so shorter periods use their available vertical space; milestones
+drag across the plot to pan. Switching scenarios preserves the selected month
+and visible date range. The chart recalculates its Y-axis from visible balances,
+so shorter periods use their available vertical space; milestones
 above that visible range are hidden. Its hover panel shows the current month's
 plan-currency contribution total and the annualized passive-income yield
 (monthly passive income multiplied by twelve, divided by total balance).

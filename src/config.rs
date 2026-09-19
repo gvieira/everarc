@@ -715,6 +715,9 @@ impl Config {
                         }
                     }
                     scenario.assets = assets;
+                    let mut milestones = parent.milestones.clone();
+                    milestones.extend(scenario.milestones);
+                    scenario.milestones = milestones;
                 }
                 resolved[index] = Some(scenario);
                 made_progress = true;

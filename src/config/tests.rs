@@ -92,6 +92,12 @@ name = "ETF"
 currency = "USD"
 value = "10000"
 
+[[scenarios.milestones]]
+id = "brokerage-target"
+name = "Brokerage target"
+asset_id = "brokerage"
+target = "50000"
+
 [[scenarios]]
 id = "optimistic"
 name = "Optimistic"
@@ -112,6 +118,7 @@ annual_expected_return = "0.08"
     assert_eq!(asset.annual_expected_return, Decimal::new(8, 2));
     assert_eq!(asset.monthly_contribution.amount, Decimal::new(1000, 0));
     assert_eq!(asset.holdings.len(), 1);
+    assert_eq!(scenario.milestones.len(), 1);
 }
 
 #[test]
