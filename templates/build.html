@@ -118,6 +118,8 @@
       .chart-inspector-assets { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 20rem)); gap: .65rem 1rem; max-width: 42rem; }
       .chart-inspector-asset { display: grid; gap: .12rem; font: .72rem/1.35 "Space Mono", monospace; }
       .chart-inspector-asset strong, .chart-inspector-native { color: var(--ink); }
+      .chart-inspector-asset-title { display: inline-flex; align-items: center; gap: .35rem; }
+      .chart-inspector-asset-title .legend-asset { width: 14px; }
       .chart-inspector-comparable { font-size: inherit; letter-spacing: 0; text-transform: none; }
       .chart-asset-assumptions { display: flex; flex-wrap: wrap; gap: .5rem; }
       .chart-asset-assumption { color: #6f6861; font-size: .62rem; font-weight: 700; }
@@ -377,11 +379,13 @@
             chart.querySelector(".total-line").setAttribute("d", pathFor(months.map((month) => ({ x: month.dataset.chartX, y: month.dataset.chartY }))));
             const assets = months[0].querySelectorAll("[data-chart-asset]");
             assets.forEach((_, assetIndex) => {
-              const points = months.map((month) => {
-                const asset = month.querySelectorAll("[data-chart-asset]")[assetIndex];
-                return { x: month.dataset.chartX, y: asset.dataset.chartAssetY };
-              });
-              chart.querySelector(`.asset-line-${assetIndex}`).setAttribute("d", pathFor(points));
+              const points = months
+                .map((month) => {
+                  const asset = month.querySelectorAll("[data-chart-asset]")[assetIndex];
+                  return { x: month.dataset.chartX, y: asset.dataset.chartAssetY, active: asset.dataset.chartAssetActive.toLowerCase() === "true" };
+                })
+                .filter((point, index, all) => point.active && (point.command = index === 0 || !all[index - 1].active ? "M" : "L"));
+              chart.querySelector(`.asset-line-${assetIndex}`).setAttribute("d", points.map((point) => `${point.command} ${point.x} ${point.y}`).join(" "));
             });
             chart.querySelectorAll(".chart-event-marker, [data-chart-milestone-marker]").forEach((marker) => {
               const pathCoordinates = marker.getAttribute("d")?.match(/^M([^ ]+) ([^ ]+)/);

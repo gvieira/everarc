@@ -146,6 +146,7 @@ impl Serialize for AssetProjection<'_> {
 #[derive(Clone, Debug)]
 pub struct AssetMonthProjection {
     pub month: Month,
+    pub is_active: bool,
     pub annual_expected_return: Decimal,
     pub monthly_contribution: MonthlyContribution,
     pub native_balance: Decimal,
@@ -161,6 +162,7 @@ impl Serialize for AssetMonthProjection {
     {
         let mut state = serializer.serialize_struct("AssetMonthProjection", 7)?;
         state.serialize_field("month", &self.month)?;
+        state.serialize_field("is_active", &self.is_active)?;
         state.serialize_field(
             "annual_expected_return",
             &self.annual_expected_return.to_string(),
@@ -812,7 +814,7 @@ fn project_asset<'config>(
         .conversion_rate_to_plan_currency(&asset.currency)
         .expect("validated asset currencies have a conversion rate");
     let mut month = config.plan.start;
-    let mut native_balance = asset
+    let opening_native_balance = asset
         .holdings
         .iter()
         .map(|holding| {
@@ -825,11 +827,19 @@ fn project_asset<'config>(
                     .expect("validated asset currencies have a conversion rate")
         })
         .sum();
+    let mut native_balance = Decimal::ZERO;
     let mut annual_expected_return = asset.annual_expected_return;
     let mut monthly_contribution = asset.monthly_contribution.clone();
     let month_count = config.plan.inclusive_month_count();
     let monthly_balances = (0..month_count)
         .map(|index| {
+            let is_active = month >= asset.starts.expect("asset lifecycles resolve")
+                && month <= asset.ends.expect("asset lifecycles resolve");
+            if month == asset.starts.expect("asset lifecycles resolve") {
+                native_balance = opening_native_balance;
+            } else if !is_active {
+                native_balance = Decimal::ZERO;
+            }
             if let Some(setting) = return_settings
                 .iter()
                 .rev()
@@ -853,18 +863,25 @@ fn project_asset<'config>(
                 .map(|adjustment| *adjustment.amount)
                 .sum::<Decimal>();
             let monthly_expected_return = monthly_rate(annual_expected_return);
-            let native_passive_income = native_balance * monthly_expected_return;
+            let native_passive_income = if is_active {
+                native_balance * monthly_expected_return
+            } else {
+                Decimal::ZERO
+            };
             let plan_passive_income = native_passive_income * conversion_rate;
             let native_monthly_contribution = if monthly_contribution.currency == asset.currency {
                 monthly_contribution.amount
             } else {
                 monthly_contribution.amount / conversion_rate
             };
-            native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
-                + native_monthly_contribution
-                + adjustment_total;
+            if is_active {
+                native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
+                    + native_monthly_contribution
+                    + adjustment_total;
+            }
             let projection = AssetMonthProjection {
                 month,
+                is_active,
                 annual_expected_return,
                 monthly_contribution: monthly_contribution.clone(),
                 native_balance,

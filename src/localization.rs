@@ -162,6 +162,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
 #[derive(Serialize)]
 pub struct DashboardChartAssetPresentation<'projection> {
     pub name: &'projection str,
+    pub is_active: bool,
     pub native_balance: String,
     pub annual_expected_return: String,
     pub monthly_contribution: String,
@@ -690,8 +691,13 @@ fn asset_chart_path(asset: &crate::projection::AssetProjection<'_>, maximum: Dec
         .monthly_balances
         .iter()
         .enumerate()
+        .filter(|(_, month)| month.is_active)
         .map(|(index, month)| {
-            let command = if index == 0 { "M" } else { "L" };
+            let command = if index == 0 || !asset.monthly_balances[index - 1].is_active {
+                "M"
+            } else {
+                "L"
+            };
             format!(
                 "{command} {} {}",
                 chart_x(index, last_index),
@@ -787,6 +793,7 @@ fn chart_months<'projection>(
                         .then(|| format_number(balance.plan_balance, locale));
                     DashboardChartAssetPresentation {
                         name: asset.name(),
+                        is_active: balance.is_active,
                         native_balance: format_number(balance.native_balance, locale),
                         annual_expected_return: format_percentage(
                             balance.annual_expected_return,

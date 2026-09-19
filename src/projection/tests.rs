@@ -889,3 +889,51 @@ amount = "-5"
     assert_eq!(cash_balance(1), Decimal::new(130, 0));
     assert_eq!(cash_balance(2), Decimal::new(125, 0));
 }
+
+#[test]
+fn projects_assets_only_within_their_inclusive_lifecycle() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-04"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0.03"
+
+[[scenarios.assets]]
+id = "new-asset"
+name = "New asset"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+starts = "2026-02"
+ends = "2026-03"
+
+[[scenarios.assets.holdings]]
+id = "holding"
+name = "Holding"
+currency = "USD"
+value = "100"
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    let balances = &projection.scenarios[0].assets[0].monthly_balances;
+    assert_eq!(
+        balances
+            .iter()
+            .map(|balance| balance.is_active)
+            .collect::<Vec<_>>(),
+        [false, true, true, false]
+    );
+    assert_eq!(balances[0].native_balance, Decimal::ZERO);
+    assert_eq!(balances[1].native_balance, Decimal::new(100, 0));
+    assert_eq!(balances[3].native_balance, Decimal::ZERO);
+}

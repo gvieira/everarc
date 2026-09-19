@@ -159,6 +159,10 @@ pub struct Asset {
     pub monthly_contribution: MonthlyContribution,
     #[serde(default)]
     pub holdings: Vec<Holding>,
+    #[serde(default)]
+    pub starts: Option<Month>,
+    #[serde(default)]
+    pub ends: Option<Month>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -312,6 +316,8 @@ fn merge_asset(parent: &Asset, child: &Asset) -> Asset {
         } else {
             parent.holdings.clone()
         },
+        starts: child.starts.or(parent.starts),
+        ends: child.ends.or(parent.ends),
     }
 }
 
@@ -517,7 +523,19 @@ pub enum ConfigError {
         scenario_id: String,
         asset_id: String,
     },
-    #[error("asset `{asset_id}` in scenario `{scenario_id}` has a negative `{field}`")]
+    #[error(
+        "asset `{asset_id}` in scenario `{scenario_id}` has a lifecycle outside the plan range"
+    )]
+    AssetLifecycleOutsidePlan {
+        scenario_id: String,
+        asset_id: String,
+    },
+    #[error("asset `{asset_id}` in scenario `{scenario_id}` ends before it starts")]
+    InvalidAssetLifecycle {
+        scenario_id: String,
+        asset_id: String,
+    },
+    #[error("asset `{asset_id}` in scenario `{scenario_id}` has a negative `{field}")]
     NegativeAssetValue {
         scenario_id: String,
         asset_id: String,
@@ -595,7 +613,15 @@ pub enum ConfigError {
         event_id: String,
         asset_id: String,
     },
-    #[error("event `{event_id}` in scenario `{scenario_id}` has a negative `{field}`")]
+    #[error(
+        "event `{event_id}` in scenario `{scenario_id}` is outside asset `{asset_id}`'s lifecycle"
+    )]
+    EventOutsideAssetLifecycle {
+        scenario_id: String,
+        event_id: String,
+        asset_id: String,
+    },
+    #[error("event `{event_id}` in scenario `{scenario_id}` has a negative `{field}")]
     NegativeEventValue {
         scenario_id: String,
         event_id: String,
@@ -662,8 +688,9 @@ impl Config {
     }
 
     pub fn validate(&mut self) -> Result<(), ConfigError> {
-        self.resolve_scenario_inheritance()?;
         self.plan.validate()?;
+        self.resolve_scenario_inheritance()?;
+        self.resolve_asset_lifecycles();
         self.validate_conversion_rates()?;
         self.validate_total_balance_milestones()?;
         self.validate_future_living_costs()?;
@@ -740,6 +767,15 @@ impl Config {
             .map(|scenario| scenario.expect("all scenarios resolve"))
             .collect();
         Ok(())
+    }
+
+    fn resolve_asset_lifecycles(&mut self) {
+        for scenario in &mut self.scenarios {
+            for asset in &mut scenario.assets {
+                asset.starts.get_or_insert(self.plan.start);
+                asset.ends.get_or_insert(self.plan.end);
+            }
+        }
     }
 
     fn validate_conversion_rates(&self) -> Result<(), ConfigError> {
@@ -967,6 +1003,21 @@ impl Config {
                 });
             }
 
+            let starts = asset.starts.expect("asset lifecycles resolve");
+            let ends = asset.ends.expect("asset lifecycles resolve");
+            if starts < self.plan.start || ends > self.plan.end {
+                return Err(ConfigError::AssetLifecycleOutsidePlan {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                });
+            }
+            if starts > ends {
+                return Err(ConfigError::InvalidAssetLifecycle {
+                    scenario_id: scenario.id.clone(),
+                    asset_id: asset.id.clone(),
+                });
+            }
+
             if self
                 .conversion_rate_to_plan_currency(&asset.currency)
                 .is_none()
@@ -1049,6 +1100,18 @@ impl Config {
             };
             if !self.scenario_has_asset(scenario, asset_id, scenario_by_id) {
                 return Err(ConfigError::UnknownEventAsset {
+                    scenario_id: scenario.id.clone(),
+                    event_id: event.id().to_owned(),
+                    asset_id: asset_id.to_owned(),
+                });
+            }
+            let asset = self
+                .scenario_asset(scenario, asset_id, scenario_by_id)
+                .expect("validated event asset exists");
+            if date < asset.starts.expect("asset lifecycles resolve")
+                || date > asset.ends.expect("asset lifecycles resolve")
+            {
+                return Err(ConfigError::EventOutsideAssetLifecycle {
                     scenario_id: scenario.id.clone(),
                     event_id: event.id().to_owned(),
                     asset_id: asset_id.to_owned(),

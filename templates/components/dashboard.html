@@ -127,8 +127,8 @@
       <g clip-path="url(#chart-plot-{{ scenario.id }})"><g data-chart-viewport>
         <g class="chart-grid">{% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}</g>
         {% for milestone in chart.milestones %}<path class="target-line" data-chart-total-milestone data-chart-total-milestone-index="{{ loop.index0 }}" data-chart-total-milestone-balance="{{ milestone.balance }}" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
-        {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
         <path class="total-line" d="{{ scenario.chart_path }}" />
+        {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
         <g class="chart-cursor" data-chart-cursor hidden>
         <path class="chart-cursor-line" data-chart-cursor-line />
         <circle class="chart-cursor-point" data-chart-cursor-point r="6" />
@@ -153,8 +153,8 @@
       <p class="chart-inspector-assets-label">{{ text.assets }}</p>
       <div class="chart-inspector-assets">
         {% for asset in month.assets %}
-        <div class="chart-inspector-asset" data-chart-asset data-chart-asset-y="{{ asset.y }}" data-chart-asset-balance="{{ asset.balance }}" data-chart-asset-color="{{ asset.color_index }}">
-          <strong>{{ asset.name }}</strong>
+        <div class="chart-inspector-asset" data-chart-asset data-chart-asset-active="{{ asset.is_active }}" data-chart-asset-y="{{ asset.y }}" data-chart-asset-balance="{{ asset.balance }}" data-chart-asset-color="{{ asset.color_index }}"{% if not asset.is_active %} hidden{% endif %}>
+          <strong class="chart-inspector-asset-title"><i class="legend-asset asset-line-{{ asset.color_index }}" aria-hidden="true"></i>{{ asset.name }}</strong>
           <span class="chart-inspector-values"><span class="chart-inspector-native">{{ asset.native_balance }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}</span>{% if asset.comparable_plan_balance %}<span class="chart-inspector-comparable"> ≈ {{ asset.comparable_plan_balance }}</span>{% endif %}</span>
           <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.annual_return }}: {{ asset.annual_expected_return }}">↗ {{ asset.annual_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}">+ {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}{{ text.per_month }}</span><span class="chart-asset-assumption" aria-label="{{ text.passive_income }}: {{ asset.passive_income }}">☼ {{ asset.passive_income }}</span></span>
           {% for event in asset.events %}<span class="chart-asset-event"><span>{{ event.name }}</span><strong>{{ event.value }}</strong></span>{% endfor %}

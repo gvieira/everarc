@@ -181,7 +181,12 @@ Their values are converted into the asset currency and summed to derive the
 asset's initial value. A holding may use a different currency; Everarc converts
 it through `plan.currency` using the configured static rates. In an extending
 scenario, an asset with an inherited ID overrides only its declared fields;
-omitted fields, including holdings, inherit from the parent asset.
+omitted fields, including holdings, inherit from the parent asset. Optional
+inclusive `starts` and `ends` `YYYY-MM` fields default to the plan start and
+end. Holdings are the asset's opening balance in `starts`, so a manual split
+can end one asset and start separately configured assets in the same month.
+For example, an asset ending at a manual split and each replacement asset can
+use `ends = "2032-01"` and `starts = "2032-01"`, respectively.
 `annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
 per year, while `"0.06"` means 6%. Everarc compounds it monthly so twelve
 projected months produce the configured annual return. `monthly_contribution`
