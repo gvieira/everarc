@@ -42,6 +42,23 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("class=\"chart-asset-milestone asset-line-0\""));
     assert!(html.contains("data-chart-total-balance="));
     assert!(html.contains("data-chart-asset-balance="));
+    assert!(html.contains("data-chart-asset-line=\"0\""));
+    assert!(html.contains("data-chart-asset-index=\"0\""));
+    assert!(html.contains("data-chart-month-inspector aria-live=\"polite\""));
+    assert!(html.contains("data-chart-month-summary"));
+    assert!(html.contains("data-chart-month-details"));
+    assert!(html.contains(
+        "hoverCard.replaceChildren(selected.querySelector(\"[data-chart-month-summary]\").cloneNode(true))"
+    ));
+    assert!(html.contains(
+        "inspector.replaceChildren(selected.querySelector(\"[data-chart-month-details]\").cloneNode(true))"
+    ));
+    assert!(html.contains("pinnedMonthIndex: null"));
+    assert!(html.contains("togglePinnedChartMonth(chart, pointerMonthIndex(event))"));
+    assert!(html.contains("pinChartMonth(chart, nextIndex)"));
+    assert!(html.contains("if (dragged)"));
+    assert!(html.contains("pointerIsNearPinnedMonth(event)"));
+    assert!(html.contains("Math.abs(event.clientX - pinnedX) <= 8"));
     assert!(html.contains("data-chart-asset-active=\"True\""));
     assert!(html.contains("chartAssetActive.toLowerCase() === \"true\""));
     assert!(html.contains("Atingida em 05&#x2f;2043"));

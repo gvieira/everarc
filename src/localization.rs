@@ -10,6 +10,7 @@ const CHART_LEFT: u32 = 80;
 const CHART_RIGHT: u32 = 950;
 const CHART_TOP: u32 = 75;
 const CHART_BOTTOM: u32 = 435;
+const CHART_ASSET_COLOR_COUNT: usize = 8;
 
 #[derive(Serialize)]
 pub struct DashboardPresentation<'projection> {
@@ -62,6 +63,8 @@ pub struct DashboardText {
     pub zoom_out: &'static str,
     pub focus_start: &'static str,
     pub reset_zoom: &'static str,
+    pub pinned: &'static str,
+    pub pin_instruction: &'static str,
 }
 
 #[derive(Serialize)]
@@ -129,6 +132,7 @@ pub struct DashboardScenarioPresentation<'projection> {
 pub struct DashboardChartAssetLinePresentation<'projection> {
     pub name: &'projection str,
     pub path: String,
+    pub asset_index: usize,
     pub color_index: usize,
     pub event_markers: Vec<DashboardChartEventMarker>,
     pub milestone_markers: Vec<DashboardChartAssetMilestone<'projection>>,
@@ -313,10 +317,11 @@ impl<'projection> DashboardPresentation<'projection> {
                         .assets
                         .iter()
                         .enumerate()
-                        .map(|(color_index, asset)| DashboardChartAssetLinePresentation {
+                        .map(|(asset_index, asset)| DashboardChartAssetLinePresentation {
                             name: asset.name(),
                             path: asset_chart_path(asset, chart_scale.maximum),
-                            color_index,
+                            asset_index,
+                            color_index: asset_index % CHART_ASSET_COLOR_COUNT,
                             event_markers: asset
                                 .monthly_balances
                                 .iter()
@@ -533,6 +538,8 @@ impl DashboardText {
                 zoom_out: "Zoom out",
                 focus_start: "Focus first three years",
                 reset_zoom: "Show full plan",
+                pinned: "Pinned",
+                pin_instruction: "Click a month to pin/unpin",
             },
             Locale::PtBr => Self {
                 scenario: "Cenário",
@@ -575,6 +582,8 @@ impl DashboardText {
                 zoom_out: "Diminuir zoom",
                 focus_start: "Focar nos primeiros três anos",
                 reset_zoom: "Mostrar plano completo",
+                pinned: "Fixado",
+                pin_instruction: "Clique em um mês para fixar/desafixar",
             },
         }
     }
@@ -843,7 +852,7 @@ fn chart_months<'projection>(
                         is_plan_currency: asset.currency() == plan_currency,
                         y: chart_y(balance.plan_balance, maximum),
                         balance: balance.plan_balance.to_string(),
-                        color_index: asset_index,
+                        color_index: asset_index % CHART_ASSET_COLOR_COUNT,
                         currency: asset.currency(),
                         comparable_plan_balance,
                         events: scenario

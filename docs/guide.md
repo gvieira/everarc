@@ -236,8 +236,14 @@ change its visible month range, and `⛶` to restore the full plan. When zoomed,
 drag across the plot to pan. Switching scenarios preserves the selected month
 and visible date range. The chart recalculates its Y-axis from visible balances,
 so shorter periods use their available vertical space; milestones
-above that visible range are hidden. Its hover panel shows the current month's
-plan-currency contribution total and the annualized passive-income yield
+above that visible range are hidden. Its compact hover panel shows the current
+month's total balance, passive income, gross contribution, and gross withdrawal.
+A persistent inspector below the chart follows the selected month and shows each
+active asset's balance, return, contribution, withdrawal, passive income, and
+that month's events. Click a month to pin its cursor and inspectors while moving
+the pointer; click that month again to unpin it, or click another month to move
+the pin. Keyboard month navigation also pins its selection. Dragging a zoomed
+chart pans without changing the pin. The passive-income summary includes its annualized yield
 (monthly passive income multiplied by twelve, divided by total balance).
 
 `[[future_living_costs]]` is an optional collection of expected monthly living

@@ -104,7 +104,7 @@
 
 {% macro charts(scenarios, chart, text) %}
 {% for scenario in scenarios %}
-<section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
+<section class="paper-card chart-card" data-scenario-chart data-scenario-id="{{ scenario.id }}" data-chart-pinned-label="{{ text.pinned }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="chart-heading">
     <p class="eyebrow"><span class="ink-dot"></span>{{ text.projection }}</p>
     <div class="chart-zoom-controls" aria-label="{{ text.projection }}">
@@ -128,12 +128,12 @@
         <g class="chart-grid">{% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}</g>
         {% for milestone in chart.milestones %}<path class="target-line" data-chart-total-milestone data-chart-total-milestone-index="{{ loop.index0 }}" data-chart-total-milestone-balance="{{ milestone.balance }}" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
         <path class="total-line" d="{{ scenario.chart_path }}" />
-        {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
+        {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" data-chart-asset-line="{{ asset.asset_index }}" d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" data-chart-asset-index="{{ asset.asset_index }}" cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
         <g class="chart-cursor" data-chart-cursor hidden>
         <path class="chart-cursor-line" data-chart-cursor-line />
         <circle class="chart-cursor-point" data-chart-cursor-point r="6" />
         </g>
-        {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
+        {% for asset in scenario.chart_assets %}{% for marker in asset.milestone_markers %}<path class="chart-asset-milestone asset-line-{{ asset.color_index }}" data-chart-milestone-marker data-chart-asset-index="{{ asset.asset_index }}" d="M{{ marker.x }} {{ marker.y }} m-7 0 l7 -7 l7 7 l-7 7 z" tabindex="0" role="img" aria-label="{{ marker.name }}: {{ marker.target }}"></path>{% endfor %}{% endfor %}
       </g></g>
       <g class="chart-labels">{% for label in chart.x_labels %}<text data-chart-x-label x="{{ label.x }}" y="465" text-anchor="middle">{{ label.label }}</text>{% endfor %}</g>
       {% for milestone in chart.milestones %}<text class="target-label" data-chart-total-milestone-label="{{ loop.index0 }}" x="90" y="{{ milestone.label_y }}">{{ milestone.name }}</text>{% endfor %}
@@ -141,18 +141,20 @@
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
   </div>
+  <div class="chart-month-inspector" data-chart-month-inspector aria-live="polite"></div>
   <div data-chart-month-data hidden>
     {% for month in scenario.chart_months %}
     <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" data-chart-total-balance="{{ month.balance }}" {% if not loop.first %}hidden{% endif %}>
-      <div class="chart-inspector-summary">
+      <div class="chart-inspector-summary" data-chart-month-summary>
         <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
         <p><span>{{ text.passive_income }}</span><strong>{% if month.annualized_passive_income_yield %}<small aria-label="{{ text.annualized_passive_income_yield }}">{{ month.annualized_passive_income_yield }}</small> {% endif %}{{ month.passive_income }}</strong></p>
         <p><span>{{ text.contribution }}</span><strong>{{ month.monthly_contributions }}</strong></p>
         <p><span>{{ text.withdrawal }}</span><strong>{{ month.monthly_withdrawals }}</strong></p>
       </div>
-      <p class="chart-inspector-assets-label">{{ text.assets }}</p>
-      <div class="chart-inspector-assets">
+      <div data-chart-month-details>
+        <div class="chart-month-inspector-heading"><p class="chart-inspector-assets-label">{{ text.assets }}</p><span class="chart-month-selection"><span class="chart-pin-indicator" data-chart-pin-indicator aria-hidden="true">{{ text.pinned }}</span><strong>{{ month.month }}</strong></span></div>
+        <div class="chart-inspector-assets">
         {% for asset in month.assets %}
         <div class="chart-inspector-asset" data-chart-asset data-chart-asset-active="{{ asset.is_active }}" data-chart-asset-y="{{ asset.y }}" data-chart-asset-balance="{{ asset.balance }}" data-chart-asset-color="{{ asset.color_index }}"{% if not asset.is_active %} hidden{% endif %}>
           <strong class="chart-inspector-asset-title"><i class="legend-asset asset-line-{{ asset.color_index }}" aria-hidden="true"></i>{{ asset.name }}</strong>
@@ -161,14 +163,17 @@
           {% for event in asset.events %}<span class="chart-asset-event"><span>{{ event.name }}</span><strong>{{ event.value }}</strong></span>{% endfor %}
         </div>
         {% endfor %}
+        </div>
       </div>
     </section>
     {% endfor %}
   </div>
-  <div class="chart-legend">
-    {% for asset in scenario.chart_assets %}<span><i class="legend-asset asset-line-{{ asset.color_index }}"></i>{{ asset.name }}</span>{% endfor %}
-    <span><i class="legend-line"></i>{{ text.total_net_worth_legend }}</span>
-    <span><i class="legend-target"></i>{{ text.goals_legend }}</span>
+  <div class="chart-footer">
+    <div class="chart-legend">
+      <span><i class="legend-line"></i>{{ text.total_net_worth_legend }}</span>
+      <span><i class="legend-target"></i>{{ text.goals_legend }}</span>
+    </div>
+    <p class="chart-note">{{ text.pin_instruction }}</p>
   </div>
 </section>
 {% endfor %}

@@ -73,12 +73,12 @@
       .chart-zoom-controls { display: flex; gap: .4rem; align-items: center; }
       .chart-zoom-controls button { padding: .35rem .6rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--paper); color: var(--ink); font: inherit; cursor: pointer; }
       .chart-zoom-controls button:disabled { cursor: default; opacity: .45; }
-      .chart-note { margin: .15rem 0 0; color: var(--muted); font: .7rem/1.3 "Space Mono", monospace; text-align: right; }
+      .chart-note { margin: 0 0 0 auto; color: var(--muted); font: .7rem/1.3 "Space Mono", monospace; text-align: right; }
       .chart-frame { position: relative; margin-top: 1rem; padding: 1rem .25rem .25rem; background-color: #fffdf8; }
       svg { display: block; width: 100%; height: auto; overflow: visible; }
       .chart-grid path { stroke: var(--line); stroke-dasharray: 5 6; stroke-width: 1.4; }
       .chart-grid .chart-five-year-grid { stroke-dasharray: none; stroke-width: 1; opacity: .32; }
-      .chart-labels { fill: var(--muted); font: 13px "Space Mono", monospace; }
+      .chart-labels { fill: var(--muted); font: 13px "Space Mono", monospace; pointer-events: none; }
       .target-line { fill: none; stroke: #d55151; stroke-dasharray: 8 7; stroke-width: 2; }
       .target-label { fill: #b63f3f; font: 700 11px "Space Mono", monospace; }
       .chart-asset-milestone { fill: var(--card); stroke-width: 2.8; stroke-linejoin: round; }
@@ -90,10 +90,14 @@
       .asset-line-2 { stroke: #8580d7; }
       .asset-line-3 { stroke: #5eae78; }
       .asset-line-4 { stroke: #bb7fa6; }
+      .asset-line-5 { stroke: #b28a32; }
+      .asset-line-6 { stroke: #3f9c9c; }
+      .asset-line-7 { stroke: #c56868; }
       .total-line { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 4.5; }
       .chart-cursor[hidden] { display: none; }
       .chart-cursor-line { stroke: var(--ink); stroke-dasharray: 4 5; stroke-width: 1.5; }
       .chart-cursor-point { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
+      .chart-card.is-month-pinned .chart-cursor-point { fill: var(--lavender); }
       .chart-event-marker { fill: var(--card); stroke-width: 2.5; }
       .chart-event-marker { opacity: 1; }
       .chart-event-marker.asset-line-0, .chart-asset-milestone.asset-line-0 { stroke: #62a7dc; }
@@ -101,22 +105,29 @@
       .chart-event-marker.asset-line-2, .chart-asset-milestone.asset-line-2 { stroke: #8580d7; }
       .chart-event-marker.asset-line-3, .chart-asset-milestone.asset-line-3 { stroke: #5eae78; }
       .chart-event-marker.asset-line-4, .chart-asset-milestone.asset-line-4 { stroke: #bb7fa6; }
+      .chart-event-marker.asset-line-5, .chart-asset-milestone.asset-line-5 { stroke: #b28a32; }
+      .chart-event-marker.asset-line-6, .chart-asset-milestone.asset-line-6 { stroke: #3f9c9c; }
+      .chart-event-marker.asset-line-7, .chart-asset-milestone.asset-line-7 { stroke: #c56868; }
+      .chart-grid, .target-line, .target-label, .asset-line, .total-line, .chart-event-marker, .chart-cursor, .axis { pointer-events: none; }
       .chart-hit-area { fill: transparent; cursor: crosshair; }
       .chart-hit-area:focus { outline: none; }
       .chart-hit-area:focus-visible { stroke: var(--lavender); stroke-width: 3; }
       .chart-hover-card { position: absolute; z-index: 1; width: max-content; max-width: min(20rem, calc(100% - 2rem)); padding: .65rem .75rem; background: rgba(255, 253, 250, .96); border: 1px solid rgba(30, 30, 30, .22); border-radius: 5px 7px 6px 4px; box-shadow: 3px 4px 0 rgba(30, 30, 30, .1); pointer-events: none; }
       .chart-hover-card .chart-inspector-summary p { font-size: .68rem; }
-      .chart-hover-card .chart-inspector-assets-label { margin-top: .6rem; }
-      .chart-hover-card .chart-inspector-assets { display: grid; grid-template-columns: 1fr; gap: .4rem; }
-      .chart-hover-card .chart-inspector-asset { font-size: .64rem; }
       .chart-inspector-summary { display: grid; gap: .35rem; }
       .chart-inspector-summary p { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin: 0; font: .75rem/1.3 "Space Mono", monospace; }
       .chart-inspector-summary span, .chart-inspector-comparable { color: var(--muted); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; }
       .chart-inspector-summary strong { color: var(--ink); text-align: right; }
       .chart-inspector-summary small { color: var(--muted); font: inherit; }
-      .chart-inspector-assets-label { margin: .8rem 0 .4rem; color: var(--muted); font: 700 .65rem/1.2 "Space Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
-      .chart-inspector-assets { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 20rem)); gap: .65rem 1rem; max-width: 42rem; }
-      .chart-inspector-asset { display: grid; gap: .12rem; font: .72rem/1.35 "Space Mono", monospace; }
+      .chart-month-inspector { margin-top: 1rem; padding: 1rem; background: rgba(255, 253, 250, .64); border: 1px solid rgba(30, 30, 30, .13); border-radius: 8px 6px 10px 7px; }
+      .chart-month-inspector-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: .65rem; }
+      .chart-month-inspector-heading strong { font: 700 .78rem/1.2 "Space Mono", monospace; }
+      .chart-month-selection { display: inline-flex; align-items: center; gap: .5rem; }
+      .chart-pin-indicator { padding: .15rem .35rem; background: var(--lavender); border-radius: 4px 3px 5px 3px; color: var(--ink); font: 700 .58rem/1.2 "Space Mono", monospace; letter-spacing: .06em; text-transform: uppercase; visibility: hidden; }
+      .chart-pin-indicator.is-visible { visibility: visible; }
+      .chart-inspector-assets-label { margin: 0; color: var(--muted); font: 700 .65rem/1.2 "Space Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+      .chart-inspector-assets { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .65rem; }
+      .chart-inspector-asset { display: grid; align-content: start; gap: .18rem; min-width: 0; padding: .65rem .7rem; background: rgba(255, 255, 255, .48); font: .72rem/1.35 "Space Mono", monospace; }
       .chart-inspector-asset strong, .chart-inspector-native { color: var(--ink); }
       .chart-inspector-asset-title { display: inline-flex; align-items: center; gap: .35rem; }
       .chart-inspector-asset-title .legend-asset { width: 14px; }
@@ -128,7 +139,8 @@
       .projection { fill: none; stroke: var(--ink); stroke-dasharray: 7 7; stroke-linecap: round; stroke-width: 3; }
       .chart-points circle { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
       .chart-points circle:last-child { fill: var(--lavender); }
-      .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; color: var(--muted); font: .68rem/1.3 "Space Mono", monospace; }
+      .chart-footer { display: flex; flex-wrap: wrap; align-items: baseline; gap: .65rem 1rem; margin-top: 1rem; }
+      .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--muted); font: .68rem/1.3 "Space Mono", monospace; }
       .chart-legend span { display: inline-flex; align-items: center; gap: .4rem; }
       .legend-line, .legend-asset, .legend-target { display: inline-block; width: 22px; border-top: 3px solid var(--ink); }
       .legend-asset { opacity: .78; border-top-width: 2.5px; }
@@ -137,6 +149,9 @@
       .legend-asset.asset-line-2 { border-top-color: #8580d7; }
       .legend-asset.asset-line-3 { border-top-color: #5eae78; }
       .legend-asset.asset-line-4 { border-top-color: #bb7fa6; }
+      .legend-asset.asset-line-5 { border-top-color: #b28a32; }
+      .legend-asset.asset-line-6 { border-top-color: #3f9c9c; }
+      .legend-asset.asset-line-7 { border-top-color: #c56868; }
       .legend-target { border-top-color: #d55151; border-top-style: dashed; }
       .scenario-switcher { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .7rem 1.25rem; align-items: center; padding: .9rem 1.15rem; background: rgba(255, 253, 250, .72); border: 1px solid rgba(30, 30, 30, .12); border-radius: 11px 14px 10px 13px; box-shadow: 0 3px 6px rgba(42, 36, 29, .03); }
       .scenario-switcher .eyebrow { white-space: nowrap; }
@@ -148,7 +163,7 @@
       .scenario-selection-mark { color: var(--ink); font-size: .9rem; }
       .scenario-description-tooltip { position: absolute; z-index: 2; top: calc(100% + .45rem); left: 0; width: max-content; max-width: 18rem; padding: .5rem .6rem; color: var(--ink); background: var(--card); border: 1px solid var(--ink); border-radius: .25rem; box-shadow: 2px 2px 0 rgba(30, 30, 30, .16); font: 500 .68rem/1.45 "Space Mono", monospace; opacity: 0; pointer-events: none; text-align: left; transform: translateY(-.2rem); visibility: hidden; transition: opacity .12s ease, transform .12s ease, visibility .12s; white-space: normal; }
       .scenario-tab:hover .scenario-description-tooltip, .scenario-tab:focus-visible .scenario-description-tooltip { opacity: 1; transform: translateY(0); visibility: visible; }
-      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { margin-top: .75rem; text-align: left; } .scenario-switcher { grid-template-columns: 1fr; } }
+      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { flex-basis: 100%; } .scenario-switcher { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -173,7 +188,7 @@
         if (tabs.length === 0) return;
 
         let previousScenarioId = null;
-        const sharedChartViewport = { start: 0, end: null, monthIndex: 0 };
+        const sharedChartViewport = { start: 0, end: null, monthIndex: 0, pinnedMonthIndex: null };
         const tabForId = (id) => tabs.find((tab) => tab.dataset.scenarioId === id);
         const deckForId = (id) => decks.find((deck) => deck.dataset.scenarioId === id);
         const chartForId = (id) => charts.find((chart) => chart.dataset.scenarioId === id);
@@ -190,8 +205,15 @@
           point.setAttribute("cx", selected.dataset.chartX);
           point.setAttribute("cy", selected.dataset.chartY);
           const hoverCard = chart.querySelector("[data-chart-hover-card]");
-          hoverCard.replaceChildren(...[...selected.children].map((child) => child.cloneNode(true)));
+          hoverCard.replaceChildren(selected.querySelector("[data-chart-month-summary]").cloneNode(true));
           hoverCard.hidden = false;
+          const inspector = chart.querySelector("[data-chart-month-inspector]");
+          inspector.replaceChildren(selected.querySelector("[data-chart-month-details]").cloneNode(true));
+          const isPinned = sharedChartViewport.pinnedMonthIndex === index;
+          chart.classList.toggle("is-month-pinned", isPinned);
+          const pinIndicator = inspector.querySelector("[data-chart-pin-indicator]");
+          pinIndicator.classList.toggle("is-visible", isPinned);
+          pinIndicator.setAttribute("aria-hidden", String(!isPinned));
           const frame = chart.querySelector(".chart-frame");
           const svgBounds = chart.querySelector("svg").getBoundingClientRect();
           const frameBounds = frame.getBoundingClientRect();
@@ -205,9 +227,21 @@
           hoverCard.style.top = `${cardTop}px`;
           const hitArea = chart.querySelector("[data-chart-hit-area]");
           hitArea.setAttribute("aria-valuenow", String(index + 1));
-          hitArea.setAttribute("aria-valuetext", selected.dataset.chartMonthLabel);
+          hitArea.setAttribute("aria-valuetext", `${selected.dataset.chartMonthLabel}${isPinned ? `, ${chart.dataset.chartPinnedLabel}` : ""}`);
           chart.dataset.chartMonthIndex = index;
           sharedChartViewport.monthIndex = index;
+        };
+        const togglePinnedChartMonth = (chart, requestedIndex) => {
+          const count = chart.querySelectorAll("[data-chart-month]").length;
+          const index = Math.max(0, Math.min(requestedIndex, count - 1));
+          sharedChartViewport.pinnedMonthIndex = sharedChartViewport.pinnedMonthIndex === index ? null : index;
+          showChartMonth(chart, index);
+        };
+        const pinChartMonth = (chart, requestedIndex) => {
+          const count = chart.querySelectorAll("[data-chart-month]").length;
+          const index = Math.max(0, Math.min(requestedIndex, count - 1));
+          sharedChartViewport.pinnedMonthIndex = index;
+          showChartMonth(chart, index);
         };
         const showChartMilestone = (chart, marker) => {
           const hoverCard = chart.querySelector("[data-chart-hover-card]");
@@ -310,6 +344,7 @@
           const hitArea = chart.querySelector("[data-chart-hit-area]");
           const viewport = chart.querySelector("[data-chart-viewport]");
           chart.querySelector("svg").addEventListener("pointerleave", () => {
+            if (sharedChartViewport.pinnedMonthIndex !== null) return;
             chart.querySelector("[data-chart-hover-card]").hidden = true;
             chart.querySelector("[data-chart-cursor]").toggleAttribute("hidden", true);
           });
@@ -385,7 +420,7 @@
                   return { x: month.dataset.chartX, y: asset.dataset.chartAssetY, active: asset.dataset.chartAssetActive.toLowerCase() === "true" };
                 })
                 .filter((point, index, all) => point.active && (point.command = index === 0 || !all[index - 1].active ? "M" : "L"));
-              chart.querySelector(`.asset-line-${assetIndex}`).setAttribute("d", points.map((point) => `${point.command} ${point.x} ${point.y}`).join(" "));
+              chart.querySelector(`[data-chart-asset-line="${assetIndex}"]`).setAttribute("d", points.map((point) => `${point.command} ${point.x} ${point.y}`).join(" "));
             });
             chart.querySelectorAll(".chart-event-marker, [data-chart-milestone-marker]").forEach((marker) => {
               const pathCoordinates = marker.getAttribute("d")?.match(/^M([^ ]+) ([^ ]+)/);
@@ -393,7 +428,7 @@
               const index = marker.dataset.chartMonthIndex ??= String(monthIndexForX(x));
               const visible = Number(index) >= viewportStart && Number(index) <= viewportEnd;
               marker.hidden = !visible;
-              const assetIndex = Number([...marker.classList].find((name) => name.startsWith("asset-line-"))?.slice("asset-line-".length));
+              const assetIndex = Number(marker.dataset.chartAssetIndex);
               const asset = months[Number(index)]?.querySelectorAll("[data-chart-asset]")[assetIndex];
               const y = yForBalance(Number(asset?.dataset.chartAssetBalance));
               if (marker.hasAttribute("cx")) {
@@ -476,30 +511,37 @@
             showChartMonth(chart, Math.max(viewportStart, Math.min(viewportEnd, sharedChartViewport.monthIndex)));
           };
           updateViewport();
-          const selectPointerMonth = (event) => {
+          const pointerMonthIndex = (event) => {
             const bounds = hitArea.getBoundingClientRect();
             const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
-            showChartMonth(chart, Math.round(viewportStart + ratio * (viewportEnd - viewportStart)));
+            return Math.round(viewportStart + ratio * (viewportEnd - viewportStart));
+          };
+          const selectPointerMonth = (event) => showChartMonth(chart, pointerMonthIndex(event));
+          const pointerIsNearPinnedMonth = (event) => {
+            const index = sharedChartViewport.pinnedMonthIndex;
+            if (index === null || index < viewportStart || index > viewportEnd) return false;
+            const bounds = hitArea.getBoundingClientRect();
+            const ratio = (index - viewportStart) / Math.max(1, viewportEnd - viewportStart);
+            const pinnedX = bounds.left + ratio * bounds.width;
+            return Math.abs(event.clientX - pinnedX) <= 8;
           };
           let panStartX;
           let panViewportStart;
+          let didDrag = false;
           hitArea.addEventListener("pointerdown", (event) => {
-            if (viewportStart === 0 && viewportEnd === count - 1) {
-              selectPointerMonth(event);
-              return;
-            }
             cancelAnimationFrame(viewportAnimation);
             panStartX = event.clientX;
             panViewportStart = viewportStart;
-            chart.querySelector("[data-chart-hover-card]").hidden = true;
-            chart.querySelector("[data-chart-cursor]").toggleAttribute("hidden", true);
+            didDrag = false;
             hitArea.setPointerCapture(event.pointerId);
           });
           hitArea.addEventListener("pointermove", (event) => {
             if (panStartX === undefined) {
-              selectPointerMonth(event);
+              if (sharedChartViewport.pinnedMonthIndex === null) selectPointerMonth(event);
               return;
             }
+            if (Math.abs(event.clientX - panStartX) > 4) didDrag = true;
+            if (!didDrag || viewportStart === 0 && viewportEnd === count - 1) return;
             const bounds = hitArea.getBoundingClientRect();
             const shift = Math.round((panStartX - event.clientX) / bounds.width * (viewportEnd - viewportStart));
             const visible = viewportEnd - viewportStart + 1;
@@ -509,10 +551,23 @@
           });
           hitArea.addEventListener("pointerup", (event) => {
             if (panStartX === undefined) return;
+            const dragged = didDrag;
             panStartX = undefined;
+            didDrag = false;
             hitArea.releasePointerCapture(event.pointerId);
+            if (dragged) {
+              const index = sharedChartViewport.pinnedMonthIndex ?? pointerMonthIndex(event);
+              showChartMonth(chart, index);
+            } else if (pointerIsNearPinnedMonth(event)) {
+              togglePinnedChartMonth(chart, sharedChartViewport.pinnedMonthIndex);
+            } else {
+              togglePinnedChartMonth(chart, pointerMonthIndex(event));
+            }
           });
-          hitArea.addEventListener("pointercancel", () => { panStartX = undefined; });
+          hitArea.addEventListener("pointercancel", () => {
+            panStartX = undefined;
+            didDrag = false;
+          });
           hitArea.addEventListener("keydown", (event) => {
             const currentIndex = Number(chart.dataset.chartMonthIndex ?? 0);
             let nextIndex;
@@ -522,7 +577,7 @@
             else if (event.key === "End") nextIndex = Number(hitArea.getAttribute("aria-valuemax")) - 1;
             else return;
             event.preventDefault();
-            showChartMonth(chart, nextIndex);
+            pinChartMonth(chart, nextIndex);
           });
           for (const marker of chart.querySelectorAll("[data-chart-milestone-marker]")) {
             const restoreMonthHover = () => {

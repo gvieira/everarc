@@ -326,4 +326,62 @@ value = "0"
     assert_eq!(dashboard.text.annual_return, "Retorno anual");
     assert_eq!(dashboard.text.monthly_contribution, "Contribuição mensal");
     assert_eq!(dashboard.text.per_month, "/mês");
+    assert_eq!(dashboard.text.pinned, "Fixado");
+    assert_eq!(
+        dashboard.text.pin_instruction,
+        "Clique em um mês para fixar/desafixar"
+    );
+}
+
+#[test]
+fn cycles_chart_colors_after_the_full_asset_palette() {
+    let mut source = String::from(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+"#,
+    );
+    for index in 0..9 {
+        source.push_str(&format!(
+            r#"
+[[scenarios.assets]]
+id = "asset-{index}"
+name = "Asset {index}"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = {{ amount = "0", currency = "USD" }}
+
+[[scenarios.assets.holdings]]
+id = "holding-{index}"
+name = "Holding {index}"
+currency = "USD"
+value = "{index}"
+"#
+        ));
+    }
+
+    let config = config(&source);
+    let projection = PlanProjection::from(&config);
+    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let colors = dashboard.scenarios[0]
+        .chart_assets
+        .iter()
+        .map(|asset| asset.color_index)
+        .collect::<Vec<_>>();
+
+    assert_eq!(colors, [0, 1, 2, 3, 4, 5, 6, 7, 0]);
+    assert_eq!(
+        dashboard.scenarios[0].chart_months[0].assets[8].color_index,
+        0
+    );
 }
