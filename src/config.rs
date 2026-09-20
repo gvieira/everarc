@@ -146,6 +146,26 @@ impl Serialize for MonthlyContribution {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct MonthlyWithdrawal {
+    #[serde(deserialize_with = "deserialize_decimal")]
+    pub amount: Decimal,
+    pub currency: Currency,
+}
+
+impl Serialize for MonthlyWithdrawal {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("MonthlyWithdrawal", 2)?;
+        state.serialize_field("amount", &self.amount.to_string())?;
+        state.serialize_field("currency", &self.currency)?;
+        state.end()
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Asset {
     pub id: String,
     #[serde(default)]
@@ -157,6 +177,7 @@ pub struct Asset {
     pub annual_expected_return: Decimal,
     #[serde(default)]
     pub monthly_contribution: MonthlyContribution,
+    pub monthly_withdrawal: Option<MonthlyWithdrawal>,
     #[serde(default)]
     pub holdings: Vec<Holding>,
     #[serde(default)]
@@ -211,6 +232,15 @@ pub enum Event {
         amount: Decimal,
         currency: Currency,
     },
+    SetMonthlyWithdrawal {
+        id: String,
+        name: String,
+        date: Month,
+        asset_id: String,
+        #[serde(deserialize_with = "deserialize_decimal")]
+        amount: Decimal,
+        currency: Currency,
+    },
     SetAnnualExpectedReturn {
         id: String,
         name: String,
@@ -257,6 +287,7 @@ impl Event {
         match self {
             Self::AssetAdjustment { id, .. }
             | Self::SetMonthlyContribution { id, .. }
+            | Self::SetMonthlyWithdrawal { id, .. }
             | Self::SetAnnualExpectedReturn { id, .. } => id,
         }
     }
@@ -265,6 +296,7 @@ impl Event {
         match self {
             Self::AssetAdjustment { name, .. }
             | Self::SetMonthlyContribution { name, .. }
+            | Self::SetMonthlyWithdrawal { name, .. }
             | Self::SetAnnualExpectedReturn { name, .. } => name,
         }
     }
@@ -273,13 +305,17 @@ impl Event {
         match self {
             Self::AssetAdjustment { date, .. }
             | Self::SetMonthlyContribution { date, .. }
+            | Self::SetMonthlyWithdrawal { date, .. }
             | Self::SetAnnualExpectedReturn { date, .. } => *date,
         }
     }
 
     fn negative_forward_value(&self) -> Option<&'static str> {
         match self {
-            Self::SetMonthlyContribution { amount, .. } if *amount < Decimal::ZERO => {
+            Self::SetMonthlyContribution { amount, .. }
+            | Self::SetMonthlyWithdrawal { amount, .. }
+                if *amount < Decimal::ZERO =>
+            {
                 Some("amount")
             }
             Self::SetAnnualExpectedReturn { rate, .. } if *rate < Decimal::ZERO => Some("rate"),
@@ -311,6 +347,10 @@ fn merge_asset(parent: &Asset, child: &Asset) -> Asset {
         } else {
             parent.monthly_contribution.clone()
         },
+        monthly_withdrawal: child
+            .monthly_withdrawal
+            .clone()
+            .or_else(|| parent.monthly_withdrawal.clone()),
         holdings: if !child.holdings.is_empty() {
             child.holdings.clone()
         } else {
@@ -582,6 +622,16 @@ pub enum ConfigError {
         scenario_id: String,
         asset_id: String,
         contribution_currency: Currency,
+        asset_currency: Currency,
+        plan_currency: Currency,
+    },
+    #[error(
+        "withdrawal currency `{withdrawal_currency}` for asset `{asset_id}` in scenario `{scenario_id}` must be the asset currency `{asset_currency}` or plan currency `{plan_currency}"
+    )]
+    InvalidWithdrawalCurrency {
+        scenario_id: String,
+        asset_id: String,
+        withdrawal_currency: Currency,
         asset_currency: Currency,
         plan_currency: Currency,
     },
@@ -1051,6 +1101,21 @@ impl Config {
                 &asset.currency,
                 &asset.monthly_contribution.currency,
             )?;
+            if let Some(withdrawal) = &asset.monthly_withdrawal {
+                if withdrawal.amount < Decimal::ZERO {
+                    return Err(ConfigError::NegativeAssetValue {
+                        scenario_id: scenario.id.clone(),
+                        asset_id: asset.id.clone(),
+                        field: "monthly_withdrawal.amount",
+                    });
+                }
+                self.validate_withdrawal_currency(
+                    scenario,
+                    &asset.id,
+                    &asset.currency,
+                    &withdrawal.currency,
+                )?;
+            }
             self.validate_holdings(scenario, asset)?;
         }
 
@@ -1096,6 +1161,7 @@ impl Config {
             let asset_id = match event {
                 Event::AssetAdjustment { asset_id, .. }
                 | Event::SetMonthlyContribution { asset_id, .. }
+                | Event::SetMonthlyWithdrawal { asset_id, .. }
                 | Event::SetAnnualExpectedReturn { asset_id, .. } => asset_id,
             };
             if !self.scenario_has_asset(scenario, asset_id, scenario_by_id) {
@@ -1124,11 +1190,24 @@ impl Config {
                     field,
                 });
             }
-            if let Event::SetMonthlyContribution { currency, .. } = event {
-                let asset = self
-                    .scenario_asset(scenario, asset_id, scenario_by_id)
-                    .expect("validated event asset exists");
-                self.validate_contribution_currency(scenario, asset_id, &asset.currency, currency)?;
+            let asset = self
+                .scenario_asset(scenario, asset_id, scenario_by_id)
+                .expect("validated event asset exists");
+            match event {
+                Event::SetMonthlyContribution { currency, .. } => self
+                    .validate_contribution_currency(
+                        scenario,
+                        asset_id,
+                        &asset.currency,
+                        currency,
+                    )?,
+                Event::SetMonthlyWithdrawal { currency, .. } => self.validate_withdrawal_currency(
+                    scenario,
+                    asset_id,
+                    &asset.currency,
+                    currency,
+                )?,
+                Event::AssetAdjustment { .. } | Event::SetAnnualExpectedReturn { .. } => {}
             }
         }
 
@@ -1244,6 +1323,26 @@ impl Config {
                 scenario_id: scenario.id.clone(),
                 asset_id: asset_id.to_owned(),
                 contribution_currency: contribution_currency.clone(),
+                asset_currency: asset_currency.clone(),
+                plan_currency: self.plan.currency.clone(),
+            })
+        }
+    }
+
+    fn validate_withdrawal_currency(
+        &self,
+        scenario: &Scenario,
+        asset_id: &str,
+        asset_currency: &Currency,
+        withdrawal_currency: &Currency,
+    ) -> Result<(), ConfigError> {
+        if withdrawal_currency == asset_currency || withdrawal_currency == &self.plan.currency {
+            Ok(())
+        } else {
+            Err(ConfigError::InvalidWithdrawalCurrency {
+                scenario_id: scenario.id.clone(),
+                asset_id: asset_id.to_owned(),
+                withdrawal_currency: withdrawal_currency.clone(),
                 asset_currency: asset_currency.clone(),
                 plan_currency: self.plan.currency.clone(),
             })

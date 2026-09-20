@@ -85,6 +85,7 @@ name = "Brokerage"
 currency = "USD"
 annual_expected_return = "0.06"
 monthly_contribution = { amount = "1000", currency = "USD" }
+monthly_withdrawal = { amount = "200", currency = "USD" }
 starts = "2026-03"
 ends = "2026-10"
 
@@ -119,6 +120,10 @@ annual_expected_return = "0.08"
     assert_eq!(asset.name, "Brokerage");
     assert_eq!(asset.annual_expected_return, Decimal::new(8, 2));
     assert_eq!(asset.monthly_contribution.amount, Decimal::new(1000, 0));
+    assert_eq!(
+        asset.monthly_withdrawal.as_ref().unwrap().amount,
+        Decimal::new(200, 0)
+    );
     assert_eq!(asset.holdings.len(), 1);
     assert_eq!(asset.starts, Some("2026-03".parse().unwrap()));
     assert_eq!(asset.ends, Some("2026-10".parse().unwrap()));
@@ -238,6 +243,46 @@ value = "0"
     assert!(matches!(
         config.validate(),
         Err(ConfigError::InvalidContributionCurrency { .. })
+    ));
+}
+
+#[test]
+fn rejects_withdrawals_in_unrelated_currencies() {
+    let mut config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+monthly_withdrawal = { amount = "100", currency = "BRL" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
+"#,
+    )
+    .expect("configuration parses");
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InvalidWithdrawalCurrency { .. })
     ));
 }
 

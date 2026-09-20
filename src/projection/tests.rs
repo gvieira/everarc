@@ -913,6 +913,7 @@ name = "New asset"
 currency = "USD"
 annual_expected_return = "0"
 monthly_contribution = { amount = "0", currency = "USD" }
+monthly_withdrawal = { amount = "10", currency = "USD" }
 starts = "2026-02"
 ends = "2026-03"
 
@@ -934,6 +935,64 @@ value = "100"
         [false, true, true, false]
     );
     assert_eq!(balances[0].native_balance, Decimal::ZERO);
-    assert_eq!(balances[1].native_balance, Decimal::new(100, 0));
+    assert_eq!(balances[1].native_balance, Decimal::new(90, 0));
+    assert_eq!(balances[2].native_balance, Decimal::new(80, 0));
     assert_eq!(balances[3].native_balance, Decimal::ZERO);
+}
+
+#[test]
+fn applies_contributions_and_withdrawals_independently_and_persists_withdrawal_settings() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[[conversion_rates]]
+from = "BTC"
+to = "USD"
+rate = "100"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "account"
+name = "Account"
+currency = "BTC"
+annual_expected_return = "0"
+monthly_contribution = { amount = "100", currency = "USD" }
+monthly_withdrawal = { amount = "0.25", currency = "BTC" }
+
+[[scenarios.assets.holdings]]
+id = "bitcoin"
+name = "Bitcoin"
+currency = "BTC"
+value = "1"
+
+[[scenarios.events]]
+id = "increase-withdrawal"
+name = "Increase withdrawal"
+date = "2026-02"
+type = "set_monthly_withdrawal"
+asset_id = "account"
+amount = "50"
+currency = "USD"
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    let balances = &projection.scenarios[0].assets[0].monthly_balances;
+    assert_eq!(balances[0].native_balance, Decimal::new(175, 2));
+    assert_eq!(balances[1].native_balance, Decimal::new(225, 2));
+    assert_eq!(balances[2].native_balance, Decimal::new(275, 2));
+    assert_eq!(balances[0].monthly_withdrawal.currency.to_string(), "BTC");
+    assert_eq!(balances[1].monthly_withdrawal.currency.to_string(), "USD");
+    assert_eq!(balances[2].monthly_withdrawal.amount, Decimal::new(50, 0));
 }

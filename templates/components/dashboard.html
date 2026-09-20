@@ -149,6 +149,7 @@
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
         <p><span>{{ text.passive_income }}</span><strong>{% if month.annualized_passive_income_yield %}<small aria-label="{{ text.annualized_passive_income_yield }}">{{ month.annualized_passive_income_yield }}</small> {% endif %}{{ month.passive_income }}</strong></p>
         <p><span>{{ text.contribution }}</span><strong>{{ month.monthly_contributions }}</strong></p>
+        <p><span>{{ text.withdrawal }}</span><strong>{{ month.monthly_withdrawals }}</strong></p>
       </div>
       <p class="chart-inspector-assets-label">{{ text.assets }}</p>
       <div class="chart-inspector-assets">
@@ -156,7 +157,7 @@
         <div class="chart-inspector-asset" data-chart-asset data-chart-asset-active="{{ asset.is_active }}" data-chart-asset-y="{{ asset.y }}" data-chart-asset-balance="{{ asset.balance }}" data-chart-asset-color="{{ asset.color_index }}"{% if not asset.is_active %} hidden{% endif %}>
           <strong class="chart-inspector-asset-title"><i class="legend-asset asset-line-{{ asset.color_index }}" aria-hidden="true"></i>{{ asset.name }}</strong>
           <span class="chart-inspector-values"><span class="chart-inspector-native">{{ asset.native_balance }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}</span>{% if asset.comparable_plan_balance %}<span class="chart-inspector-comparable"> ≈ {{ asset.comparable_plan_balance }}</span>{% endif %}</span>
-          <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.annual_return }}: {{ asset.annual_expected_return }}">↗ {{ asset.annual_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}">+ {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}{{ text.per_month }}</span><span class="chart-asset-assumption" aria-label="{{ text.passive_income }}: {{ asset.passive_income }}">☼ {{ asset.passive_income }}</span></span>
+          <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.annual_return }}: {{ asset.annual_expected_return }}">↗ {{ asset.annual_expected_return }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}">+{{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}{{ text.per_month }}</span><span class="chart-asset-assumption" aria-label="{{ text.monthly_withdrawal }}: {{ asset.monthly_withdrawal }} {{ asset.monthly_withdrawal_currency }}">−{{ asset.monthly_withdrawal }} {{ asset.monthly_withdrawal_currency }}{{ text.per_month }}</span><span class="chart-asset-assumption" aria-label="{{ text.passive_income }}: {{ asset.passive_income }}">☼ {{ asset.passive_income }}</span></span>
           {% for event in asset.events %}<span class="chart-asset-event"><span>{{ event.name }}</span><strong>{{ event.value }}</strong></span>{% endfor %}
         </div>
         {% endfor %}

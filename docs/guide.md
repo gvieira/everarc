@@ -70,6 +70,7 @@ currency = "USD"
 # Effective annual decimal fraction: 0.06 means a 6% expected annual return.
 annual_expected_return = "0.06"
 monthly_contribution = { amount = "1000.00", currency = "USD" }
+monthly_withdrawal = { amount = "250.00", currency = "USD" }
 
 [[scenarios.assets.holdings]]
 id = "world-etf"
@@ -86,6 +87,15 @@ type = "asset_adjustment"
 asset_id = "brokerage"
 # Signed amount in the asset currency; negative withdraws funds.
 amount = "-25000.00"
+
+[[scenarios.events]]
+id = "retirement-withdrawal"
+name = "Start retirement withdrawals"
+date = "2040-01"
+type = "set_monthly_withdrawal"
+asset_id = "brokerage"
+amount = "3000.00"
+currency = "USD"
 
 # Optional asset-balance targets use the target asset's currency.
 [[scenarios.milestones]]
@@ -190,21 +200,25 @@ use `ends = "2032-01"` and `starts = "2032-01"`, respectively.
 `annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
 per year, while `"0.06"` means 6%. Everarc compounds it monthly so twelve
 projected months produce the configured annual return. `monthly_contribution`
-is an object with a nonnegative quoted-decimal `amount` and a `currency` equal
-to either the asset currency or `plan.currency`. Plan-currency contributions
-are converted to the asset currency using the static configured rate before
-being added to the balance. Assets outside `plan.currency` require a usable
-conversion rate.
+and the optional `monthly_withdrawal` are objects with nonnegative
+quoted-decimal `amount` values and a `currency` equal to either the asset
+currency or `plan.currency`. Contributions and withdrawals are independent and
+may occur in the same month; Everarc adds the gross contribution and subtracts
+the gross withdrawal. Plan-currency flows are converted to the asset currency
+using the static configured rate. Omitting `monthly_withdrawal` is equivalent
+to a zero withdrawal in the asset currency. Assets outside `plan.currency`
+require a usable conversion rate.
 
 Events are optional and are processed in TOML declaration order. Every event
 has a nonblank ID unique within its scenario, a nonblank human-facing name, a
 `YYYY-MM` date within the plan range, and an `asset_id`. The asset may be local to the scenario or inherited
 from a parent scenario. `asset_adjustment` uses a signed `amount` in the
-asset's currency. `set_monthly_contribution` uses a nonnegative `amount` and
-a required `currency` equal to either the asset currency or `plan.currency`;
-it takes effect for that month's contribution and every following month. Where
-multiple settings take effect in the same month, the last declaration wins.
-`set_annual_expected_return` uses a nonnegative effective annual
+asset's currency. `set_monthly_contribution` and `set_monthly_withdrawal` use a nonnegative
+`amount` and a required `currency` equal to either the asset currency or
+`plan.currency`. Each independently takes effect for that month's flow and
+every following month. Where multiple settings of the same kind take effect in
+the same month, the last declaration wins. `set_annual_expected_return` uses a
+nonnegative effective annual
 decimal-fraction `rate` and takes effect for that month's return and every
 following month; multiple same-month settings use the last declaration.
 Inflation-changing events are not supported yet.

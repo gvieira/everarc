@@ -3,7 +3,7 @@ use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 use crate::config::{
     Asset, AssetMilestone, Config, ConversionRate, Currency, Event, FutureLivingCost, Month,
-    MonthlyContribution, Plan, Scenario, TotalBalanceMilestone,
+    MonthlyContribution, MonthlyWithdrawal, Plan, Scenario, TotalBalanceMilestone,
 };
 
 #[derive(Debug, Serialize)]
@@ -61,6 +61,7 @@ pub struct ScenarioProjection<'config> {
     pub total_net_worth: Vec<TotalNetWorthMonthProjection>,
     pub asset_adjustments: Vec<AssetAdjustmentProjection<'config>>,
     pub contribution_settings: Vec<ContributionSettingProjection<'config>>,
+    pub withdrawal_settings: Vec<WithdrawalSettingProjection<'config>>,
     pub asset_events: Vec<AppliedAssetEventProjection<'config>>,
     pub future_living_costs: FutureLivingCostsProjection<'config>,
     pub asset_milestones: Vec<AssetMilestoneProjection<'config>>,
@@ -93,7 +94,7 @@ impl Serialize for ScenarioProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ScenarioProjection", 11)?;
+        let mut state = serializer.serialize_struct("ScenarioProjection", 12)?;
         state.serialize_field("id", &self.scenario.id)?;
         state.serialize_field("name", &self.scenario.name)?;
         state.serialize_field("description", &self.scenario.description)?;
@@ -102,6 +103,7 @@ impl Serialize for ScenarioProjection<'_> {
         state.serialize_field("total_net_worth", &self.total_net_worth)?;
         state.serialize_field("asset_adjustments", &self.asset_adjustments)?;
         state.serialize_field("contribution_settings", &self.contribution_settings)?;
+        state.serialize_field("withdrawal_settings", &self.withdrawal_settings)?;
         state.serialize_field("asset_events", &self.asset_events)?;
         state.serialize_field("future_living_costs", &self.future_living_costs)?;
         state.serialize_field("asset_milestones", &self.asset_milestones)?;
@@ -149,6 +151,7 @@ pub struct AssetMonthProjection {
     pub is_active: bool,
     pub annual_expected_return: Decimal,
     pub monthly_contribution: MonthlyContribution,
+    pub monthly_withdrawal: MonthlyWithdrawal,
     pub native_balance: Decimal,
     pub plan_balance: Decimal,
     pub native_passive_income: Decimal,
@@ -160,7 +163,7 @@ impl Serialize for AssetMonthProjection {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("AssetMonthProjection", 7)?;
+        let mut state = serializer.serialize_struct("AssetMonthProjection", 8)?;
         state.serialize_field("month", &self.month)?;
         state.serialize_field("is_active", &self.is_active)?;
         state.serialize_field(
@@ -168,6 +171,7 @@ impl Serialize for AssetMonthProjection {
             &self.annual_expected_return.to_string(),
         )?;
         state.serialize_field("monthly_contribution", &self.monthly_contribution)?;
+        state.serialize_field("monthly_withdrawal", &self.monthly_withdrawal)?;
         state.serialize_field("native_balance", &self.native_balance.to_string())?;
         state.serialize_field("plan_balance", &self.plan_balance.to_string())?;
         state.serialize_field(
@@ -449,6 +453,7 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                     let total_net_worth = project_total_net_worth(&assets);
                     let asset_adjustments = resolved_asset_adjustments(config, scenario);
                     let contribution_settings = resolved_contribution_settings(config, scenario);
+                    let withdrawal_settings = resolved_withdrawal_settings(config, scenario);
                     let asset_events = resolved_asset_events(config, scenario);
 
                     ScenarioProjection {
@@ -457,6 +462,7 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                         total_net_worth,
                         asset_adjustments,
                         contribution_settings,
+                        withdrawal_settings,
                         asset_events,
                         future_living_costs: FutureLivingCostsProjection {
                             costs,
@@ -534,6 +540,7 @@ fn project_scenario_assets<'config>(config: &'config Config) -> Vec<Vec<AssetPro
 
             let adjustments = resolved_asset_adjustments(config, scenario);
             let contribution_settings = resolved_contribution_settings(config, scenario);
+            let withdrawal_settings = resolved_withdrawal_settings(config, scenario);
             let return_settings = resolved_return_settings(config, scenario);
             for asset in &mut assets {
                 *asset = project_asset(
@@ -541,6 +548,7 @@ fn project_scenario_assets<'config>(config: &'config Config) -> Vec<Vec<AssetPro
                     asset.asset,
                     &adjustments,
                     &contribution_settings,
+                    &withdrawal_settings,
                     &return_settings,
                 );
             }
@@ -624,7 +632,9 @@ fn resolved_asset_adjustments<'config>(
                 asset_id,
                 amount,
             }),
-            Event::SetMonthlyContribution { .. } | Event::SetAnnualExpectedReturn { .. } => None,
+            Event::SetMonthlyContribution { .. }
+            | Event::SetMonthlyWithdrawal { .. }
+            | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
 }
@@ -634,6 +644,7 @@ fn resolved_asset_adjustments<'config>(
 pub enum AppliedAssetEventKind {
     Adjustment,
     ContributionSetting,
+    WithdrawalSetting,
     ExpectedReturn,
 }
 
@@ -697,6 +708,21 @@ fn resolved_asset_events<'config>(
                 date: *date,
                 asset_id,
                 kind: AppliedAssetEventKind::ContributionSetting,
+                amount,
+                currency: Some(currency),
+            },
+            Event::SetMonthlyWithdrawal {
+                name,
+                date,
+                asset_id,
+                amount,
+                currency,
+                ..
+            } => AppliedAssetEventProjection {
+                name,
+                date: *date,
+                asset_id,
+                kind: AppliedAssetEventKind::WithdrawalSetting,
                 amount,
                 currency: Some(currency),
             },
@@ -764,7 +790,62 @@ fn resolved_contribution_settings<'config>(
                 amount,
                 currency,
             }),
-            Event::AssetAdjustment { .. } | Event::SetAnnualExpectedReturn { .. } => None,
+            Event::AssetAdjustment { .. }
+            | Event::SetMonthlyWithdrawal { .. }
+            | Event::SetAnnualExpectedReturn { .. } => None,
+        })
+        .collect()
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct WithdrawalSettingProjection<'config> {
+    pub name: &'config str,
+    pub date: Month,
+    pub asset_id: &'config str,
+    pub amount: &'config Decimal,
+    pub currency: &'config Currency,
+}
+
+impl Serialize for WithdrawalSettingProjection<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("WithdrawalSettingProjection", 5)?;
+        state.serialize_field("name", self.name)?;
+        state.serialize_field("date", &self.date)?;
+        state.serialize_field("asset_id", self.asset_id)?;
+        state.serialize_field("amount", &self.amount.to_string())?;
+        state.serialize_field("currency", self.currency)?;
+        state.end()
+    }
+}
+
+fn resolved_withdrawal_settings<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<WithdrawalSettingProjection<'config>> {
+    scenario_lineage(config, scenario)
+        .into_iter()
+        .flat_map(|scenario| scenario.events.iter())
+        .filter_map(|event| match event {
+            Event::SetMonthlyWithdrawal {
+                name,
+                date,
+                asset_id,
+                amount,
+                currency,
+                ..
+            } => Some(WithdrawalSettingProjection {
+                name,
+                date: *date,
+                asset_id,
+                amount,
+                currency,
+            }),
+            Event::AssetAdjustment { .. }
+            | Event::SetMonthlyContribution { .. }
+            | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
 }
@@ -794,7 +875,9 @@ fn resolved_return_settings<'config>(
                 asset_id,
                 rate,
             }),
-            Event::AssetAdjustment { .. } | Event::SetMonthlyContribution { .. } => None,
+            Event::AssetAdjustment { .. }
+            | Event::SetMonthlyContribution { .. }
+            | Event::SetMonthlyWithdrawal { .. } => None,
         })
         .collect()
 }
@@ -808,6 +891,7 @@ fn project_asset<'config>(
     asset: &'config Asset,
     adjustments: &[AssetAdjustmentProjection<'config>],
     contribution_settings: &[ContributionSettingProjection<'config>],
+    withdrawal_settings: &[WithdrawalSettingProjection<'config>],
     return_settings: &[ResolvedReturnSetting<'config>],
 ) -> AssetProjection<'config> {
     let conversion_rate = config
@@ -830,6 +914,14 @@ fn project_asset<'config>(
     let mut native_balance = Decimal::ZERO;
     let mut annual_expected_return = asset.annual_expected_return;
     let mut monthly_contribution = asset.monthly_contribution.clone();
+    let mut monthly_withdrawal =
+        asset
+            .monthly_withdrawal
+            .clone()
+            .unwrap_or_else(|| MonthlyWithdrawal {
+                amount: Decimal::ZERO,
+                currency: asset.currency.clone(),
+            });
     let month_count = config.plan.inclusive_month_count();
     let monthly_balances = (0..month_count)
         .map(|index| {
@@ -857,6 +949,16 @@ fn project_asset<'config>(
                     currency: setting.currency.clone(),
                 };
             }
+            if let Some(setting) = withdrawal_settings
+                .iter()
+                .rev()
+                .find(|setting| setting.date == month && setting.asset_id == asset.id)
+            {
+                monthly_withdrawal = MonthlyWithdrawal {
+                    amount: *setting.amount,
+                    currency: setting.currency.clone(),
+                };
+            }
             let adjustment_total = adjustments
                 .iter()
                 .filter(|adjustment| adjustment.date == month && adjustment.asset_id == asset.id)
@@ -874,9 +976,15 @@ fn project_asset<'config>(
             } else {
                 monthly_contribution.amount / conversion_rate
             };
+            let native_monthly_withdrawal = if monthly_withdrawal.currency == asset.currency {
+                monthly_withdrawal.amount
+            } else {
+                monthly_withdrawal.amount / conversion_rate
+            };
             if is_active {
                 native_balance = native_balance * (Decimal::ONE + monthly_expected_return)
                     + native_monthly_contribution
+                    - native_monthly_withdrawal
                     + adjustment_total;
             }
             let projection = AssetMonthProjection {
@@ -884,6 +992,7 @@ fn project_asset<'config>(
                 is_active,
                 annual_expected_return,
                 monthly_contribution: monthly_contribution.clone(),
+                monthly_withdrawal: monthly_withdrawal.clone(),
                 native_balance,
                 plan_balance: native_balance * conversion_rate,
                 native_passive_income,

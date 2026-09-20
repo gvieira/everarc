@@ -52,6 +52,8 @@ pub struct DashboardText {
     pub annual_return: &'static str,
     pub monthly_contribution: &'static str,
     pub contribution: &'static str,
+    pub monthly_withdrawal: &'static str,
+    pub withdrawal: &'static str,
     pub annualized_passive_income_yield: &'static str,
     pub per_month: &'static str,
     pub total_net_worth_legend: &'static str,
@@ -154,6 +156,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub balance: String,
     pub total: String,
     pub monthly_contributions: String,
+    pub monthly_withdrawals: String,
     pub passive_income: String,
     pub annualized_passive_income_yield: Option<String>,
     pub assets: Vec<DashboardChartAssetPresentation<'projection>>,
@@ -167,6 +170,8 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub annual_expected_return: String,
     pub monthly_contribution: String,
     pub monthly_contribution_currency: &'projection Currency,
+    pub monthly_withdrawal: String,
+    pub monthly_withdrawal_currency: &'projection Currency,
     pub passive_income: String,
     pub is_plan_currency: bool,
     pub y: String,
@@ -518,6 +523,8 @@ impl DashboardText {
                 annual_return: "Annual return",
                 monthly_contribution: "Monthly contribution",
                 contribution: "Contribution",
+                monthly_withdrawal: "Monthly withdrawal",
+                withdrawal: "Withdrawal",
                 annualized_passive_income_yield: "Annualized passive-income yield",
                 per_month: "/month",
                 total_net_worth_legend: "Total net worth",
@@ -558,6 +565,8 @@ impl DashboardText {
                 annual_return: "Retorno anual",
                 monthly_contribution: "Contribuição mensal",
                 contribution: "Contribuição",
+                monthly_withdrawal: "Retirada mensal",
+                withdrawal: "Retirada",
                 annualized_passive_income_yield: "Rendimento anualizado da renda passiva",
                 per_month: "/mês",
                 total_net_worth_legend: "Patrimônio líquido total",
@@ -708,26 +717,27 @@ fn asset_chart_path(asset: &crate::projection::AssetProjection<'_>, maximum: Dec
         .join(" ")
 }
 
-fn plan_contribution_amount(
-    contribution: &crate::config::MonthlyContribution,
+fn plan_flow_amount(
+    amount: Decimal,
+    currency: &Currency,
     plan_currency: &Currency,
     conversion_rates: &[crate::config::ConversionRate],
 ) -> Decimal {
-    if &contribution.currency == plan_currency {
-        return contribution.amount;
+    if currency == plan_currency {
+        return amount;
     }
     let conversion_rate = conversion_rates
         .iter()
         .find_map(|rate| {
-            (rate.from == contribution.currency && &rate.to == plan_currency)
+            (&rate.from == currency && &rate.to == plan_currency)
                 .then_some(rate.rate)
                 .or_else(|| {
-                    (&rate.from == plan_currency && rate.to == contribution.currency)
+                    (&rate.from == plan_currency && &rate.to == currency)
                         .then_some(Decimal::ONE / rate.rate)
                 })
         })
-        .expect("validated contribution conversion rate");
-    contribution.amount * conversion_rate
+        .expect("validated flow conversion rate");
+    amount * conversion_rate
 }
 
 fn chart_months<'projection>(
@@ -753,9 +763,29 @@ fn chart_months<'projection>(
                 scenario
                     .assets
                     .iter()
+                    .filter(|asset| asset.monthly_balances[index].is_active)
                     .map(|asset| {
-                        plan_contribution_amount(
-                            &asset.monthly_balances[index].monthly_contribution,
+                        let contribution = &asset.monthly_balances[index].monthly_contribution;
+                        plan_flow_amount(
+                            contribution.amount,
+                            &contribution.currency,
+                            plan_currency,
+                            conversion_rates,
+                        )
+                    })
+                    .sum(),
+                locale,
+            ),
+            monthly_withdrawals: format_number(
+                scenario
+                    .assets
+                    .iter()
+                    .filter(|asset| asset.monthly_balances[index].is_active)
+                    .map(|asset| {
+                        let withdrawal = &asset.monthly_balances[index].monthly_withdrawal;
+                        plan_flow_amount(
+                            withdrawal.amount,
+                            &withdrawal.currency,
                             plan_currency,
                             conversion_rates,
                         )
@@ -804,6 +834,11 @@ fn chart_months<'projection>(
                             locale,
                         ),
                         monthly_contribution_currency: &balance.monthly_contribution.currency,
+                        monthly_withdrawal: format_number(
+                            balance.monthly_withdrawal.amount,
+                            locale,
+                        ),
+                        monthly_withdrawal_currency: &balance.monthly_withdrawal.currency,
                         passive_income: format_number(balance.plan_passive_income, locale),
                         is_plan_currency: asset.currency() == plan_currency,
                         y: chart_y(balance.plan_balance, maximum),
@@ -823,12 +858,11 @@ fn chart_months<'projection>(
                                     AppliedAssetEventKind::Adjustment => {
                                         format_signed_number(*event.amount, locale)
                                     }
-                                    AppliedAssetEventKind::ContributionSetting => format!(
+                                    AppliedAssetEventKind::ContributionSetting
+                                    | AppliedAssetEventKind::WithdrawalSetting => format!(
                                         "{} {}{}",
                                         format_number(*event.amount, locale),
-                                        event
-                                            .currency
-                                            .expect("contribution events have a currency"),
+                                        event.currency.expect("flow events have a currency"),
                                         text.per_month
                                     ),
                                     AppliedAssetEventKind::ExpectedReturn => {

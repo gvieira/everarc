@@ -17,9 +17,11 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(!html.contains("<title>Everarc ·"));
     assert!(html.contains("<title>Everarc</title>"));
     assert!(html.contains("↗ 7,00%"));
-    assert!(html.contains("+ 3.000,00 USD&#x2f;mês"));
+    assert!(html.contains("+3.000,00 USD&#x2f;mês"));
+    assert!(html.contains("−0,00 USD&#x2f;mês"));
     assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
     assert!(html.contains("<span>Contribuição</span><strong>"));
+    assert!(html.contains("<span>Retirada</span><strong>"));
     assert!(html.contains("<span>Renda passiva</span><strong>"));
     assert!(html.contains("aria-label=\"Rendimento anualizado da renda passiva\""));
     assert!(html.contains("Inflação anual: 3,00%"));
