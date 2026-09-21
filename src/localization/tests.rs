@@ -152,10 +152,13 @@ amount = "-0.1"
     assert_eq!(dashboard.plan.conversion_rates[0].to.to_string(), "USD");
     let asset = &dashboard.scenarios[0].chart_months[0].assets[0];
 
+    assert_eq!(asset.id, "bitcoin");
     assert_eq!(asset.native_balance, "0.36");
     assert_eq!(asset.annual_expected_return, "50.00%");
     assert_eq!(asset.monthly_contribution, "0.20");
+    assert!(asset.has_monthly_contribution);
     assert_eq!(asset.monthly_contribution_currency.to_string(), "BTC");
+    assert!(!asset.has_monthly_withdrawal);
     assert_eq!(asset.passive_income, "85.92");
     assert_eq!(asset.y, "112.27");
     assert_eq!(asset.color_index, 0);
@@ -164,6 +167,8 @@ amount = "-0.1"
         dashboard.scenarios[0].chart_months[0].passive_income,
         "85.92"
     );
+    assert!(dashboard.scenarios[0].chart_months[0].has_monthly_contributions);
+    assert!(!dashboard.scenarios[0].chart_months[0].has_monthly_withdrawals);
     assert_eq!(asset.events.len(), 3);
     assert_eq!(asset.events[0].name, "Start contribution");
     assert_eq!(asset.events[0].value, "0.20 BTC/month");
@@ -172,6 +177,7 @@ amount = "-0.1"
     assert_eq!(asset.events[2].name, "Rebalance");
     assert_eq!(asset.events[2].value, "-0.10");
     assert_eq!(dashboard.scenarios[0].chart_assets.len(), 1);
+    assert_eq!(dashboard.scenarios[0].chart_assets[0].id, "bitcoin");
     assert_eq!(
         dashboard.scenarios[0].chart_assets[0].event_markers.len(),
         1
@@ -327,6 +333,10 @@ value = "0"
     assert_eq!(dashboard.text.monthly_contribution, "Contribuição mensal");
     assert_eq!(dashboard.text.per_month, "/mês");
     assert_eq!(dashboard.text.pinned, "Fixado");
+    assert_eq!(dashboard.text.show_asset, "Mostrar");
+    assert_eq!(dashboard.text.hide_asset, "Ocultar");
+    assert_eq!(dashboard.text.show_all_assets, "Mostrar todos");
+    assert_eq!(dashboard.text.hide_all_assets, "Ocultar todos");
     assert_eq!(
         dashboard.text.pin_instruction,
         "Clique em um mês para fixar/desafixar"

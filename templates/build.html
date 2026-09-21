@@ -109,6 +109,7 @@
       .chart-event-marker.asset-line-6, .chart-asset-milestone.asset-line-6 { stroke: #3f9c9c; }
       .chart-event-marker.asset-line-7, .chart-asset-milestone.asset-line-7 { stroke: #c56868; }
       .chart-grid, .target-line, .target-label, .asset-line, .total-line, .chart-event-marker, .chart-cursor, .axis { pointer-events: none; }
+      .is-chart-asset-hidden { display: none; }
       .chart-hit-area { fill: transparent; cursor: crosshair; }
       .chart-hit-area:focus { outline: none; }
       .chart-hit-area:focus-visible { stroke: var(--lavender); stroke-width: 3; }
@@ -125,12 +126,24 @@
       .chart-month-selection { display: inline-flex; align-items: center; gap: .5rem; }
       .chart-pin-indicator { padding: .15rem .35rem; background: var(--lavender); border-radius: 4px 3px 5px 3px; color: var(--ink); font: 700 .58rem/1.2 "Space Mono", monospace; letter-spacing: .06em; text-transform: uppercase; visibility: hidden; }
       .chart-pin-indicator.is-visible { visibility: visible; }
+      .chart-inspector-heading-assets { display: flex; align-items: baseline; gap: .65rem; }
       .chart-inspector-assets-label { margin: 0; color: var(--muted); font: 700 .65rem/1.2 "Space Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
-      .chart-inspector-assets { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .65rem; }
+      .chart-asset-bulk-actions { display: inline-flex; align-items: center; gap: .3rem; color: var(--muted); font: .62rem/1.2 "Space Mono", monospace; }
+      .chart-asset-bulk-actions button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: .15em; cursor: pointer; }
+      .chart-asset-bulk-actions button:disabled { opacity: .4; cursor: default; text-decoration: none; }
+      .chart-inspector-assets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
       .chart-inspector-asset { display: grid; align-content: start; gap: .18rem; min-width: 0; padding: .65rem .7rem; background: rgba(255, 255, 255, .48); font: .72rem/1.35 "Space Mono", monospace; }
       .chart-inspector-asset strong, .chart-inspector-native { color: var(--ink); }
+      .chart-inspector-asset-heading { display: flex; align-items: center; gap: .4rem; }
       .chart-inspector-asset-title { display: inline-flex; align-items: center; gap: .35rem; }
       .chart-inspector-asset-title .legend-asset { width: 14px; }
+      .chart-asset-visibility { display: inline-grid; flex: 0 0 auto; place-items: center; width: 1.35rem; height: 1.35rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; }
+      .chart-asset-visibility:hover, .chart-asset-visibility:focus-visible { background: rgba(30, 30, 30, .07); color: var(--ink); }
+      .chart-asset-visibility svg { width: .85rem; height: .85rem; overflow: visible; }
+      .chart-eye, .chart-eye-slash { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+      .chart-eye-slash { opacity: 0; }
+      .chart-inspector-asset.is-chart-hidden .chart-eye-slash { opacity: 1; }
+      .chart-inspector-asset.is-chart-hidden .chart-inspector-asset-title, .chart-inspector-asset.is-chart-hidden .chart-inspector-values, .chart-inspector-asset.is-chart-hidden .chart-asset-assumptions, .chart-inspector-asset.is-chart-hidden .chart-asset-event { opacity: .42; }
       .chart-inspector-comparable { font-size: inherit; letter-spacing: 0; text-transform: none; }
       .chart-asset-assumptions { display: flex; flex-wrap: wrap; gap: .5rem; }
       .chart-asset-assumption { color: #6f6861; font-size: .62rem; font-weight: 700; }
@@ -163,7 +176,8 @@
       .scenario-selection-mark { color: var(--ink); font-size: .9rem; }
       .scenario-description-tooltip { position: absolute; z-index: 2; top: calc(100% + .45rem); left: 0; width: max-content; max-width: 18rem; padding: .5rem .6rem; color: var(--ink); background: var(--card); border: 1px solid var(--ink); border-radius: .25rem; box-shadow: 2px 2px 0 rgba(30, 30, 30, .16); font: 500 .68rem/1.45 "Space Mono", monospace; opacity: 0; pointer-events: none; text-align: left; transform: translateY(-.2rem); visibility: hidden; transition: opacity .12s ease, transform .12s ease, visibility .12s; white-space: normal; }
       .scenario-tab:hover .scenario-description-tooltip, .scenario-tab:focus-visible .scenario-description-tooltip { opacity: 1; transform: translateY(0); visibility: visible; }
-      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { flex-basis: 100%; } .scenario-switcher { grid-template-columns: 1fr; } }
+      @media (max-width: 900px) { .chart-inspector-assets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .chart-inspector-assets { grid-template-columns: 1fr; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { flex-basis: 100%; } .scenario-switcher { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>
@@ -189,6 +203,30 @@
 
         let previousScenarioId = null;
         const sharedChartViewport = { start: 0, end: null, monthIndex: 0, pinnedMonthIndex: null };
+        const hiddenChartAssetIds = new Set();
+        const applyChartAssetVisibility = (chart) => {
+          chart.querySelectorAll("[data-chart-asset-visual]").forEach((visual) => {
+            visual.classList.toggle("is-chart-asset-hidden", hiddenChartAssetIds.has(visual.dataset.chartAssetId));
+          });
+          chart.querySelectorAll("[data-chart-asset]").forEach((card) => {
+            card.classList.toggle("is-chart-hidden", hiddenChartAssetIds.has(card.dataset.chartAssetId));
+          });
+          chart.querySelectorAll("[data-chart-asset-visibility]").forEach((button) => {
+            const isVisible = !hiddenChartAssetIds.has(button.dataset.chartAssetId);
+            button.setAttribute("aria-pressed", String(isVisible));
+            button.setAttribute("aria-label", isVisible ? button.dataset.hideLabel : button.dataset.showLabel);
+          });
+          const assetIds = [...chart.querySelectorAll("[data-chart-asset-line]")]
+            .map((line) => line.dataset.chartAssetId);
+          const hiddenCount = assetIds.filter((id) => hiddenChartAssetIds.has(id)).length;
+          chart.querySelectorAll("[data-chart-assets-show-all]").forEach((button) => {
+            button.disabled = hiddenCount === 0;
+          });
+          chart.querySelectorAll("[data-chart-assets-hide-all]").forEach((button) => {
+            button.disabled = hiddenCount === assetIds.length;
+          });
+        };
+        const applyAllChartAssetVisibility = () => charts.forEach(applyChartAssetVisibility);
         const tabForId = (id) => tabs.find((tab) => tab.dataset.scenarioId === id);
         const deckForId = (id) => decks.find((deck) => deck.dataset.scenarioId === id);
         const chartForId = (id) => charts.find((chart) => chart.dataset.scenarioId === id);
@@ -209,6 +247,7 @@
           hoverCard.hidden = false;
           const inspector = chart.querySelector("[data-chart-month-inspector]");
           inspector.replaceChildren(selected.querySelector("[data-chart-month-details]").cloneNode(true));
+          applyChartAssetVisibility(chart);
           const isPinned = sharedChartViewport.pinnedMonthIndex === index;
           chart.classList.toggle("is-month-pinned", isPinned);
           const pinIndicator = inspector.querySelector("[data-chart-pin-indicator]");
@@ -341,6 +380,29 @@
           });
         }
         for (const chart of charts) {
+          chart.addEventListener("click", (event) => {
+            const visibilityButton = event.target.closest("[data-chart-asset-visibility]");
+            if (visibilityButton) {
+              const assetId = visibilityButton.dataset.chartAssetId;
+              if (hiddenChartAssetIds.has(assetId)) hiddenChartAssetIds.delete(assetId);
+              else hiddenChartAssetIds.add(assetId);
+              applyAllChartAssetVisibility();
+              return;
+            }
+            if (event.target.closest("[data-chart-assets-show-all]")) {
+              chart.querySelectorAll("[data-chart-asset-line]").forEach((line) => {
+                hiddenChartAssetIds.delete(line.dataset.chartAssetId);
+              });
+              applyAllChartAssetVisibility();
+              return;
+            }
+            if (event.target.closest("[data-chart-assets-hide-all]")) {
+              chart.querySelectorAll("[data-chart-asset-line]").forEach((line) => {
+                hiddenChartAssetIds.add(line.dataset.chartAssetId);
+              });
+              applyAllChartAssetVisibility();
+            }
+          });
           const hitArea = chart.querySelector("[data-chart-hit-area]");
           const viewport = chart.querySelector("[data-chart-viewport]");
           chart.querySelector("svg").addEventListener("pointerleave", () => {

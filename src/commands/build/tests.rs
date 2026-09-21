@@ -16,9 +16,9 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(!html.contains("Car purchase -25.000,00"));
     assert!(!html.contains("<title>Everarc ·"));
     assert!(html.contains("<title>Everarc</title>"));
-    assert!(html.contains("↗ 7,00%"));
-    assert!(html.contains("+3.000,00 USD&#x2f;mês"));
-    assert!(html.contains("−0,00 USD&#x2f;mês"));
+    assert!(html.contains("↗7,00%"));
+    assert!(html.contains("+3.000,00 USD</span>"));
+    assert!(!html.contains("−0,00 USD"));
     assert!(html.contains("class=\"chart-event-marker asset-line-0\""));
     assert!(html.contains("<span>Contribuição</span><strong>"));
     assert!(html.contains("<span>Retirada</span><strong>"));
@@ -44,6 +44,10 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("data-chart-asset-balance="));
     assert!(html.contains("data-chart-asset-line=\"0\""));
     assert!(html.contains("data-chart-asset-index=\"0\""));
+    assert!(html.contains("data-chart-asset-id=\"brokerage\" data-chart-asset-visual"));
+    assert!(html.contains("data-chart-asset-visibility data-chart-asset-id=\"brokerage\""));
+    assert!(html.contains("data-chart-assets-show-all"));
+    assert!(html.contains("data-chart-assets-hide-all"));
     assert!(html.contains("data-chart-month-inspector aria-live=\"polite\""));
     assert!(html.contains("data-chart-month-summary"));
     assert!(html.contains("data-chart-month-details"));
@@ -59,6 +63,9 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("if (dragged)"));
     assert!(html.contains("pointerIsNearPinnedMonth(event)"));
     assert!(html.contains("Math.abs(event.clientX - pinnedX) <= 8"));
+    assert!(html.contains("const hiddenChartAssetIds = new Set()"));
+    assert!(html.contains("applyAllChartAssetVisibility()"));
+    assert!(html.contains("visual.classList.toggle(\"is-chart-asset-hidden\""));
     assert!(html.contains("data-chart-asset-active=\"True\""));
     assert!(html.contains("chartAssetActive.toLowerCase() === \"true\""));
     assert!(html.contains("Atingida em 05&#x2f;2043"));

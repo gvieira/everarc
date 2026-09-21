@@ -243,8 +243,13 @@ active asset's balance, return, contribution, withdrawal, passive income, and
 that month's events. Click a month to pin its cursor and inspectors while moving
 the pointer; click that month again to unpin it, or click another month to move
 the pin. Keyboard month navigation also pins its selection. Dragging a zoomed
-chart pans without changing the pin. The passive-income summary includes its annualized yield
-(monthly passive income multiplied by twelve, divided by total balance).
+chart pans without changing the pin. Each asset card's eye button shows or hides
+that asset's chart line, event markers, and milestones; the card stays visible
+and dimmed so the asset can be restored. The inspector also provides show-all
+and hide-all actions. Visibility follows same-ID assets across scenario switches
+but never changes projected balances or total net worth. The passive-income
+summary includes its annualized yield (monthly passive income multiplied by
+twelve, divided by total balance).
 
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.

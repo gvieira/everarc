@@ -65,6 +65,10 @@ pub struct DashboardText {
     pub reset_zoom: &'static str,
     pub pinned: &'static str,
     pub pin_instruction: &'static str,
+    pub show_asset: &'static str,
+    pub hide_asset: &'static str,
+    pub show_all_assets: &'static str,
+    pub hide_all_assets: &'static str,
 }
 
 #[derive(Serialize)]
@@ -130,6 +134,7 @@ pub struct DashboardScenarioPresentation<'projection> {
 
 #[derive(Serialize)]
 pub struct DashboardChartAssetLinePresentation<'projection> {
+    pub id: &'projection str,
     pub name: &'projection str,
     pub path: String,
     pub asset_index: usize,
@@ -160,7 +165,9 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub balance: String,
     pub total: String,
     pub monthly_contributions: String,
+    pub has_monthly_contributions: bool,
     pub monthly_withdrawals: String,
+    pub has_monthly_withdrawals: bool,
     pub passive_income: String,
     pub annualized_passive_income_yield: Option<String>,
     pub assets: Vec<DashboardChartAssetPresentation<'projection>>,
@@ -168,13 +175,16 @@ pub struct DashboardChartMonthPresentation<'projection> {
 
 #[derive(Serialize)]
 pub struct DashboardChartAssetPresentation<'projection> {
+    pub id: &'projection str,
     pub name: &'projection str,
     pub is_active: bool,
     pub native_balance: String,
     pub annual_expected_return: String,
     pub monthly_contribution: String,
+    pub has_monthly_contribution: bool,
     pub monthly_contribution_currency: &'projection Currency,
     pub monthly_withdrawal: String,
+    pub has_monthly_withdrawal: bool,
     pub monthly_withdrawal_currency: &'projection Currency,
     pub passive_income: String,
     pub is_plan_currency: bool,
@@ -318,6 +328,7 @@ impl<'projection> DashboardPresentation<'projection> {
                         .iter()
                         .enumerate()
                         .map(|(asset_index, asset)| DashboardChartAssetLinePresentation {
+                            id: asset.id(),
                             name: asset.name(),
                             path: asset_chart_path(asset, chart_scale.maximum),
                             asset_index,
@@ -540,6 +551,10 @@ impl DashboardText {
                 reset_zoom: "Show full plan",
                 pinned: "Pinned",
                 pin_instruction: "Click a month to pin/unpin",
+                show_asset: "Show",
+                hide_asset: "Hide",
+                show_all_assets: "Show all",
+                hide_all_assets: "Hide all",
             },
             Locale::PtBr => Self {
                 scenario: "Cenário",
@@ -584,6 +599,10 @@ impl DashboardText {
                 reset_zoom: "Mostrar plano completo",
                 pinned: "Fixado",
                 pin_instruction: "Clique em um mês para fixar/desafixar",
+                show_asset: "Mostrar",
+                hide_asset: "Ocultar",
+                show_all_assets: "Mostrar todos",
+                hide_all_assets: "Ocultar todos",
             },
         }
     }
@@ -785,6 +804,10 @@ fn chart_months<'projection>(
                     .sum(),
                 locale,
             ),
+            has_monthly_contributions: scenario.assets.iter().any(|asset| {
+                let balance = &asset.monthly_balances[index];
+                balance.is_active && balance.monthly_contribution.amount != Decimal::ZERO
+            }),
             monthly_withdrawals: format_number(
                 scenario
                     .assets
@@ -802,6 +825,10 @@ fn chart_months<'projection>(
                     .sum(),
                 locale,
             ),
+            has_monthly_withdrawals: scenario.assets.iter().any(|asset| {
+                let balance = &asset.monthly_balances[index];
+                balance.is_active && balance.monthly_withdrawal.amount != Decimal::ZERO
+            }),
             passive_income: format_number(
                 scenario
                     .assets
@@ -831,6 +858,7 @@ fn chart_months<'projection>(
                     let comparable_plan_balance = (asset.currency() != plan_currency)
                         .then(|| format_number(balance.plan_balance, locale));
                     DashboardChartAssetPresentation {
+                        id: asset.id(),
                         name: asset.name(),
                         is_active: balance.is_active,
                         native_balance: format_number(balance.native_balance, locale),
@@ -842,11 +870,14 @@ fn chart_months<'projection>(
                             balance.monthly_contribution.amount,
                             locale,
                         ),
+                        has_monthly_contribution: balance.monthly_contribution.amount
+                            != Decimal::ZERO,
                         monthly_contribution_currency: &balance.monthly_contribution.currency,
                         monthly_withdrawal: format_number(
                             balance.monthly_withdrawal.amount,
                             locale,
                         ),
+                        has_monthly_withdrawal: balance.monthly_withdrawal.amount != Decimal::ZERO,
                         monthly_withdrawal_currency: &balance.monthly_withdrawal.currency,
                         passive_income: format_number(balance.plan_passive_income, locale),
                         is_plan_currency: asset.currency() == plan_currency,
