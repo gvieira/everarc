@@ -888,7 +888,7 @@ name = "Child contribution adjustment"
 type = "adjust_monthly_contribution"
 date = "2026-01"
 asset_id = "cash"
-monthly_contribution = { amount = "-5", currency = "USD" }
+monthly_contribution = { rate = "-0.5" }
 "#,
     );
 
@@ -905,7 +905,7 @@ monthly_contribution = { amount = "-5", currency = "USD" }
 
     assert_eq!(cash_balance(0), Decimal::new(120, 0));
     assert_eq!(cash_balance(1), Decimal::new(160, 0));
-    assert_eq!(cash_balance(2), Decimal::new(150, 0));
+    assert_eq!(cash_balance(2), Decimal::new(140, 0));
 }
 
 #[test]
@@ -968,7 +968,7 @@ locale = "en-US"
 [plan]
 currency = "USD"
 start = "2026-01"
-end = "2026-03"
+end = "2026-04"
 
 [[conversion_rates]]
 from = "BTC"
@@ -1017,19 +1017,214 @@ date = "2026-02"
 type = "adjust_monthly_contribution"
 asset_id = "account"
 monthly_contribution = { amount = "20", currency = "USD" }
+
+[[scenarios.events]]
+id = "percentage-contribution-increase"
+name = "Percentage contribution increase"
+date = "2026-02"
+type = "adjust_monthly_contribution"
+asset_id = "account"
+monthly_contribution = { rate = "0.1" }
+
+[[scenarios.events]]
+id = "percentage-withdrawal-reduction"
+name = "Percentage withdrawal reduction"
+date = "2026-02"
+type = "adjust_monthly_withdrawal"
+asset_id = "account"
+monthly_withdrawal = { rate = "-0.25" }
+
+[[scenarios.events]]
+id = "compound-contribution-increase"
+name = "Compound contribution increase"
+date = "2026-03"
+type = "adjust_monthly_contribution"
+asset_id = "account"
+monthly_contribution = { rate = "0.1" }
+
+[[scenarios.events]]
+id = "stop-withdrawal"
+name = "Stop withdrawal"
+date = "2026-04"
+type = "adjust_monthly_withdrawal"
+asset_id = "account"
+monthly_withdrawal = { rate = "-1" }
+
+[[scenarios.events]]
+id = "increase-zero-withdrawal"
+name = "Increase zero withdrawal"
+date = "2026-04"
+type = "adjust_monthly_withdrawal"
+asset_id = "account"
+monthly_withdrawal = { rate = "0.5" }
 "#,
     );
 
     let projection = PlanProjection::from(&config);
     let balances = &projection.scenarios[0].assets[0].monthly_balances;
     assert_eq!(balances[0].native_balance, Decimal::new(175, 2));
-    assert_eq!(balances[1].native_balance, Decimal::new(255, 2));
-    assert_eq!(balances[2].native_balance, Decimal::new(335, 2));
+    assert_eq!(balances[1].native_balance, Decimal::new(277, 2));
+    assert_eq!(balances[2].native_balance, Decimal::new(3922, 3));
+    assert_eq!(balances[3].native_balance, Decimal::new(5374, 3));
     assert_eq!(balances[0].monthly_withdrawal.currency.to_string(), "BTC");
     assert_eq!(balances[1].monthly_withdrawal.currency.to_string(), "USD");
     assert_eq!(
         balances[2].monthly_contribution.amount,
-        Decimal::new(120, 0)
+        Decimal::new(1452, 1)
     );
-    assert_eq!(balances[2].monthly_withdrawal.amount, Decimal::new(40, 0));
+    assert_eq!(
+        balances[3].monthly_contribution.amount,
+        Decimal::new(1452, 1)
+    );
+    assert_eq!(balances[3].monthly_withdrawal.amount, Decimal::ZERO);
+}
+
+#[test]
+fn repeats_events_through_the_assets_inclusive_end_month() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2028-02"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "account"
+name = "Account"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "100", currency = "USD" }
+ends = "2028-01"
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+
+[[scenarios.events]]
+id = "annual-contribution-increase"
+name = "Annual contribution increase"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "account"
+monthly_contribution = { rate = "0.1" }
+recurrence = { every = 1, unit = "years" }
+
+[[scenarios.events]]
+id = "periodic-withdrawal-increase"
+name = "Periodic withdrawal increase"
+type = "adjust_monthly_withdrawal"
+date = "2026-03"
+asset_id = "account"
+monthly_withdrawal = { amount = "10", currency = "USD" }
+recurrence = { every = 6, unit = "months" }
+
+[[scenarios.events]]
+id = "periodic-purchase"
+name = "Periodic purchase"
+type = "asset_adjustment"
+date = "2026-02"
+asset_id = "account"
+amount = "-100"
+recurrence = { every = 6, unit = "months" }
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    let scenario = &projection.scenarios[0];
+    let balances = &scenario.assets[0].monthly_balances;
+
+    assert_eq!(
+        balances[0].monthly_contribution.amount,
+        Decimal::new(110, 0)
+    );
+    assert_eq!(
+        balances[12].monthly_contribution.amount,
+        Decimal::new(121, 0)
+    );
+    assert_eq!(
+        balances[24].monthly_contribution.amount,
+        Decimal::new(1331, 1)
+    );
+    assert!(balances[24].is_active);
+    assert!(!balances[25].is_active);
+    assert_eq!(balances[2].monthly_withdrawal.amount, Decimal::new(10, 0));
+    assert_eq!(balances[8].monthly_withdrawal.amount, Decimal::new(20, 0));
+    assert_eq!(balances[14].monthly_withdrawal.amount, Decimal::new(30, 0));
+    assert_eq!(balances[20].monthly_withdrawal.amount, Decimal::new(40, 0));
+    assert_eq!(scenario.asset_adjustments.len(), 4);
+    assert_eq!(scenario.asset_events.len(), 11);
+    assert_eq!(scenario.asset_adjustments[0].date.to_string(), "2026-02");
+    assert_eq!(scenario.asset_adjustments[3].date.to_string(), "2027-08");
+}
+
+#[test]
+fn orders_parent_recurring_occurrences_before_child_events_in_the_same_month() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2027-01"
+
+[[scenarios]]
+id = "parent"
+name = "Parent"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "account"
+name = "Account"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+
+[[scenarios.events]]
+id = "annual-fixed-increase"
+name = "Annual fixed increase"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "account"
+monthly_contribution = { amount = "10", currency = "USD" }
+recurrence = { every = 1, unit = "years" }
+
+[[scenarios]]
+id = "child"
+name = "Child"
+extends = "parent"
+
+[[scenarios.events]]
+id = "halve-contribution"
+name = "Halve contribution"
+type = "adjust_monthly_contribution"
+date = "2027-01"
+asset_id = "account"
+monthly_contribution = { rate = "-0.5" }
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    let parent = &projection.scenarios[0].assets[0].monthly_balances;
+    let child = &projection.scenarios[1].assets[0].monthly_balances;
+
+    assert_eq!(parent[12].monthly_contribution.amount, Decimal::new(20, 0));
+    assert_eq!(child[12].monthly_contribution.amount, Decimal::new(10, 0));
 }

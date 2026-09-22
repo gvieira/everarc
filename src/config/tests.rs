@@ -9,7 +9,7 @@ locale = "en-US"
 [plan]
 currency = "USD"
 start = "2026-01"
-end = "2026-02"
+end = "2026-03"
 
 [[conversion_rates]]
 from = "EUR"
@@ -327,6 +327,112 @@ type = "adjust_monthly_withdrawal"
 date = "2026-02"
 asset_id = "cash"
 monthly_withdrawal = { amount = "-50", currency = "USD" }
+"#,
+    );
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::NegativeRecurringFlowAfterAdjustment {
+            flow: "withdrawal",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn rejects_recurring_flow_adjustment_rates_below_negative_one() {
+    let mut config = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "over-reduce-contribution"
+name = "Over-reduce contribution"
+type = "adjust_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = { rate = "-1.01" }
+"#,
+    );
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InvalidRecurringFlowAdjustmentRate {
+            flow: "contribution",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn rejects_mixed_and_incomplete_recurring_flow_adjustments() {
+    for adjustment in [
+        r#"{ amount = "10", currency = "USD", rate = "0.1" }"#,
+        r#"{ amount = "10" }"#,
+        r#"{ rate = "0.1", currency = "USD" }"#,
+    ] {
+        let source = format!(
+            r#"
+id = "invalid-adjustment"
+name = "Invalid adjustment"
+type = "adjust_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = {adjustment}
+"#
+        );
+
+        toml::from_str::<Event>(&source).expect_err("invalid adjustment object fails");
+    }
+}
+
+#[test]
+fn rejects_invalid_and_unsupported_event_recurrence() {
+    let mut zero_interval = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "zero-interval"
+name = "Zero interval"
+type = "adjust_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = { rate = "0.1" }
+recurrence = { every = 0, unit = "months" }
+"#,
+    );
+    assert!(matches!(
+        zero_interval.validate(),
+        Err(ConfigError::InvalidEventRecurrence { .. })
+    ));
+
+    let mut unsupported = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "recurring-setter"
+name = "Recurring setter"
+type = "set_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = { amount = "200", currency = "USD" }
+recurrence = { every = 1, unit = "years" }
+"#,
+    );
+    assert!(matches!(
+        unsupported.validate(),
+        Err(ConfigError::UnsupportedEventRecurrence { .. })
+    ));
+}
+
+#[test]
+fn rejects_a_later_recurring_adjustment_that_makes_the_flow_negative() {
+    let mut config = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "recurring-reduction"
+name = "Recurring reduction"
+type = "adjust_monthly_withdrawal"
+date = "2026-02"
+asset_id = "cash"
+monthly_withdrawal = { amount = "-30", currency = "USD" }
+recurrence = { every = 1, unit = "months" }
 "#,
     );
 

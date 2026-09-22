@@ -3,7 +3,8 @@ use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 use crate::config::{
     Asset, AssetMilestone, Config, ConversionRate, Currency, Event, FutureLivingCost, Month,
-    MonthlyContribution, MonthlyWithdrawal, Plan, Scenario, TotalBalanceMilestone,
+    MonthlyContribution, MonthlyWithdrawal, Plan, RecurringFlowAdjustment, Scenario,
+    TotalBalanceMilestone, resolved_event_occurrences,
 };
 
 #[derive(Debug, Serialize)]
@@ -591,44 +592,21 @@ impl Serialize for AssetAdjustmentProjection<'_> {
     }
 }
 
-fn scenario_lineage<'config>(
-    config: &'config Config,
-    scenario: &'config Scenario,
-) -> Vec<&'config Scenario> {
-    let mut lineage = Vec::new();
-    let mut current = scenario;
-    loop {
-        lineage.push(current);
-        let Some(parent_id) = current.extends.as_deref() else {
-            break;
-        };
-        current = config
-            .scenarios
-            .iter()
-            .find(|candidate| candidate.id == parent_id)
-            .expect("validated scenario parents always exist");
-    }
-    lineage.reverse();
-    lineage
-}
-
 fn resolved_asset_adjustments<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<AssetAdjustmentProjection<'config>> {
-    scenario_lineage(config, scenario)
+    resolved_event_occurrences(config, scenario)
         .into_iter()
-        .flat_map(|scenario| scenario.events.iter())
-        .filter_map(|event| match event {
+        .filter_map(|occurrence| match occurrence.event {
             Event::AssetAdjustment {
                 name,
-                date,
                 asset_id,
                 amount,
                 ..
             } => Some(AssetAdjustmentProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 amount,
             }),
@@ -649,6 +627,8 @@ pub enum AppliedAssetEventKind {
     WithdrawalSetting,
     ContributionAdjustment,
     WithdrawalAdjustment,
+    ContributionRateAdjustment,
+    WithdrawalRateAdjustment,
     ExpectedReturn,
 }
 
@@ -682,19 +662,17 @@ fn resolved_asset_events<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<AppliedAssetEventProjection<'config>> {
-    scenario_lineage(config, scenario)
+    resolved_event_occurrences(config, scenario)
         .into_iter()
-        .flat_map(|scenario| scenario.events.iter())
-        .map(|event| match event {
+        .map(|occurrence| match occurrence.event {
             Event::AssetAdjustment {
                 name,
-                date,
                 asset_id,
                 amount,
                 ..
             } => AppliedAssetEventProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 kind: AppliedAssetEventKind::Adjustment,
                 amount,
@@ -702,13 +680,12 @@ fn resolved_asset_events<'config>(
             },
             Event::SetMonthlyContribution {
                 name,
-                date,
                 asset_id,
                 monthly_contribution,
                 ..
             } => AppliedAssetEventProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 kind: AppliedAssetEventKind::ContributionSetting,
                 amount: &monthly_contribution.amount,
@@ -716,13 +693,12 @@ fn resolved_asset_events<'config>(
             },
             Event::SetMonthlyWithdrawal {
                 name,
-                date,
                 asset_id,
                 monthly_withdrawal,
                 ..
             } => AppliedAssetEventProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 kind: AppliedAssetEventKind::WithdrawalSetting,
                 amount: &monthly_withdrawal.amount,
@@ -730,41 +706,66 @@ fn resolved_asset_events<'config>(
             },
             Event::AdjustMonthlyContribution {
                 name,
-                date,
                 asset_id,
                 monthly_contribution,
                 ..
-            } => AppliedAssetEventProjection {
-                name,
-                date: *date,
-                asset_id,
-                kind: AppliedAssetEventKind::ContributionAdjustment,
-                amount: &monthly_contribution.amount,
-                currency: Some(&monthly_contribution.currency),
-            },
+            } => {
+                let (kind, amount, currency) = match monthly_contribution {
+                    RecurringFlowAdjustment::Amount(adjustment) => (
+                        AppliedAssetEventKind::ContributionAdjustment,
+                        &adjustment.amount,
+                        Some(&adjustment.currency),
+                    ),
+                    RecurringFlowAdjustment::Rate(adjustment) => (
+                        AppliedAssetEventKind::ContributionRateAdjustment,
+                        &adjustment.rate,
+                        None,
+                    ),
+                };
+                AppliedAssetEventProjection {
+                    name,
+                    date: occurrence.date,
+                    asset_id,
+                    kind,
+                    amount,
+                    currency,
+                }
+            }
             Event::AdjustMonthlyWithdrawal {
                 name,
-                date,
                 asset_id,
                 monthly_withdrawal,
                 ..
-            } => AppliedAssetEventProjection {
-                name,
-                date: *date,
-                asset_id,
-                kind: AppliedAssetEventKind::WithdrawalAdjustment,
-                amount: &monthly_withdrawal.amount,
-                currency: Some(&monthly_withdrawal.currency),
-            },
+            } => {
+                let (kind, amount, currency) = match monthly_withdrawal {
+                    RecurringFlowAdjustment::Amount(adjustment) => (
+                        AppliedAssetEventKind::WithdrawalAdjustment,
+                        &adjustment.amount,
+                        Some(&adjustment.currency),
+                    ),
+                    RecurringFlowAdjustment::Rate(adjustment) => (
+                        AppliedAssetEventKind::WithdrawalRateAdjustment,
+                        &adjustment.rate,
+                        None,
+                    ),
+                };
+                AppliedAssetEventProjection {
+                    name,
+                    date: occurrence.date,
+                    asset_id,
+                    kind,
+                    amount,
+                    currency,
+                }
+            }
             Event::SetAnnualExpectedReturn {
                 name,
-                date,
                 asset_id,
                 rate,
                 ..
             } => AppliedAssetEventProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 kind: AppliedAssetEventKind::ExpectedReturn,
                 amount: rate,
@@ -780,8 +781,9 @@ pub struct ContributionSettingProjection<'config> {
     pub date: Month,
     pub asset_id: &'config str,
     pub amount: &'config Decimal,
-    pub currency: &'config Currency,
+    pub currency: Option<&'config Currency>,
     pub is_adjustment: bool,
+    pub is_percentage: bool,
 }
 
 impl Serialize for ContributionSettingProjection<'_> {
@@ -789,13 +791,14 @@ impl Serialize for ContributionSettingProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ContributionSettingProjection", 6)?;
+        let mut state = serializer.serialize_struct("ContributionSettingProjection", 7)?;
         state.serialize_field("name", self.name)?;
         state.serialize_field("date", &self.date)?;
         state.serialize_field("asset_id", self.asset_id)?;
         state.serialize_field("amount", &self.amount.to_string())?;
-        state.serialize_field("currency", self.currency)?;
+        state.serialize_field("currency", &self.currency)?;
         state.serialize_field("is_adjustment", &self.is_adjustment)?;
+        state.serialize_field("is_percentage", &self.is_percentage)?;
         state.end()
     }
 }
@@ -804,38 +807,45 @@ fn resolved_contribution_settings<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<ContributionSettingProjection<'config>> {
-    scenario_lineage(config, scenario)
+    resolved_event_occurrences(config, scenario)
         .into_iter()
-        .flat_map(|scenario| scenario.events.iter())
-        .filter_map(|event| match event {
+        .filter_map(|occurrence| match occurrence.event {
             Event::SetMonthlyContribution {
                 name,
-                date,
                 asset_id,
                 monthly_contribution,
                 ..
             } => Some(ContributionSettingProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 amount: &monthly_contribution.amount,
-                currency: &monthly_contribution.currency,
+                currency: Some(&monthly_contribution.currency),
                 is_adjustment: false,
+                is_percentage: false,
             }),
             Event::AdjustMonthlyContribution {
                 name,
-                date,
                 asset_id,
                 monthly_contribution,
                 ..
-            } => Some(ContributionSettingProjection {
-                name,
-                date: *date,
-                asset_id,
-                amount: &monthly_contribution.amount,
-                currency: &monthly_contribution.currency,
-                is_adjustment: true,
-            }),
+            } => {
+                let (amount, currency, is_percentage) = match monthly_contribution {
+                    RecurringFlowAdjustment::Amount(adjustment) => {
+                        (&adjustment.amount, Some(&adjustment.currency), false)
+                    }
+                    RecurringFlowAdjustment::Rate(adjustment) => (&adjustment.rate, None, true),
+                };
+                Some(ContributionSettingProjection {
+                    name,
+                    date: occurrence.date,
+                    asset_id,
+                    amount,
+                    currency,
+                    is_adjustment: true,
+                    is_percentage,
+                })
+            }
             Event::AssetAdjustment { .. }
             | Event::SetMonthlyWithdrawal { .. }
             | Event::AdjustMonthlyWithdrawal { .. }
@@ -850,8 +860,9 @@ pub struct WithdrawalSettingProjection<'config> {
     pub date: Month,
     pub asset_id: &'config str,
     pub amount: &'config Decimal,
-    pub currency: &'config Currency,
+    pub currency: Option<&'config Currency>,
     pub is_adjustment: bool,
+    pub is_percentage: bool,
 }
 
 impl Serialize for WithdrawalSettingProjection<'_> {
@@ -859,13 +870,14 @@ impl Serialize for WithdrawalSettingProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("WithdrawalSettingProjection", 6)?;
+        let mut state = serializer.serialize_struct("WithdrawalSettingProjection", 7)?;
         state.serialize_field("name", self.name)?;
         state.serialize_field("date", &self.date)?;
         state.serialize_field("asset_id", self.asset_id)?;
         state.serialize_field("amount", &self.amount.to_string())?;
-        state.serialize_field("currency", self.currency)?;
+        state.serialize_field("currency", &self.currency)?;
         state.serialize_field("is_adjustment", &self.is_adjustment)?;
+        state.serialize_field("is_percentage", &self.is_percentage)?;
         state.end()
     }
 }
@@ -874,38 +886,45 @@ fn resolved_withdrawal_settings<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<WithdrawalSettingProjection<'config>> {
-    scenario_lineage(config, scenario)
+    resolved_event_occurrences(config, scenario)
         .into_iter()
-        .flat_map(|scenario| scenario.events.iter())
-        .filter_map(|event| match event {
+        .filter_map(|occurrence| match occurrence.event {
             Event::SetMonthlyWithdrawal {
                 name,
-                date,
                 asset_id,
                 monthly_withdrawal,
                 ..
             } => Some(WithdrawalSettingProjection {
                 name,
-                date: *date,
+                date: occurrence.date,
                 asset_id,
                 amount: &monthly_withdrawal.amount,
-                currency: &monthly_withdrawal.currency,
+                currency: Some(&monthly_withdrawal.currency),
                 is_adjustment: false,
+                is_percentage: false,
             }),
             Event::AdjustMonthlyWithdrawal {
                 name,
-                date,
                 asset_id,
                 monthly_withdrawal,
                 ..
-            } => Some(WithdrawalSettingProjection {
-                name,
-                date: *date,
-                asset_id,
-                amount: &monthly_withdrawal.amount,
-                currency: &monthly_withdrawal.currency,
-                is_adjustment: true,
-            }),
+            } => {
+                let (amount, currency, is_percentage) = match monthly_withdrawal {
+                    RecurringFlowAdjustment::Amount(adjustment) => {
+                        (&adjustment.amount, Some(&adjustment.currency), false)
+                    }
+                    RecurringFlowAdjustment::Rate(adjustment) => (&adjustment.rate, None, true),
+                };
+                Some(WithdrawalSettingProjection {
+                    name,
+                    date: occurrence.date,
+                    asset_id,
+                    amount,
+                    currency,
+                    is_adjustment: true,
+                    is_percentage,
+                })
+            }
             Event::AssetAdjustment { .. }
             | Event::SetMonthlyContribution { .. }
             | Event::AdjustMonthlyContribution { .. }
@@ -925,17 +944,11 @@ fn resolved_return_settings<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<ResolvedReturnSetting<'config>> {
-    scenario_lineage(config, scenario)
+    resolved_event_occurrences(config, scenario)
         .into_iter()
-        .flat_map(|scenario| scenario.events.iter())
-        .filter_map(|event| match event {
-            Event::SetAnnualExpectedReturn {
-                date,
-                asset_id,
-                rate,
-                ..
-            } => Some(ResolvedReturnSetting {
-                date: *date,
+        .filter_map(|occurrence| match occurrence.event {
+            Event::SetAnnualExpectedReturn { asset_id, rate, .. } => Some(ResolvedReturnSetting {
+                date: occurrence.date,
                 asset_id,
                 rate,
             }),
@@ -1009,12 +1022,17 @@ fn project_asset<'config>(
                 .iter()
                 .filter(|setting| setting.date == month && setting.asset_id == asset.id)
             {
-                if setting.is_adjustment {
+                if setting.is_percentage {
+                    monthly_contribution.amount *= Decimal::ONE + *setting.amount;
+                } else if setting.is_adjustment {
                     monthly_contribution.amount += *setting.amount;
                 } else {
                     monthly_contribution = MonthlyContribution {
                         amount: *setting.amount,
-                        currency: setting.currency.clone(),
+                        currency: setting
+                            .currency
+                            .expect("absolute contribution settings have a currency")
+                            .clone(),
                     };
                 }
             }
@@ -1022,12 +1040,17 @@ fn project_asset<'config>(
                 .iter()
                 .filter(|setting| setting.date == month && setting.asset_id == asset.id)
             {
-                if setting.is_adjustment {
+                if setting.is_percentage {
+                    monthly_withdrawal.amount *= Decimal::ONE + *setting.amount;
+                } else if setting.is_adjustment {
                     monthly_withdrawal.amount += *setting.amount;
                 } else {
                     monthly_withdrawal = MonthlyWithdrawal {
                         amount: *setting.amount,
-                        currency: setting.currency.clone(),
+                        currency: setting
+                            .currency
+                            .expect("absolute withdrawal settings have a currency")
+                            .clone(),
                     };
                 }
             }

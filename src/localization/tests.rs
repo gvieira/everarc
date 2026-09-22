@@ -143,12 +143,12 @@ asset_id = "bitcoin"
 amount = "-0.1"
 
 [[scenarios.events]]
-id = "pause-increase"
-name = "Pause increase"
+id = "percentage-increase"
+name = "Percentage increase"
 type = "adjust_monthly_contribution"
 date = "2026-01"
 asset_id = "bitcoin"
-monthly_contribution = { amount = "0", currency = "BTC" }
+monthly_contribution = { rate = "0" }
 "#,
     );
     let projection = PlanProjection::from(&config);
@@ -183,8 +183,8 @@ monthly_contribution = { amount = "0", currency = "BTC" }
     assert_eq!(asset.events[1].value, "50.00%");
     assert_eq!(asset.events[2].name, "Rebalance");
     assert_eq!(asset.events[2].value, "-0.10");
-    assert_eq!(asset.events[3].name, "Pause increase");
-    assert_eq!(asset.events[3].value, "+0.00 BTC/month");
+    assert_eq!(asset.events[3].name, "Percentage increase");
+    assert_eq!(asset.events[3].value, "+0.00%");
     assert_eq!(dashboard.scenarios[0].chart_assets.len(), 1);
     assert_eq!(dashboard.scenarios[0].chart_assets[0].id, "bitcoin");
     assert_eq!(
@@ -195,6 +195,59 @@ monthly_contribution = { amount = "0", currency = "BTC" }
         dashboard.scenarios[0].chart_assets[0]
             .path
             .starts_with("M 80 ")
+    );
+}
+
+#[test]
+fn presents_every_recurring_asset_adjustment_occurrence() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+
+[[scenarios.events]]
+id = "monthly-purchase"
+name = "Monthly purchase"
+type = "asset_adjustment"
+date = "2026-01"
+asset_id = "cash"
+amount = "0"
+recurrence = { every = 1, unit = "months" }
+"#,
+    );
+    let projection = PlanProjection::from(&config);
+    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let scenario = &dashboard.scenarios[0];
+
+    assert_eq!(scenario.chart_assets[0].event_markers.len(), 3);
+    assert!(
+        scenario
+            .chart_months
+            .iter()
+            .all(|month| month.assets[0].events.len() == 1)
     );
 }
 

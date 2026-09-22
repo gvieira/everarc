@@ -165,6 +165,51 @@ impl Serialize for MonthlyWithdrawal {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum RecurringFlowAdjustment {
+    Amount(RecurringFlowAmountAdjustment),
+    Rate(RecurringFlowRateAdjustment),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecurringFlowAmountAdjustment {
+    #[serde(deserialize_with = "deserialize_decimal")]
+    pub amount: Decimal,
+    pub currency: Currency,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecurringFlowRateAdjustment {
+    #[serde(deserialize_with = "deserialize_decimal")]
+    pub rate: Decimal,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EventRecurrence {
+    pub every: u32,
+    pub unit: EventRecurrenceUnit,
+}
+
+impl EventRecurrence {
+    fn interval_months(self) -> Option<u32> {
+        match self.unit {
+            EventRecurrenceUnit::Months => Some(self.every),
+            EventRecurrenceUnit::Years => self.every.checked_mul(12),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EventRecurrenceUnit {
+    Months,
+    Years,
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Asset {
     pub id: String,
@@ -222,6 +267,7 @@ pub enum Event {
         asset_id: String,
         #[serde(deserialize_with = "deserialize_decimal")]
         amount: Decimal,
+        recurrence: Option<EventRecurrence>,
     },
     SetMonthlyContribution {
         id: String,
@@ -229,6 +275,7 @@ pub enum Event {
         date: Month,
         asset_id: String,
         monthly_contribution: MonthlyContribution,
+        recurrence: Option<EventRecurrence>,
     },
     SetMonthlyWithdrawal {
         id: String,
@@ -236,20 +283,23 @@ pub enum Event {
         date: Month,
         asset_id: String,
         monthly_withdrawal: MonthlyWithdrawal,
+        recurrence: Option<EventRecurrence>,
     },
     AdjustMonthlyContribution {
         id: String,
         name: String,
         date: Month,
         asset_id: String,
-        monthly_contribution: MonthlyContribution,
+        monthly_contribution: RecurringFlowAdjustment,
+        recurrence: Option<EventRecurrence>,
     },
     AdjustMonthlyWithdrawal {
         id: String,
         name: String,
         date: Month,
         asset_id: String,
-        monthly_withdrawal: MonthlyWithdrawal,
+        monthly_withdrawal: RecurringFlowAdjustment,
+        recurrence: Option<EventRecurrence>,
     },
     SetAnnualExpectedReturn {
         id: String,
@@ -258,6 +308,7 @@ pub enum Event {
         asset_id: String,
         #[serde(deserialize_with = "deserialize_decimal")]
         rate: Decimal,
+        recurrence: Option<EventRecurrence>,
     },
 }
 
@@ -326,6 +377,37 @@ impl Event {
         }
     }
 
+    fn asset_id(&self) -> &str {
+        match self {
+            Self::AssetAdjustment { asset_id, .. }
+            | Self::SetMonthlyContribution { asset_id, .. }
+            | Self::SetMonthlyWithdrawal { asset_id, .. }
+            | Self::AdjustMonthlyContribution { asset_id, .. }
+            | Self::AdjustMonthlyWithdrawal { asset_id, .. }
+            | Self::SetAnnualExpectedReturn { asset_id, .. } => asset_id,
+        }
+    }
+
+    fn recurrence(&self) -> Option<EventRecurrence> {
+        match self {
+            Self::AssetAdjustment { recurrence, .. }
+            | Self::SetMonthlyContribution { recurrence, .. }
+            | Self::SetMonthlyWithdrawal { recurrence, .. }
+            | Self::AdjustMonthlyContribution { recurrence, .. }
+            | Self::AdjustMonthlyWithdrawal { recurrence, .. }
+            | Self::SetAnnualExpectedReturn { recurrence, .. } => *recurrence,
+        }
+    }
+
+    fn supports_recurrence(&self) -> bool {
+        matches!(
+            self,
+            Self::AssetAdjustment { .. }
+                | Self::AdjustMonthlyContribution { .. }
+                | Self::AdjustMonthlyWithdrawal { .. }
+        )
+    }
+
     fn negative_forward_value(&self) -> Option<&'static str> {
         match self {
             Self::SetMonthlyContribution {
@@ -339,6 +421,66 @@ impl Event {
             _ => None,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ResolvedEventOccurrence<'config> {
+    pub event: &'config Event,
+    pub date: Month,
+}
+
+pub(crate) fn resolved_event_occurrences<'config>(
+    config: &'config Config,
+    scenario: &'config Scenario,
+) -> Vec<ResolvedEventOccurrence<'config>> {
+    let mut lineage = Vec::new();
+    let mut current = scenario;
+    loop {
+        lineage.push(current);
+        let Some(parent_id) = current.extends.as_deref() else {
+            break;
+        };
+        current = config
+            .scenarios
+            .iter()
+            .find(|candidate| candidate.id == parent_id)
+            .expect("validated scenario parents always exist");
+    }
+    lineage.reverse();
+
+    let mut occurrences = lineage
+        .into_iter()
+        .flat_map(|ancestor| ancestor.events.iter())
+        .flat_map(|event| {
+            let asset_end = scenario
+                .assets
+                .iter()
+                .find(|asset| asset.id == event.asset_id())
+                .and_then(|asset| asset.ends)
+                .expect("validated event assets have resolved lifecycles");
+            let end = asset_end.min(config.plan.end);
+            let mut dates = Vec::new();
+            let mut date = event.date();
+            if date <= end {
+                dates.push(date);
+                if let Some(interval) = event
+                    .recurrence()
+                    .and_then(EventRecurrence::interval_months)
+                    .filter(|interval| *interval > 0)
+                {
+                    while let Some(next) = date.checked_add_months_through(interval, end) {
+                        dates.push(next);
+                        date = next;
+                    }
+                }
+            }
+            dates
+                .into_iter()
+                .map(|date| ResolvedEventOccurrence { event, date })
+        })
+        .collect::<Vec<_>>();
+    occurrences.sort_by_key(|occurrence| occurrence.date);
+    occurrences
 }
 
 fn merge_asset(parent: &Asset, child: &Asset) -> Asset {
@@ -443,6 +585,19 @@ impl Month {
                 month: self.month + 1,
             }
         }
+    }
+
+    fn checked_add_months_through(self, months: u32, end: Self) -> Option<Self> {
+        let index = u32::from(self.year) * 12 + u32::from(self.month - 1);
+        let end_index = u32::from(end.year) * 12 + u32::from(end.month - 1);
+        let next_index = index.checked_add(months)?;
+        if next_index > end_index {
+            return None;
+        }
+        Some(Self {
+            year: u16::try_from(next_index / 12).ok()?,
+            month: u8::try_from(next_index % 12 + 1).ok()?,
+        })
     }
 }
 
@@ -713,6 +868,28 @@ pub enum ConfigError {
         event_id: String,
         asset_id: String,
         flow: &'static str,
+    },
+    #[error(
+        "{flow} adjustment event `{event_id}` for asset `{asset_id}` in scenario `{scenario_id}` has rate `{rate}`, which must be at least -1"
+    )]
+    InvalidRecurringFlowAdjustmentRate {
+        scenario_id: String,
+        event_id: String,
+        asset_id: String,
+        flow: &'static str,
+        rate: Decimal,
+    },
+    #[error(
+        "event `{event_id}` in scenario `{scenario_id}` has an invalid recurrence interval; `every` must be positive and fit the supported month range"
+    )]
+    InvalidEventRecurrence {
+        scenario_id: String,
+        event_id: String,
+    },
+    #[error("event `{event_id}` in scenario `{scenario_id}` does not support recurrence")]
+    UnsupportedEventRecurrence {
+        scenario_id: String,
+        event_id: String,
     },
     #[error("configuration has a total-balance milestone with a blank id")]
     BlankTotalBalanceMilestoneId,
@@ -1184,6 +1361,23 @@ impl Config {
                     event_id: event.id().to_owned(),
                 });
             }
+            if let Some(recurrence) = event.recurrence() {
+                if !event.supports_recurrence() {
+                    return Err(ConfigError::UnsupportedEventRecurrence {
+                        scenario_id: scenario.id.clone(),
+                        event_id: event.id().to_owned(),
+                    });
+                }
+                if recurrence
+                    .interval_months()
+                    .is_none_or(|months| months == 0)
+                {
+                    return Err(ConfigError::InvalidEventRecurrence {
+                        scenario_id: scenario.id.clone(),
+                        event_id: event.id().to_owned(),
+                    });
+                }
+            }
 
             let date = event.date();
             if date < self.plan.start || date > self.plan.end {
@@ -1257,14 +1451,10 @@ impl Config {
             }
         }
 
-        self.validate_recurring_flow_adjustments(scenario, scenario_by_id)
+        self.validate_recurring_flow_adjustments(scenario)
     }
 
-    fn validate_recurring_flow_adjustments(
-        &self,
-        scenario: &Scenario,
-        scenario_by_id: &HashMap<&str, &Scenario>,
-    ) -> Result<(), ConfigError> {
+    fn validate_recurring_flow_adjustments(&self, scenario: &Scenario) -> Result<(), ConfigError> {
         let mut contributions = scenario
             .assets
             .iter()
@@ -1286,23 +1476,8 @@ impl Config {
                 )
             })
             .collect::<HashMap<_, _>>();
-        let mut lineage = vec![scenario];
-        let mut current = scenario;
-        while let Some(parent_id) = current.extends.as_deref() {
-            current = scenario_by_id
-                .get(parent_id)
-                .expect("validated scenario parent exists");
-            lineage.push(current);
-        }
-        lineage.reverse();
-        let mut events = lineage
-            .into_iter()
-            .flat_map(|ancestor| ancestor.events.iter())
-            .collect::<Vec<_>>();
-        events.sort_by_key(|event| event.date());
-
-        for event in events {
-            match event {
+        for occurrence in resolved_event_occurrences(self, scenario) {
+            match occurrence.event {
                 Event::SetMonthlyContribution {
                     asset_id,
                     monthly_contribution,
@@ -1324,8 +1499,7 @@ impl Config {
                         id,
                         asset_id,
                         "contribution",
-                        monthly_contribution.amount,
-                        &monthly_contribution.currency,
+                        monthly_contribution,
                         &mut active.amount,
                         &active.currency,
                     )?;
@@ -1351,8 +1525,7 @@ impl Config {
                         id,
                         asset_id,
                         "withdrawal",
-                        monthly_withdrawal.amount,
-                        &monthly_withdrawal.currency,
+                        monthly_withdrawal,
                         &mut active.amount,
                         &active.currency,
                     )?;
@@ -1371,31 +1544,46 @@ impl Config {
         event_id: &str,
         asset_id: &str,
         flow: &'static str,
-        adjustment: Decimal,
-        adjustment_currency: &Currency,
+        adjustment: &RecurringFlowAdjustment,
         active_amount: &mut Decimal,
         active_currency: &Currency,
     ) -> Result<(), ConfigError> {
-        if adjustment_currency != active_currency {
-            return Err(ConfigError::RecurringFlowAdjustmentCurrencyMismatch {
-                scenario_id: scenario.id.clone(),
-                event_id: event_id.to_owned(),
-                asset_id: asset_id.to_owned(),
-                flow,
-                adjustment_currency: Box::new(adjustment_currency.clone()),
-                active_currency: Box::new(active_currency.clone()),
-            });
+        match adjustment {
+            RecurringFlowAdjustment::Amount(adjustment) => {
+                if adjustment.currency != *active_currency {
+                    return Err(ConfigError::RecurringFlowAdjustmentCurrencyMismatch {
+                        scenario_id: scenario.id.clone(),
+                        event_id: event_id.to_owned(),
+                        asset_id: asset_id.to_owned(),
+                        flow,
+                        adjustment_currency: Box::new(adjustment.currency.clone()),
+                        active_currency: Box::new(active_currency.clone()),
+                    });
+                }
+                let adjusted = *active_amount + adjustment.amount;
+                if adjusted < Decimal::ZERO {
+                    return Err(ConfigError::NegativeRecurringFlowAfterAdjustment {
+                        scenario_id: scenario.id.clone(),
+                        event_id: event_id.to_owned(),
+                        asset_id: asset_id.to_owned(),
+                        flow,
+                    });
+                }
+                *active_amount = adjusted;
+            }
+            RecurringFlowAdjustment::Rate(adjustment) => {
+                if adjustment.rate < -Decimal::ONE {
+                    return Err(ConfigError::InvalidRecurringFlowAdjustmentRate {
+                        scenario_id: scenario.id.clone(),
+                        event_id: event_id.to_owned(),
+                        asset_id: asset_id.to_owned(),
+                        flow,
+                        rate: adjustment.rate,
+                    });
+                }
+                *active_amount *= Decimal::ONE + adjustment.rate;
+            }
         }
-        let adjusted = *active_amount + adjustment;
-        if adjusted < Decimal::ZERO {
-            return Err(ConfigError::NegativeRecurringFlowAfterAdjustment {
-                scenario_id: scenario.id.clone(),
-                event_id: event_id.to_owned(),
-                asset_id: asset_id.to_owned(),
-                flow,
-            });
-        }
-        *active_amount = adjusted;
         Ok(())
     }
 

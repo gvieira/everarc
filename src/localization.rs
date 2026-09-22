@@ -912,6 +912,10 @@ fn chart_months<'projection>(
                                         event.currency.expect("flow events have a currency"),
                                         text.per_month
                                     ),
+                                    AppliedAssetEventKind::ContributionRateAdjustment
+                                    | AppliedAssetEventKind::WithdrawalRateAdjustment => {
+                                        format_signed_percentage(*event.amount, locale)
+                                    }
                                     AppliedAssetEventKind::ExpectedReturn => {
                                         format_percentage(*event.amount, locale)
                                     }
@@ -1042,6 +1046,13 @@ fn format_signed_number(amount: Decimal, locale: Locale) -> String {
 
 fn format_percentage(rate: Decimal, locale: Locale) -> String {
     format!("{}%", format_decimal(rate * Decimal::from(100), 2, locale))
+}
+
+fn format_signed_percentage(rate: Decimal, locale: Locale) -> String {
+    format!(
+        "{}%",
+        format_signed_number(rate * Decimal::from(100), locale)
+    )
 }
 
 fn format_rounded_percentage(rate: Decimal, locale: Locale) -> String {
