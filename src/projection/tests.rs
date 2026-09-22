@@ -402,8 +402,7 @@ name = "Ignored contribution change"
 type = "set_monthly_contribution"
 date = "2026-03"
 asset_id = "cash"
-currency = "USD"
-amount = "100"
+monthly_contribution = { amount = "100", currency = "USD" }
 
 [[scenarios.events]]
 id = "ignored-return-change"
@@ -464,8 +463,7 @@ name = "First January setting"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "cash"
-currency = "USD"
-amount = "20"
+monthly_contribution = { amount = "20", currency = "USD" }
 
 [[scenarios.events]]
 id = "second-january-setting"
@@ -473,8 +471,7 @@ name = "Second January setting"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "cash"
-currency = "USD"
-amount = "30"
+monthly_contribution = { amount = "30", currency = "USD" }
 
 [[scenarios.events]]
 id = "march-adjustment"
@@ -544,8 +541,7 @@ name = "Child contribution"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "brokerage"
-currency = "USD"
-amount = "30"
+monthly_contribution = { amount = "30", currency = "USD" }
 
 [[scenarios]]
 id = "parent"
@@ -579,8 +575,7 @@ name = "Parent contribution"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "brokerage"
-currency = "USD"
-amount = "20"
+monthly_contribution = { amount = "20", currency = "USD" }
 
 [[scenarios.events]]
 id = "parent-deposit"
@@ -762,8 +757,7 @@ name = "Switch contribution currency"
 type = "set_monthly_contribution"
 date = "2026-02"
 asset_id = "bitcoin"
-currency = "USD"
-amount = "100"
+monthly_contribution = { amount = "100", currency = "USD" }
 "#,
     );
 
@@ -818,6 +812,14 @@ date = "2026-01"
 asset_id = "cash"
 amount = "10"
 
+[[scenarios.events]]
+id = "parent-contribution-adjustment"
+name = "Parent contribution adjustment"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "10", currency = "USD" }
+
 [[scenarios]]
 id = "middle"
 name = "Middle"
@@ -845,6 +847,14 @@ date = "2026-01"
 asset_id = "cash"
 amount = "20"
 
+[[scenarios.events]]
+id = "middle-contribution-adjustment"
+name = "Middle contribution adjustment"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "20", currency = "USD" }
+
 [[scenarios]]
 id = "child"
 name = "Child"
@@ -871,6 +881,14 @@ type = "asset_adjustment"
 date = "2026-01"
 asset_id = "cash"
 amount = "-5"
+
+[[scenarios.events]]
+id = "child-contribution-adjustment"
+name = "Child contribution adjustment"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "-5", currency = "USD" }
 "#,
     );
 
@@ -885,9 +903,9 @@ amount = "-5"
             .native_balance
     };
 
-    assert_eq!(cash_balance(0), Decimal::new(110, 0));
-    assert_eq!(cash_balance(1), Decimal::new(130, 0));
-    assert_eq!(cash_balance(2), Decimal::new(125, 0));
+    assert_eq!(cash_balance(0), Decimal::new(120, 0));
+    assert_eq!(cash_balance(1), Decimal::new(160, 0));
+    assert_eq!(cash_balance(2), Decimal::new(150, 0));
 }
 
 #[test]
@@ -941,7 +959,7 @@ value = "100"
 }
 
 #[test]
-fn applies_contributions_and_withdrawals_independently_and_persists_withdrawal_settings() {
+fn applies_and_persists_absolute_and_relative_recurring_flow_changes() {
     let config = config(
         r#"
 [display]
@@ -982,17 +1000,36 @@ name = "Increase withdrawal"
 date = "2026-02"
 type = "set_monthly_withdrawal"
 asset_id = "account"
-amount = "50"
-currency = "USD"
+monthly_withdrawal = { amount = "50", currency = "USD" }
+
+[[scenarios.events]]
+id = "reduce-withdrawal"
+name = "Reduce withdrawal"
+date = "2026-02"
+type = "adjust_monthly_withdrawal"
+asset_id = "account"
+monthly_withdrawal = { amount = "-10", currency = "USD" }
+
+[[scenarios.events]]
+id = "raise-contribution"
+name = "Raise contribution"
+date = "2026-02"
+type = "adjust_monthly_contribution"
+asset_id = "account"
+monthly_contribution = { amount = "20", currency = "USD" }
 "#,
     );
 
     let projection = PlanProjection::from(&config);
     let balances = &projection.scenarios[0].assets[0].monthly_balances;
     assert_eq!(balances[0].native_balance, Decimal::new(175, 2));
-    assert_eq!(balances[1].native_balance, Decimal::new(225, 2));
-    assert_eq!(balances[2].native_balance, Decimal::new(275, 2));
+    assert_eq!(balances[1].native_balance, Decimal::new(255, 2));
+    assert_eq!(balances[2].native_balance, Decimal::new(335, 2));
     assert_eq!(balances[0].monthly_withdrawal.currency.to_string(), "BTC");
     assert_eq!(balances[1].monthly_withdrawal.currency.to_string(), "USD");
-    assert_eq!(balances[2].monthly_withdrawal.amount, Decimal::new(50, 0));
+    assert_eq!(
+        balances[2].monthly_contribution.amount,
+        Decimal::new(120, 0)
+    );
+    assert_eq!(balances[2].monthly_withdrawal.amount, Decimal::new(40, 0));
 }

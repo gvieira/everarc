@@ -905,6 +905,13 @@ fn chart_months<'projection>(
                                         event.currency.expect("flow events have a currency"),
                                         text.per_month
                                     ),
+                                    AppliedAssetEventKind::ContributionAdjustment
+                                    | AppliedAssetEventKind::WithdrawalAdjustment => format!(
+                                        "{} {}{}",
+                                        format_signed_number(*event.amount, locale),
+                                        event.currency.expect("flow events have a currency"),
+                                        text.per_month
+                                    ),
                                     AppliedAssetEventKind::ExpectedReturn => {
                                         format_percentage(*event.amount, locale)
                                     }

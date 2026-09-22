@@ -124,8 +124,7 @@ name = "Start contribution"
 type = "set_monthly_contribution"
 date = "2026-01"
 asset_id = "bitcoin"
-currency = "BTC"
-amount = "0.2"
+monthly_contribution = { amount = "0.2", currency = "BTC" }
 
 [[scenarios.events]]
 id = "ignored-return"
@@ -142,6 +141,14 @@ type = "asset_adjustment"
 date = "2026-01"
 asset_id = "bitcoin"
 amount = "-0.1"
+
+[[scenarios.events]]
+id = "pause-increase"
+name = "Pause increase"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "bitcoin"
+monthly_contribution = { amount = "0", currency = "BTC" }
 "#,
     );
     let projection = PlanProjection::from(&config);
@@ -169,13 +176,15 @@ amount = "-0.1"
     );
     assert!(dashboard.scenarios[0].chart_months[0].has_monthly_contributions);
     assert!(!dashboard.scenarios[0].chart_months[0].has_monthly_withdrawals);
-    assert_eq!(asset.events.len(), 3);
+    assert_eq!(asset.events.len(), 4);
     assert_eq!(asset.events[0].name, "Start contribution");
     assert_eq!(asset.events[0].value, "0.20 BTC/month");
     assert_eq!(asset.events[1].name, "Ignored return");
     assert_eq!(asset.events[1].value, "50.00%");
     assert_eq!(asset.events[2].name, "Rebalance");
     assert_eq!(asset.events[2].value, "-0.10");
+    assert_eq!(asset.events[3].name, "Pause increase");
+    assert_eq!(asset.events[3].value, "+0.00 BTC/month");
     assert_eq!(dashboard.scenarios[0].chart_assets.len(), 1);
     assert_eq!(dashboard.scenarios[0].chart_assets[0].id, "bitcoin");
     assert_eq!(

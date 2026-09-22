@@ -228,18 +228,28 @@ pub enum Event {
         name: String,
         date: Month,
         asset_id: String,
-        #[serde(deserialize_with = "deserialize_decimal")]
-        amount: Decimal,
-        currency: Currency,
+        monthly_contribution: MonthlyContribution,
     },
     SetMonthlyWithdrawal {
         id: String,
         name: String,
         date: Month,
         asset_id: String,
-        #[serde(deserialize_with = "deserialize_decimal")]
-        amount: Decimal,
-        currency: Currency,
+        monthly_withdrawal: MonthlyWithdrawal,
+    },
+    AdjustMonthlyContribution {
+        id: String,
+        name: String,
+        date: Month,
+        asset_id: String,
+        monthly_contribution: MonthlyContribution,
+    },
+    AdjustMonthlyWithdrawal {
+        id: String,
+        name: String,
+        date: Month,
+        asset_id: String,
+        monthly_withdrawal: MonthlyWithdrawal,
     },
     SetAnnualExpectedReturn {
         id: String,
@@ -288,6 +298,8 @@ impl Event {
             Self::AssetAdjustment { id, .. }
             | Self::SetMonthlyContribution { id, .. }
             | Self::SetMonthlyWithdrawal { id, .. }
+            | Self::AdjustMonthlyContribution { id, .. }
+            | Self::AdjustMonthlyWithdrawal { id, .. }
             | Self::SetAnnualExpectedReturn { id, .. } => id,
         }
     }
@@ -297,6 +309,8 @@ impl Event {
             Self::AssetAdjustment { name, .. }
             | Self::SetMonthlyContribution { name, .. }
             | Self::SetMonthlyWithdrawal { name, .. }
+            | Self::AdjustMonthlyContribution { name, .. }
+            | Self::AdjustMonthlyWithdrawal { name, .. }
             | Self::SetAnnualExpectedReturn { name, .. } => name,
         }
     }
@@ -306,18 +320,21 @@ impl Event {
             Self::AssetAdjustment { date, .. }
             | Self::SetMonthlyContribution { date, .. }
             | Self::SetMonthlyWithdrawal { date, .. }
+            | Self::AdjustMonthlyContribution { date, .. }
+            | Self::AdjustMonthlyWithdrawal { date, .. }
             | Self::SetAnnualExpectedReturn { date, .. } => *date,
         }
     }
 
     fn negative_forward_value(&self) -> Option<&'static str> {
         match self {
-            Self::SetMonthlyContribution { amount, .. }
-            | Self::SetMonthlyWithdrawal { amount, .. }
-                if *amount < Decimal::ZERO =>
-            {
-                Some("amount")
-            }
+            Self::SetMonthlyContribution {
+                monthly_contribution,
+                ..
+            } if monthly_contribution.amount < Decimal::ZERO => Some("monthly_contribution.amount"),
+            Self::SetMonthlyWithdrawal {
+                monthly_withdrawal, ..
+            } if monthly_withdrawal.amount < Decimal::ZERO => Some("monthly_withdrawal.amount"),
             Self::SetAnnualExpectedReturn { rate, .. } if *rate < Decimal::ZERO => Some("rate"),
             _ => None,
         }
@@ -676,6 +693,26 @@ pub enum ConfigError {
         scenario_id: String,
         event_id: String,
         field: &'static str,
+    },
+    #[error(
+        "{flow} adjustment event `{event_id}` for asset `{asset_id}` in scenario `{scenario_id}` uses currency `{adjustment_currency}`, but the active setting uses `{active_currency}`"
+    )]
+    RecurringFlowAdjustmentCurrencyMismatch {
+        scenario_id: String,
+        event_id: String,
+        asset_id: String,
+        flow: &'static str,
+        adjustment_currency: Box<Currency>,
+        active_currency: Box<Currency>,
+    },
+    #[error(
+        "{flow} adjustment event `{event_id}` for asset `{asset_id}` in scenario `{scenario_id}` would make the recurring flow negative"
+    )]
+    NegativeRecurringFlowAfterAdjustment {
+        scenario_id: String,
+        event_id: String,
+        asset_id: String,
+        flow: &'static str,
     },
     #[error("configuration has a total-balance milestone with a blank id")]
     BlankTotalBalanceMilestoneId,
@@ -1162,6 +1199,8 @@ impl Config {
                 Event::AssetAdjustment { asset_id, .. }
                 | Event::SetMonthlyContribution { asset_id, .. }
                 | Event::SetMonthlyWithdrawal { asset_id, .. }
+                | Event::AdjustMonthlyContribution { asset_id, .. }
+                | Event::AdjustMonthlyWithdrawal { asset_id, .. }
                 | Event::SetAnnualExpectedReturn { asset_id, .. } => asset_id,
             };
             if !self.scenario_has_asset(scenario, asset_id, scenario_by_id) {
@@ -1194,23 +1233,169 @@ impl Config {
                 .scenario_asset(scenario, asset_id, scenario_by_id)
                 .expect("validated event asset exists");
             match event {
-                Event::SetMonthlyContribution { currency, .. } => self
-                    .validate_contribution_currency(
-                        scenario,
-                        asset_id,
-                        &asset.currency,
-                        currency,
-                    )?,
-                Event::SetMonthlyWithdrawal { currency, .. } => self.validate_withdrawal_currency(
+                Event::SetMonthlyContribution {
+                    monthly_contribution,
+                    ..
+                } => self.validate_contribution_currency(
                     scenario,
                     asset_id,
                     &asset.currency,
-                    currency,
+                    &monthly_contribution.currency,
                 )?,
+                Event::SetMonthlyWithdrawal {
+                    monthly_withdrawal, ..
+                } => self.validate_withdrawal_currency(
+                    scenario,
+                    asset_id,
+                    &asset.currency,
+                    &monthly_withdrawal.currency,
+                )?,
+                Event::AdjustMonthlyContribution { .. }
+                | Event::AdjustMonthlyWithdrawal { .. }
+                | Event::AssetAdjustment { .. }
+                | Event::SetAnnualExpectedReturn { .. } => {}
+            }
+        }
+
+        self.validate_recurring_flow_adjustments(scenario, scenario_by_id)
+    }
+
+    fn validate_recurring_flow_adjustments(
+        &self,
+        scenario: &Scenario,
+        scenario_by_id: &HashMap<&str, &Scenario>,
+    ) -> Result<(), ConfigError> {
+        let mut contributions = scenario
+            .assets
+            .iter()
+            .map(|asset| (asset.id.as_str(), asset.monthly_contribution.clone()))
+            .collect::<HashMap<_, _>>();
+        let mut withdrawals = scenario
+            .assets
+            .iter()
+            .map(|asset| {
+                (
+                    asset.id.as_str(),
+                    asset
+                        .monthly_withdrawal
+                        .clone()
+                        .unwrap_or_else(|| MonthlyWithdrawal {
+                            amount: Decimal::ZERO,
+                            currency: asset.currency.clone(),
+                        }),
+                )
+            })
+            .collect::<HashMap<_, _>>();
+        let mut lineage = vec![scenario];
+        let mut current = scenario;
+        while let Some(parent_id) = current.extends.as_deref() {
+            current = scenario_by_id
+                .get(parent_id)
+                .expect("validated scenario parent exists");
+            lineage.push(current);
+        }
+        lineage.reverse();
+        let mut events = lineage
+            .into_iter()
+            .flat_map(|ancestor| ancestor.events.iter())
+            .collect::<Vec<_>>();
+        events.sort_by_key(|event| event.date());
+
+        for event in events {
+            match event {
+                Event::SetMonthlyContribution {
+                    asset_id,
+                    monthly_contribution,
+                    ..
+                } => {
+                    contributions.insert(asset_id, monthly_contribution.clone());
+                }
+                Event::AdjustMonthlyContribution {
+                    id,
+                    asset_id,
+                    monthly_contribution,
+                    ..
+                } => {
+                    let active = contributions
+                        .get_mut(asset_id.as_str())
+                        .expect("validated adjustment asset exists");
+                    self.validate_recurring_flow_adjustment(
+                        scenario,
+                        id,
+                        asset_id,
+                        "contribution",
+                        monthly_contribution.amount,
+                        &monthly_contribution.currency,
+                        &mut active.amount,
+                        &active.currency,
+                    )?;
+                }
+                Event::SetMonthlyWithdrawal {
+                    asset_id,
+                    monthly_withdrawal,
+                    ..
+                } => {
+                    withdrawals.insert(asset_id, monthly_withdrawal.clone());
+                }
+                Event::AdjustMonthlyWithdrawal {
+                    id,
+                    asset_id,
+                    monthly_withdrawal,
+                    ..
+                } => {
+                    let active = withdrawals
+                        .get_mut(asset_id.as_str())
+                        .expect("validated adjustment asset exists");
+                    self.validate_recurring_flow_adjustment(
+                        scenario,
+                        id,
+                        asset_id,
+                        "withdrawal",
+                        monthly_withdrawal.amount,
+                        &monthly_withdrawal.currency,
+                        &mut active.amount,
+                        &active.currency,
+                    )?;
+                }
                 Event::AssetAdjustment { .. } | Event::SetAnnualExpectedReturn { .. } => {}
             }
         }
 
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn validate_recurring_flow_adjustment(
+        &self,
+        scenario: &Scenario,
+        event_id: &str,
+        asset_id: &str,
+        flow: &'static str,
+        adjustment: Decimal,
+        adjustment_currency: &Currency,
+        active_amount: &mut Decimal,
+        active_currency: &Currency,
+    ) -> Result<(), ConfigError> {
+        if adjustment_currency != active_currency {
+            return Err(ConfigError::RecurringFlowAdjustmentCurrencyMismatch {
+                scenario_id: scenario.id.clone(),
+                event_id: event_id.to_owned(),
+                asset_id: asset_id.to_owned(),
+                flow,
+                adjustment_currency: Box::new(adjustment_currency.clone()),
+                active_currency: Box::new(active_currency.clone()),
+            });
+        }
+        let adjusted = *active_amount + adjustment;
+        if adjusted < Decimal::ZERO {
+            return Err(ConfigError::NegativeRecurringFlowAfterAdjustment {
+                scenario_id: scenario.id.clone(),
+                event_id: event_id.to_owned(),
+                asset_id: asset_id.to_owned(),
+                flow,
+            });
+        }
+        *active_amount = adjusted;
         Ok(())
     }
 

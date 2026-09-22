@@ -17,7 +17,7 @@
       .paper-card { position: relative; background: var(--card); border: 1px solid rgba(30, 30, 30, .08); border-radius: 14px 11px 15px 12px; box-shadow: 0 3px 6px rgba(42, 36, 29, .04), 0 14px 28px rgba(42, 36, 29, .08); }
       .net-worth-card { padding: 2.25rem 2rem 1.75rem; transform: rotate(-.45deg); }
       .outcomes-deck { padding: 1.75rem; transform: rotate(.55deg); }
-      .chart-card { padding: 1.5rem; transform: rotate(-.15deg); }
+      .chart-card { min-width: 0; padding: 1.5rem; transform: rotate(-.15deg); }
       .tape { position: absolute; top: -12px; width: 78px; height: 20px; opacity: .68; transform: rotate(-2deg); }
       .tape-peach { left: 2rem; background: var(--peach); }
       .tape-lavender { right: 2rem; background: var(--lavender); }
@@ -177,7 +177,7 @@
       .scenario-description-tooltip { position: absolute; z-index: 2; top: calc(100% + .45rem); left: 0; width: max-content; max-width: 18rem; padding: .5rem .6rem; color: var(--ink); background: var(--card); border: 1px solid var(--ink); border-radius: .25rem; box-shadow: 2px 2px 0 rgba(30, 30, 30, .16); font: 500 .68rem/1.45 "Space Mono", monospace; opacity: 0; pointer-events: none; text-align: left; transform: translateY(-.2rem); visibility: hidden; transition: opacity .12s ease, transform .12s ease, visibility .12s; white-space: normal; }
       .scenario-tab:hover .scenario-description-tooltip, .scenario-tab:focus-visible .scenario-description-tooltip { opacity: 1; transform: translateY(0); visibility: visible; }
       @media (max-width: 900px) { .chart-inspector-assets { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .chart-inspector-assets { grid-template-columns: 1fr; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: block; } .chart-note { flex-basis: 100%; } .scenario-switcher { grid-template-columns: 1fr; } }
+      @media (max-width: 700px) { main { width: min(100% - 1.5rem, 1180px); padding-top: 1.5rem; } .chart-inspector-assets { grid-template-columns: 1fr; } .dashboard-top { grid-template-columns: 1fr; gap: 1.5rem; } .net-worth-card, .outcomes-deck, .chart-card { transform: none; } .net-worth-card { padding: 2rem 1.4rem 1.5rem; } .chart-card { padding: 1rem; } .chart-heading { display: grid; justify-content: stretch; gap: .75rem; } .chart-zoom-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; width: 100%; } .chart-zoom-controls button { width: 100%; min-height: 2.5rem; } .chart-note { flex-basis: 100%; } .scenario-switcher { grid-template-columns: 1fr; } }
     </style>
   </head>
   <body>

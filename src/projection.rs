@@ -634,6 +634,8 @@ fn resolved_asset_adjustments<'config>(
             }),
             Event::SetMonthlyContribution { .. }
             | Event::SetMonthlyWithdrawal { .. }
+            | Event::AdjustMonthlyContribution { .. }
+            | Event::AdjustMonthlyWithdrawal { .. }
             | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
@@ -645,6 +647,8 @@ pub enum AppliedAssetEventKind {
     Adjustment,
     ContributionSetting,
     WithdrawalSetting,
+    ContributionAdjustment,
+    WithdrawalAdjustment,
     ExpectedReturn,
 }
 
@@ -700,31 +704,57 @@ fn resolved_asset_events<'config>(
                 name,
                 date,
                 asset_id,
-                amount,
-                currency,
+                monthly_contribution,
                 ..
             } => AppliedAssetEventProjection {
                 name,
                 date: *date,
                 asset_id,
                 kind: AppliedAssetEventKind::ContributionSetting,
-                amount,
-                currency: Some(currency),
+                amount: &monthly_contribution.amount,
+                currency: Some(&monthly_contribution.currency),
             },
             Event::SetMonthlyWithdrawal {
                 name,
                 date,
                 asset_id,
-                amount,
-                currency,
+                monthly_withdrawal,
                 ..
             } => AppliedAssetEventProjection {
                 name,
                 date: *date,
                 asset_id,
                 kind: AppliedAssetEventKind::WithdrawalSetting,
-                amount,
-                currency: Some(currency),
+                amount: &monthly_withdrawal.amount,
+                currency: Some(&monthly_withdrawal.currency),
+            },
+            Event::AdjustMonthlyContribution {
+                name,
+                date,
+                asset_id,
+                monthly_contribution,
+                ..
+            } => AppliedAssetEventProjection {
+                name,
+                date: *date,
+                asset_id,
+                kind: AppliedAssetEventKind::ContributionAdjustment,
+                amount: &monthly_contribution.amount,
+                currency: Some(&monthly_contribution.currency),
+            },
+            Event::AdjustMonthlyWithdrawal {
+                name,
+                date,
+                asset_id,
+                monthly_withdrawal,
+                ..
+            } => AppliedAssetEventProjection {
+                name,
+                date: *date,
+                asset_id,
+                kind: AppliedAssetEventKind::WithdrawalAdjustment,
+                amount: &monthly_withdrawal.amount,
+                currency: Some(&monthly_withdrawal.currency),
             },
             Event::SetAnnualExpectedReturn {
                 name,
@@ -751,6 +781,7 @@ pub struct ContributionSettingProjection<'config> {
     pub asset_id: &'config str,
     pub amount: &'config Decimal,
     pub currency: &'config Currency,
+    pub is_adjustment: bool,
 }
 
 impl Serialize for ContributionSettingProjection<'_> {
@@ -758,12 +789,13 @@ impl Serialize for ContributionSettingProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ContributionSettingProjection", 5)?;
+        let mut state = serializer.serialize_struct("ContributionSettingProjection", 6)?;
         state.serialize_field("name", self.name)?;
         state.serialize_field("date", &self.date)?;
         state.serialize_field("asset_id", self.asset_id)?;
         state.serialize_field("amount", &self.amount.to_string())?;
         state.serialize_field("currency", self.currency)?;
+        state.serialize_field("is_adjustment", &self.is_adjustment)?;
         state.end()
     }
 }
@@ -780,18 +812,33 @@ fn resolved_contribution_settings<'config>(
                 name,
                 date,
                 asset_id,
-                amount,
-                currency,
+                monthly_contribution,
                 ..
             } => Some(ContributionSettingProjection {
                 name,
                 date: *date,
                 asset_id,
-                amount,
-                currency,
+                amount: &monthly_contribution.amount,
+                currency: &monthly_contribution.currency,
+                is_adjustment: false,
+            }),
+            Event::AdjustMonthlyContribution {
+                name,
+                date,
+                asset_id,
+                monthly_contribution,
+                ..
+            } => Some(ContributionSettingProjection {
+                name,
+                date: *date,
+                asset_id,
+                amount: &monthly_contribution.amount,
+                currency: &monthly_contribution.currency,
+                is_adjustment: true,
             }),
             Event::AssetAdjustment { .. }
             | Event::SetMonthlyWithdrawal { .. }
+            | Event::AdjustMonthlyWithdrawal { .. }
             | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
@@ -804,6 +851,7 @@ pub struct WithdrawalSettingProjection<'config> {
     pub asset_id: &'config str,
     pub amount: &'config Decimal,
     pub currency: &'config Currency,
+    pub is_adjustment: bool,
 }
 
 impl Serialize for WithdrawalSettingProjection<'_> {
@@ -811,12 +859,13 @@ impl Serialize for WithdrawalSettingProjection<'_> {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("WithdrawalSettingProjection", 5)?;
+        let mut state = serializer.serialize_struct("WithdrawalSettingProjection", 6)?;
         state.serialize_field("name", self.name)?;
         state.serialize_field("date", &self.date)?;
         state.serialize_field("asset_id", self.asset_id)?;
         state.serialize_field("amount", &self.amount.to_string())?;
         state.serialize_field("currency", self.currency)?;
+        state.serialize_field("is_adjustment", &self.is_adjustment)?;
         state.end()
     }
 }
@@ -833,18 +882,33 @@ fn resolved_withdrawal_settings<'config>(
                 name,
                 date,
                 asset_id,
-                amount,
-                currency,
+                monthly_withdrawal,
                 ..
             } => Some(WithdrawalSettingProjection {
                 name,
                 date: *date,
                 asset_id,
-                amount,
-                currency,
+                amount: &monthly_withdrawal.amount,
+                currency: &monthly_withdrawal.currency,
+                is_adjustment: false,
+            }),
+            Event::AdjustMonthlyWithdrawal {
+                name,
+                date,
+                asset_id,
+                monthly_withdrawal,
+                ..
+            } => Some(WithdrawalSettingProjection {
+                name,
+                date: *date,
+                asset_id,
+                amount: &monthly_withdrawal.amount,
+                currency: &monthly_withdrawal.currency,
+                is_adjustment: true,
             }),
             Event::AssetAdjustment { .. }
             | Event::SetMonthlyContribution { .. }
+            | Event::AdjustMonthlyContribution { .. }
             | Event::SetAnnualExpectedReturn { .. } => None,
         })
         .collect()
@@ -877,7 +941,9 @@ fn resolved_return_settings<'config>(
             }),
             Event::AssetAdjustment { .. }
             | Event::SetMonthlyContribution { .. }
-            | Event::SetMonthlyWithdrawal { .. } => None,
+            | Event::SetMonthlyWithdrawal { .. }
+            | Event::AdjustMonthlyContribution { .. }
+            | Event::AdjustMonthlyWithdrawal { .. } => None,
         })
         .collect()
 }
@@ -939,25 +1005,31 @@ fn project_asset<'config>(
             {
                 annual_expected_return = *setting.rate;
             }
-            if let Some(setting) = contribution_settings
+            for setting in contribution_settings
                 .iter()
-                .rev()
-                .find(|setting| setting.date == month && setting.asset_id == asset.id)
+                .filter(|setting| setting.date == month && setting.asset_id == asset.id)
             {
-                monthly_contribution = MonthlyContribution {
-                    amount: *setting.amount,
-                    currency: setting.currency.clone(),
-                };
+                if setting.is_adjustment {
+                    monthly_contribution.amount += *setting.amount;
+                } else {
+                    monthly_contribution = MonthlyContribution {
+                        amount: *setting.amount,
+                        currency: setting.currency.clone(),
+                    };
+                }
             }
-            if let Some(setting) = withdrawal_settings
+            for setting in withdrawal_settings
                 .iter()
-                .rev()
-                .find(|setting| setting.date == month && setting.asset_id == asset.id)
+                .filter(|setting| setting.date == month && setting.asset_id == asset.id)
             {
-                monthly_withdrawal = MonthlyWithdrawal {
-                    amount: *setting.amount,
-                    currency: setting.currency.clone(),
-                };
+                if setting.is_adjustment {
+                    monthly_withdrawal.amount += *setting.amount;
+                } else {
+                    monthly_withdrawal = MonthlyWithdrawal {
+                        amount: *setting.amount,
+                        currency: setting.currency.clone(),
+                    };
+                }
             }
             let adjustment_total = adjustments
                 .iter()

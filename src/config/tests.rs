@@ -1,5 +1,46 @@
 use super::*;
 
+fn recurring_adjustment_config(event: &str) -> Config {
+    let source = format!(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-02"
+
+[[conversion_rates]]
+from = "EUR"
+to = "USD"
+rate = "1.1"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = {{ amount = "100", currency = "USD" }}
+monthly_withdrawal = {{ amount = "40", currency = "USD" }}
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+
+{event}
+"#
+    );
+    toml::from_str(&source).expect("test configuration parses")
+}
+
 #[test]
 fn formats_and_chains_configuration_read_errors() {
     let error = ConfigError::Read {
@@ -200,6 +241,102 @@ value = "0"
         )
         .is_err()
     );
+}
+
+#[test]
+fn rejects_flat_amount_and_currency_for_recurring_flow_events() {
+    for (event_type, expected_field) in [
+        ("set_monthly_contribution", "monthly_contribution"),
+        ("set_monthly_withdrawal", "monthly_withdrawal"),
+    ] {
+        let source = format!(
+            r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = {{ amount = "0", currency = "USD" }}
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "USD"
+value = "0"
+
+[[scenarios.events]]
+id = "legacy-setting"
+name = "Legacy setting"
+type = "{event_type}"
+date = "2026-01"
+asset_id = "cash"
+amount = "100"
+currency = "USD"
+"#
+        );
+
+        let error = toml::from_str::<Config>(&source).expect_err("legacy event fields fail");
+        assert!(error.to_string().contains(expected_field), "{error}");
+    }
+}
+
+#[test]
+fn rejects_recurring_flow_adjustments_in_a_different_currency() {
+    let mut config = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "raise-contribution"
+name = "Raise contribution"
+type = "adjust_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = { amount = "10", currency = "EUR" }
+"#,
+    );
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::RecurringFlowAdjustmentCurrencyMismatch {
+            flow: "contribution",
+            ..
+        })
+    ));
+}
+
+#[test]
+fn rejects_recurring_flow_adjustments_that_make_the_flow_negative() {
+    let mut config = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "reduce-withdrawal"
+name = "Reduce withdrawal"
+type = "adjust_monthly_withdrawal"
+date = "2026-02"
+asset_id = "cash"
+monthly_withdrawal = { amount = "-50", currency = "USD" }
+"#,
+    );
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::NegativeRecurringFlowAfterAdjustment {
+            flow: "withdrawal",
+            ..
+        })
+    ));
 }
 
 #[test]

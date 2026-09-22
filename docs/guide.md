@@ -94,8 +94,16 @@ name = "Start retirement withdrawals"
 date = "2040-01"
 type = "set_monthly_withdrawal"
 asset_id = "brokerage"
-amount = "3000.00"
-currency = "USD"
+monthly_withdrawal = { amount = "3000.00", currency = "USD" }
+
+[[scenarios.events]]
+id = "salary-increase"
+name = "Invest salary increase"
+date = "2032-04"
+type = "adjust_monthly_contribution"
+asset_id = "brokerage"
+# Signed delta; negative values reduce the recurring contribution.
+monthly_contribution = { amount = "500.00", currency = "USD" }
 
 # Optional asset-balance targets use the target asset's currency.
 [[scenarios.milestones]]
@@ -213,11 +221,17 @@ Events are optional and are processed in TOML declaration order. Every event
 has a nonblank ID unique within its scenario, a nonblank human-facing name, a
 `YYYY-MM` date within the plan range, and an `asset_id`. The asset may be local to the scenario or inherited
 from a parent scenario. `asset_adjustment` uses a signed `amount` in the
-asset's currency. `set_monthly_contribution` and `set_monthly_withdrawal` use a nonnegative
-`amount` and a required `currency` equal to either the asset currency or
-`plan.currency`. Each independently takes effect for that month's flow and
-every following month. Where multiple settings of the same kind take effect in
-the same month, the last declaration wins. `set_annual_expected_return` uses a
+asset's currency. `set_monthly_contribution` and `set_monthly_withdrawal` use
+respective `monthly_contribution = { amount = "...", currency = "..." }` and
+`monthly_withdrawal = { amount = "...", currency = "..." }` objects with a
+nonnegative `amount` and a required `currency` equal to either the asset currency or
+`plan.currency`. `adjust_monthly_contribution` and `adjust_monthly_withdrawal`
+use the same respective objects with a signed `amount`: positive values increase
+and negative values reduce the active recurring flow. An adjustment must use the
+active setting's currency and must not make the resulting flow negative. Setters
+remain absolute while adjustments are relative. Each independently takes effect for that month's flow and
+every following month. Recurring-flow setters and adjustments in the same month
+apply in declaration order. `set_annual_expected_return` uses a
 nonnegative effective annual
 decimal-fraction `rate` and takes effect for that month's return and every
 following month; multiple same-month settings use the last declaration.
