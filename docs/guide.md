@@ -88,7 +88,7 @@ asset_id = "brokerage"
 # Signed amount in the asset currency; negative withdraws funds.
 amount = "-25000.00"
 # Repeat every five years, stopping when the plan or asset ends.
-recurrence = { every = 60, unit = "months" }
+recurrence = { every = 60, unit = "months", until = "2042-06" }
 
 [[scenarios.events]]
 id = "retirement-withdrawal"
@@ -242,10 +242,13 @@ every following month. Recurring-flow setters and adjustments in the same month
 apply in declaration order. `asset_adjustment`, `adjust_monthly_contribution`,
 and `adjust_monthly_withdrawal` may include
 `recurrence = { every = 1, unit = "years" }` or use `unit = "months"` with
-any positive integer interval. The event's `date` is its first occurrence.
-Occurrences stop automatically after the earlier of the plan end or the target
-asset's inclusive `ends` month; an occurrence exactly in that ending month still
-applies. Percentage adjustments compound at each occurrence. Recurring signed
+any positive integer interval. The event's `date` is its first occurrence. An
+optional `until = "YYYY-MM"` stops recurrence at an inclusive event-specific
+month and must not precede the first occurrence. It does not need to align with
+the interval. Occurrences stop automatically after the earliest of `until`, the
+plan end, or the target asset's inclusive `ends` month; an occurrence exactly in
+that ending month still applies. An `until` beyond the plan or asset end is valid
+but does not extend those existing limits. Percentage adjustments compound at each occurrence. Recurring signed
 asset adjustments remain uncapped and may produce a negative balance. Recurring
 occurrences preserve parent-before-child and TOML declaration order when they
 share a month. Absolute setters and expected-return setters do not support

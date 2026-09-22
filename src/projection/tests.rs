@@ -1117,7 +1117,7 @@ type = "adjust_monthly_contribution"
 date = "2026-01"
 asset_id = "account"
 monthly_contribution = { rate = "0.1" }
-recurrence = { every = 1, unit = "years" }
+recurrence = { every = 1, unit = "years", until = "2030-01" }
 
 [[scenarios.events]]
 id = "periodic-withdrawal-increase"
@@ -1126,7 +1126,7 @@ type = "adjust_monthly_withdrawal"
 date = "2026-03"
 asset_id = "account"
 monthly_withdrawal = { amount = "10", currency = "USD" }
-recurrence = { every = 6, unit = "months" }
+recurrence = { every = 6, unit = "months", until = "2027-04" }
 
 [[scenarios.events]]
 id = "periodic-purchase"
@@ -1135,7 +1135,7 @@ type = "asset_adjustment"
 date = "2026-02"
 asset_id = "account"
 amount = "-100"
-recurrence = { every = 6, unit = "months" }
+recurrence = { every = 6, unit = "months", until = "2027-08" }
 "#,
     );
 
@@ -1160,9 +1160,9 @@ recurrence = { every = 6, unit = "months" }
     assert_eq!(balances[2].monthly_withdrawal.amount, Decimal::new(10, 0));
     assert_eq!(balances[8].monthly_withdrawal.amount, Decimal::new(20, 0));
     assert_eq!(balances[14].monthly_withdrawal.amount, Decimal::new(30, 0));
-    assert_eq!(balances[20].monthly_withdrawal.amount, Decimal::new(40, 0));
+    assert_eq!(balances[20].monthly_withdrawal.amount, Decimal::new(30, 0));
     assert_eq!(scenario.asset_adjustments.len(), 4);
-    assert_eq!(scenario.asset_events.len(), 11);
+    assert_eq!(scenario.asset_events.len(), 10);
     assert_eq!(scenario.asset_adjustments[0].date.to_string(), "2026-02");
     assert_eq!(scenario.asset_adjustments[3].date.to_string(), "2027-08");
 }

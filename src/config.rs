@@ -191,6 +191,7 @@ pub struct RecurringFlowRateAdjustment {
 pub struct EventRecurrence {
     pub every: u32,
     pub unit: EventRecurrenceUnit,
+    pub until: Option<Month>,
 }
 
 impl EventRecurrence {
@@ -458,7 +459,13 @@ pub(crate) fn resolved_event_occurrences<'config>(
                 .find(|asset| asset.id == event.asset_id())
                 .and_then(|asset| asset.ends)
                 .expect("validated event assets have resolved lifecycles");
-            let end = asset_end.min(config.plan.end);
+            let end = event
+                .recurrence()
+                .and_then(|recurrence| recurrence.until)
+                .map_or_else(
+                    || asset_end.min(config.plan.end),
+                    |until| until.min(asset_end).min(config.plan.end),
+                );
             let mut dates = Vec::new();
             let mut date = event.date();
             if date <= end {
@@ -885,6 +892,15 @@ pub enum ConfigError {
     InvalidEventRecurrence {
         scenario_id: String,
         event_id: String,
+    },
+    #[error(
+        "event `{event_id}` in scenario `{scenario_id}` has recurrence end {until} before its first occurrence {date}"
+    )]
+    EventRecurrenceEndsBeforeStart {
+        scenario_id: String,
+        event_id: String,
+        date: Month,
+        until: Month,
     },
     #[error("event `{event_id}` in scenario `{scenario_id}` does not support recurrence")]
     UnsupportedEventRecurrence {
@@ -1375,6 +1391,14 @@ impl Config {
                     return Err(ConfigError::InvalidEventRecurrence {
                         scenario_id: scenario.id.clone(),
                         event_id: event.id().to_owned(),
+                    });
+                }
+                if recurrence.until.is_some_and(|until| until < event.date()) {
+                    return Err(ConfigError::EventRecurrenceEndsBeforeStart {
+                        scenario_id: scenario.id.clone(),
+                        event_id: event.id().to_owned(),
+                        date: event.date(),
+                        until: recurrence.until.expect("recurrence end exists"),
                     });
                 }
             }

@@ -419,6 +419,23 @@ recurrence = { every = 1, unit = "years" }
         unsupported.validate(),
         Err(ConfigError::UnsupportedEventRecurrence { .. })
     ));
+
+    let mut ends_before_start = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "backwards-recurrence"
+name = "Backwards recurrence"
+type = "adjust_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = { rate = "0.1" }
+recurrence = { every = 1, unit = "months", until = "2026-01" }
+"#,
+    );
+    assert!(matches!(
+        ends_before_start.validate(),
+        Err(ConfigError::EventRecurrenceEndsBeforeStart { .. })
+    ));
 }
 
 #[test]
