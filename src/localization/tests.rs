@@ -175,6 +175,17 @@ monthly_contribution = { rate = "0" }
         "85.92"
     );
     assert!(dashboard.scenarios[0].chart_months[0].has_monthly_contributions);
+    assert_eq!(
+        dashboard.scenarios[0].chart_months[0].monthly_contributions,
+        "2,000.00"
+    );
+    assert_eq!(
+        dashboard.scenarios[0].chart_months[0]
+            .monthly_contributions_amount
+            .parse::<Decimal>()
+            .unwrap(),
+        Decimal::new(2000, 0)
+    );
     assert!(!dashboard.scenarios[0].chart_months[0].has_monthly_withdrawals);
     assert_eq!(asset.events.len(), 4);
     assert_eq!(asset.events[0].name, "Start contribution");
@@ -196,6 +207,111 @@ monthly_contribution = { rate = "0" }
             .path
             .starts_with("M 80 ")
     );
+}
+
+#[test]
+fn monthly_contribution_totals_follow_flows_conversion_and_lifecycles() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[[conversion_rates]]
+from = "BTC"
+to = "USD"
+rate = "10000"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "100", currency = "USD" }
+monthly_withdrawal = { amount = "50", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "cash-opening"
+name = "Cash opening"
+currency = "USD"
+value = "0"
+
+[[scenarios.assets]]
+id = "bitcoin"
+name = "Bitcoin"
+currency = "BTC"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0.01", currency = "BTC" }
+starts = "2026-02"
+ends = "2026-02"
+
+[[scenarios.assets.holdings]]
+id = "bitcoin-opening"
+name = "Bitcoin opening"
+currency = "BTC"
+value = "0"
+
+[[scenarios.events]]
+id = "set-cash-contribution"
+name = "Set cash contribution"
+type = "set_monthly_contribution"
+date = "2026-02"
+asset_id = "cash"
+monthly_contribution = { amount = "200", currency = "USD" }
+
+[[scenarios.events]]
+id = "increase-bitcoin-contribution"
+name = "Increase bitcoin contribution"
+type = "adjust_monthly_contribution"
+date = "2026-02"
+asset_id = "bitcoin"
+monthly_contribution = { amount = "0.01", currency = "BTC" }
+recurrence = { every = 1, unit = "months" }
+
+[[scenarios.events]]
+id = "increase-cash-contribution"
+name = "Increase cash contribution"
+type = "adjust_monthly_contribution"
+date = "2026-03"
+asset_id = "cash"
+monthly_contribution = { rate = "0.5" }
+
+[[scenarios.events]]
+id = "cash-purchase"
+name = "Cash purchase"
+type = "asset_adjustment"
+date = "2026-02"
+asset_id = "cash"
+amount = "-1000"
+"#,
+    );
+    let projection = PlanProjection::from(&config);
+    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let months = &dashboard.scenarios[0].chart_months;
+
+    assert_eq!(months[0].monthly_contributions, "100.00");
+    assert_eq!(months[1].monthly_contributions, "400.00");
+    assert_eq!(months[1].assets[0].plan_monthly_contribution, "200.00");
+    assert_eq!(months[1].assets[0].plan_monthly_contribution_amount, "200");
+    assert_eq!(months[1].assets[0].plan_monthly_withdrawal, "50.00");
+    assert_eq!(months[1].assets[0].plan_monthly_withdrawal_amount, "50");
+    assert_eq!(
+        months[1].assets[1]
+            .plan_monthly_contribution_amount
+            .parse::<Decimal>()
+            .unwrap(),
+        Decimal::new(200, 0)
+    );
+    assert_eq!(months[2].monthly_contributions, "300.00");
 }
 
 #[test]

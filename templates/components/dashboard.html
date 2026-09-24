@@ -141,6 +141,23 @@
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
   </div>
+  <section class="contribution-chart" aria-label="{{ text.monthly_cash_flow }}" data-contribution-chart-panel data-month-label="{{ text.month }}" data-contributions-label="{{ text.contributions }}" data-withdrawals-label="{{ text.withdrawals }}" data-net-flow-label="{{ text.net_flow }}">
+    <p class="contribution-chart-title">{{ text.monthly_cash_flow }}</p>
+    <svg aria-label="{{ text.monthly_cash_flow }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 145" data-contribution-chart>
+      <defs><clipPath id="contribution-plot-{{ scenario.id }}"><rect x="80" y="20" width="870" height="90" /></clipPath></defs>
+      <path class="contribution-grid" data-contribution-grid-top d="M80 20 H950" />
+      <path class="contribution-grid" data-contribution-grid-bottom d="M80 110 H950" />
+      <text class="contribution-axis-label" data-contribution-axis-label-top x="65" y="25" text-anchor="end"></text>
+      <text class="contribution-axis-label" data-contribution-axis-label-bottom x="65" y="114" text-anchor="end"></text>
+      <g clip-path="url(#contribution-plot-{{ scenario.id }})" data-contribution-viewport>
+        {% for month in scenario.chart_months %}{% for asset in month.assets %}<rect class="contribution-bar contribution-fill-{{ asset.color_index }}" data-contribution-bar data-chart-month-index="{{ month.index }}" data-contribution-amount="{{ asset.plan_monthly_contribution_amount }}" data-contribution-label="{{ asset.plan_monthly_contribution }}" data-contribution-asset-name="{{ asset.name }}" x="{{ month.x }}" y="65" width="1" height="0" /><rect class="withdrawal-bar contribution-fill-{{ asset.color_index }}" data-withdrawal-bar data-chart-month-index="{{ month.index }}" data-withdrawal-amount="{{ asset.plan_monthly_withdrawal_amount }}" data-withdrawal-label="{{ asset.plan_monthly_withdrawal }}" data-contribution-asset-name="{{ asset.name }}" x="{{ month.x }}" y="65" width="1" height="0" />{% endfor %}{% endfor %}
+        <path class="contribution-cursor" data-contribution-cursor hidden />
+      </g>
+      <rect class="chart-hit-area contribution-hit-area" data-contribution-hit-area x="80" y="20" width="870" height="90" tabindex="0" role="slider" aria-label="{{ text.month }}" aria-valuemin="1" aria-valuemax="{{ scenario.chart_months | length }}" aria-valuenow="1" />
+      <path class="axis contribution-axis" d="M80 65 H950" />
+    </svg>
+    <div class="contribution-hover-card" data-contribution-hover-card aria-live="polite" hidden></div>
+  </section>
   <div class="chart-month-inspector" data-chart-month-inspector aria-live="polite"></div>
   <div data-chart-month-data hidden>
     {% for month in scenario.chart_months %}

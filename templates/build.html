@@ -75,6 +75,33 @@
       .chart-zoom-controls button:disabled { cursor: default; opacity: .45; }
       .chart-note { margin: 0 0 0 auto; color: var(--muted); font: .7rem/1.3 "Space Mono", monospace; text-align: right; }
       .chart-frame { position: relative; margin-top: 1rem; padding: 1rem .25rem .25rem; background-color: #fffdf8; }
+      .contribution-chart { position: relative; margin-top: .8rem; padding: .65rem .25rem .15rem; background: #fffdf8; border-top: 1px dashed var(--line); }
+      .contribution-chart-title { margin: 0 0 .15rem 1rem; color: var(--muted); font: 700 .68rem/1.2 "Space Mono", monospace; letter-spacing: .05em; text-transform: uppercase; }
+      .contribution-grid { fill: none; stroke: var(--line); stroke-dasharray: 5 6; stroke-width: 1.2; pointer-events: none; }
+      .contribution-axis-label { fill: var(--muted); font: 12px "Space Mono", monospace; pointer-events: none; }
+      .contribution-bar { opacity: .78; pointer-events: none; }
+      .withdrawal-bar { opacity: .52; pointer-events: none; }
+      .contribution-fill-0 { fill: #62a7dc; }
+      .contribution-fill-1 { fill: #d99a74; }
+      .contribution-fill-2 { fill: #8580d7; }
+      .contribution-fill-3 { fill: #5eae78; }
+      .contribution-fill-4 { fill: #bb7fa6; }
+      .contribution-fill-5 { fill: #b28a32; }
+      .contribution-fill-6 { fill: #3f9c9c; }
+      .contribution-fill-7 { fill: #c56868; }
+      .contribution-cursor { fill: none; stroke: var(--ink); stroke-width: 1.6; pointer-events: none; }
+      .contribution-cursor[hidden] { display: none; }
+      .contribution-axis { stroke-width: 1.8; pointer-events: none; }
+      .contribution-hover-card { position: absolute; z-index: 2; width: min(20rem, calc(100% - 1.5rem)); padding: .65rem .75rem; background: rgba(255, 253, 250, .97); border: 1px solid rgba(30, 30, 30, .22); border-radius: 5px 7px 6px 4px; box-shadow: 3px 4px 0 rgba(30, 30, 30, .1); pointer-events: none; }
+      .contribution-hover-summary, .contribution-hover-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: .7rem; font: .68rem/1.35 "Space Mono", monospace; }
+      .contribution-hover-summary { margin-bottom: .25rem; }
+      .contribution-hover-summary.is-net { margin-bottom: .5rem; padding-bottom: .45rem; border-bottom: 1px dashed var(--line); font-weight: 700; }
+      .contribution-hover-group { margin: .45rem 0 .3rem; color: var(--muted); font: 700 .6rem/1.2 "Space Mono", monospace; letter-spacing: .07em; text-transform: uppercase; }
+      .contribution-hover-row + .contribution-hover-row { margin-top: .28rem; }
+      .contribution-hover-name { display: inline-flex; align-items: center; gap: .4rem; min-width: 0; }
+      .contribution-hover-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .contribution-hover-swatch { flex: 0 0 auto; width: .65rem; height: .65rem; border-radius: 2px; }
+      .contribution-hover-share { min-width: 3.5rem; color: var(--muted); text-align: right; }
       svg { display: block; width: 100%; height: auto; overflow: visible; }
       .chart-grid path { stroke: var(--line); stroke-dasharray: 5 6; stroke-width: 1.4; }
       .chart-grid .chart-five-year-grid { stroke-dasharray: none; stroke-width: 1; opacity: .32; }
@@ -230,6 +257,89 @@
         const tabForId = (id) => tabs.find((tab) => tab.dataset.scenarioId === id);
         const deckForId = (id) => decks.find((deck) => deck.dataset.scenarioId === id);
         const chartForId = (id) => charts.find((chart) => chart.dataset.scenarioId === id);
+        const positionContributionCursor = (chart, index) => {
+          const contributions = [...chart.querySelectorAll(`[data-contribution-bar][data-chart-month-index="${index}"]`)];
+          const withdrawals = [...chart.querySelectorAll(`[data-withdrawal-bar][data-chart-month-index="${index}"]`)];
+          const segments = [...contributions, ...withdrawals];
+          if (segments.length === 0) return;
+          const left = Number(segments[0].getAttribute("x"));
+          const width = Number(segments[0].getAttribute("width"));
+          const baseline = Number(chart.dataset.flowBaseline ?? 65);
+          const top = Math.min(baseline, ...contributions.map((segment) => Number(segment.getAttribute("y"))));
+          const bottom = Math.max(baseline, ...withdrawals.map((segment) => Number(segment.getAttribute("y")) + Number(segment.getAttribute("height"))));
+          const positiveOutline = top < baseline ? `M${left} ${baseline} V${top} H${left + width} V${baseline} Z` : "";
+          const negativeOutline = bottom > baseline ? `M${left} ${baseline} V${bottom} H${left + width} V${baseline} Z` : "";
+          chart.querySelector("[data-contribution-cursor]").setAttribute("d", `${positiveOutline} ${negativeOutline}`);
+        };
+        const showContributionHover = (chart, index) => {
+          const contributionChart = chart.querySelector("[data-contribution-chart-panel]");
+          const panel = contributionChart.querySelector("[data-contribution-hover-card]");
+          chart.querySelector("[data-chart-hover-card]").hidden = true;
+          const contributions = [...chart.querySelectorAll(`[data-contribution-bar][data-chart-month-index="${index}"]`)]
+            .filter((segment) => Number(segment.dataset.contributionAmount) > 0);
+          const withdrawals = [...chart.querySelectorAll(`[data-withdrawal-bar][data-chart-month-index="${index}"]`)]
+            .filter((segment) => Number(segment.dataset.withdrawalAmount) > 0);
+          const contributionTotal = contributions.reduce((sum, segment) => sum + Number(segment.dataset.contributionAmount), 0);
+          const withdrawalTotal = withdrawals.reduce((sum, segment) => sum + Number(segment.dataset.withdrawalAmount), 0);
+          const numberFormatter = new Intl.NumberFormat(document.documentElement.lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          const percentageFormatter = new Intl.NumberFormat(document.documentElement.lang, { style: "percent", maximumFractionDigits: 1 });
+          const signed = (amount) => `${amount > 0 ? "+" : amount < 0 ? "−" : ""}${numberFormatter.format(Math.abs(amount))}`;
+          const month = chart.querySelectorAll("[data-chart-month]")[index];
+          panel.replaceChildren();
+          const appendSummary = (label, value, isNet = false) => {
+            const row = document.createElement("div");
+            row.className = `contribution-hover-summary${isNet ? " is-net" : ""}`;
+            const name = document.createElement("span");
+            name.textContent = label;
+            const amount = document.createElement("strong");
+            amount.textContent = value;
+            row.append(name, amount, document.createElement("span"));
+            panel.append(row);
+          };
+          appendSummary(contributionChart.dataset.monthLabel, month.dataset.chartMonthLabel);
+          appendSummary(contributionChart.dataset.contributionsLabel, signed(contributionTotal));
+          appendSummary(contributionChart.dataset.withdrawalsLabel, signed(-withdrawalTotal));
+          appendSummary(contributionChart.dataset.netFlowLabel, signed(contributionTotal - withdrawalTotal), true);
+          const appendGroup = (label, segments, total, amountKey, valueKey, sign) => {
+            if (segments.length === 0) return;
+            const heading = document.createElement("p");
+            heading.className = "contribution-hover-group";
+            heading.textContent = label;
+            panel.append(heading);
+            segments.forEach((segment) => {
+              const row = document.createElement("div");
+              row.className = "contribution-hover-row";
+              const name = document.createElement("span");
+              name.className = "contribution-hover-name";
+              const swatch = document.createElement("span");
+              swatch.className = "contribution-hover-swatch";
+              swatch.style.backgroundColor = getComputedStyle(segment).fill;
+              const assetName = document.createElement("span");
+              assetName.textContent = segment.dataset.contributionAssetName;
+              name.append(swatch, assetName);
+              const value = document.createElement("strong");
+              value.textContent = `${sign}${segment.dataset[valueKey]}`;
+              const share = document.createElement("span");
+              share.className = "contribution-hover-share";
+              share.textContent = percentageFormatter.format(Number(segment.dataset[amountKey]) / total);
+              row.append(name, value, share);
+              panel.append(row);
+            });
+          };
+          appendGroup(contributionChart.dataset.contributionsLabel, contributions, contributionTotal, "contributionAmount", "contributionLabel", "+");
+          appendGroup(contributionChart.dataset.withdrawalsLabel, withdrawals, withdrawalTotal, "withdrawalAmount", "withdrawalLabel", "−");
+          panel.hidden = false;
+          const reference = contributions[0] ?? withdrawals[0] ?? chart.querySelector(`[data-contribution-bar][data-chart-month-index="${index}"]`);
+          const svg = contributionChart.querySelector("[data-contribution-chart]");
+          const svgBounds = svg.getBoundingClientRect();
+          const chartBounds = contributionChart.getBoundingClientRect();
+          const pointX = svgBounds.left - chartBounds.left + (Number(reference.getAttribute("x")) + Number(reference.getAttribute("width")) / 2) / 1000 * svgBounds.width;
+          const left = pointX + panel.offsetWidth + 12 > contributionChart.clientWidth
+            ? pointX - panel.offsetWidth - 12
+            : pointX + 12;
+          panel.style.left = `${Math.max(8, left)}px`;
+          panel.style.top = `${Math.max(28, svgBounds.top - chartBounds.top + 12)}px`;
+        };
         const showChartMonth = (chart, requestedIndex) => {
           const months = [...chart.querySelectorAll("[data-chart-month]")];
           if (months.length === 0) return;
@@ -242,6 +352,9 @@
           const point = cursor.querySelector("[data-chart-cursor-point]");
           point.setAttribute("cx", selected.dataset.chartX);
           point.setAttribute("cy", selected.dataset.chartY);
+          const contributionCursor = chart.querySelector("[data-contribution-cursor]");
+          contributionCursor.toggleAttribute("hidden", false);
+          positionContributionCursor(chart, index);
           const hoverCard = chart.querySelector("[data-chart-hover-card]");
           hoverCard.replaceChildren(selected.querySelector("[data-chart-month-summary]").cloneNode(true));
           hoverCard.hidden = false;
@@ -264,9 +377,10 @@
           const cardTop = Math.max(12, Math.min(pointY - hoverCard.offsetHeight / 2, frame.clientHeight - hoverCard.offsetHeight - 12));
           hoverCard.style.left = `${cardLeft}px`;
           hoverCard.style.top = `${cardTop}px`;
-          const hitArea = chart.querySelector("[data-chart-hit-area]");
-          hitArea.setAttribute("aria-valuenow", String(index + 1));
-          hitArea.setAttribute("aria-valuetext", `${selected.dataset.chartMonthLabel}${isPinned ? `, ${chart.dataset.chartPinnedLabel}` : ""}`);
+          chart.querySelectorAll("[data-chart-hit-area], [data-contribution-hit-area]").forEach((hitArea) => {
+            hitArea.setAttribute("aria-valuenow", String(index + 1));
+            hitArea.setAttribute("aria-valuetext", `${selected.dataset.chartMonthLabel}${isPinned ? `, ${chart.dataset.chartPinnedLabel}` : ""}`);
+          });
           chart.dataset.chartMonthIndex = index;
           sharedChartViewport.monthIndex = index;
         };
@@ -405,18 +519,22 @@
           });
           const hitArea = chart.querySelector("[data-chart-hit-area]");
           const viewport = chart.querySelector("[data-chart-viewport]");
-          chart.querySelector("svg").addEventListener("pointerleave", () => {
+          chart.querySelectorAll("svg").forEach((svg) => svg.addEventListener("pointerleave", () => {
             if (sharedChartViewport.pinnedMonthIndex !== null) return;
             chart.querySelector("[data-chart-hover-card]").hidden = true;
+            chart.querySelector("[data-contribution-hover-card]").hidden = true;
             chart.querySelector("[data-chart-cursor]").toggleAttribute("hidden", true);
-          });
+            chart.querySelector("[data-contribution-cursor]").toggleAttribute("hidden", true);
+          }));
           const count = chart.querySelectorAll("[data-chart-month]").length;
           let viewportStart = 0;
           let viewportEnd = count - 1;
           const updateViewport = () => {
             sharedChartViewport.start = viewportStart;
             sharedChartViewport.end = viewportEnd;
-            const xForMonth = (index) => 80 + 870 * (index - viewportStart) / (viewportEnd - viewportStart);
+            const xForMonth = (index) => viewportEnd === viewportStart
+              ? 80
+              : 80 + 870 * (index - viewportStart) / (viewportEnd - viewportStart);
             const monthIndexForX = (x) => Math.round((x - 80) / 870 * (count - 1));
             const months = [...chart.querySelectorAll("[data-chart-month]")];
             const visibleMonths = months.filter((_, index) => index >= Math.ceil(viewportStart) && index <= Math.floor(viewportEnd));
@@ -460,6 +578,77 @@
                 label.textContent = axisFormatter.format(ticks[index]);
               }
             });
+            const contributionBars = [...chart.querySelectorAll("[data-contribution-bar]")];
+            const withdrawalBars = [...chart.querySelectorAll("[data-withdrawal-bar]")];
+            const contributionTotals = Array(count).fill(0);
+            const withdrawalTotals = Array(count).fill(0);
+            contributionBars.forEach((bar) => {
+              contributionTotals[Number(bar.dataset.chartMonthIndex)] += Number(bar.dataset.contributionAmount);
+            });
+            withdrawalBars.forEach((bar) => {
+              withdrawalTotals[Number(bar.dataset.chartMonthIndex)] += Number(bar.dataset.withdrawalAmount);
+            });
+            const visibleStart = Math.ceil(viewportStart);
+            const visibleEnd = Math.floor(viewportEnd) + 1;
+            const visibleContributionMaximum = Math.max(
+              ...contributionTotals.slice(visibleStart, visibleEnd),
+              0,
+            );
+            const visibleWithdrawalMaximum = Math.max(
+              ...withdrawalTotals.slice(visibleStart, visibleEnd),
+              0,
+            );
+            const roundedFlowMaximum = (maximum) => {
+              if (maximum === 0) return 0;
+              const magnitude = 10 ** Math.floor(Math.log10(maximum));
+              const normalized = maximum / magnitude;
+              const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+              return factor * magnitude;
+            };
+            const contributionScaleMaximum = roundedFlowMaximum(visibleContributionMaximum);
+            const withdrawalScaleMaximum = roundedFlowMaximum(visibleWithdrawalMaximum);
+            const flowScaleRange = contributionScaleMaximum + withdrawalScaleMaximum || 1;
+            const flowBaseline = 20 + 90 * contributionScaleMaximum / flowScaleRange;
+            chart.dataset.flowBaseline = flowBaseline;
+            chart.querySelector(".contribution-axis").setAttribute("d", `M80 ${flowBaseline} H950`);
+            const contributionY = (amount) => flowBaseline - 90 * amount / flowScaleRange;
+            const withdrawalY = (amount) => flowBaseline + 90 * amount / flowScaleRange;
+            const contributionBarWidth = Math.max(1, Math.min(24, 870 / Math.max(1, viewportEnd - viewportStart + 1) * .78));
+            const contributionStacks = Array(count).fill(0);
+            contributionBars.forEach((bar) => {
+              const monthIndex = Number(bar.dataset.chartMonthIndex);
+              const amount = Number(bar.dataset.contributionAmount);
+              const bottom = contributionY(contributionStacks[monthIndex]);
+              contributionStacks[monthIndex] += amount;
+              const top = contributionY(contributionStacks[monthIndex]);
+              bar.setAttribute("x", xForMonth(monthIndex) - contributionBarWidth / 2);
+              bar.setAttribute("y", top);
+              bar.setAttribute("width", contributionBarWidth);
+              bar.setAttribute("height", bottom - top);
+            });
+            const withdrawalStacks = Array(count).fill(0);
+            withdrawalBars.forEach((bar) => {
+              const monthIndex = Number(bar.dataset.chartMonthIndex);
+              const amount = Number(bar.dataset.withdrawalAmount);
+              const top = withdrawalY(withdrawalStacks[monthIndex]);
+              withdrawalStacks[monthIndex] += amount;
+              const bottom = withdrawalY(withdrawalStacks[monthIndex]);
+              bar.setAttribute("x", xForMonth(monthIndex) - contributionBarWidth / 2);
+              bar.setAttribute("y", top);
+              bar.setAttribute("width", contributionBarWidth);
+              bar.setAttribute("height", bottom - top);
+            });
+            const topGrid = chart.querySelector("[data-contribution-grid-top]");
+            const topLabel = chart.querySelector("[data-contribution-axis-label-top]");
+            topGrid.style.display = contributionScaleMaximum === 0 ? "none" : "";
+            topLabel.style.display = contributionScaleMaximum === 0 ? "none" : "";
+            topLabel.textContent = axisFormatter.format(contributionScaleMaximum);
+            const bottomGrid = chart.querySelector("[data-contribution-grid-bottom]");
+            const bottomLabel = chart.querySelector("[data-contribution-axis-label-bottom]");
+            bottomGrid.style.display = withdrawalScaleMaximum === 0 ? "none" : "";
+            bottomLabel.style.display = withdrawalScaleMaximum === 0 ? "none" : "";
+            bottomLabel.textContent = `−${axisFormatter.format(withdrawalScaleMaximum)}`;
+            positionContributionCursor(chart, Number(chart.dataset.chartMonthIndex ?? 0));
             goals.forEach((goal) => {
               const balance = Number(goal.dataset.chartTotalMilestoneBalance);
               const visible = balance <= scaleMaximum;
@@ -573,16 +762,16 @@
             showChartMonth(chart, Math.max(viewportStart, Math.min(viewportEnd, sharedChartViewport.monthIndex)));
           };
           updateViewport();
-          const pointerMonthIndex = (event) => {
-            const bounds = hitArea.getBoundingClientRect();
+          const interactionAreas = [hitArea, chart.querySelector("[data-contribution-hit-area]")];
+          const pointerMonthIndex = (event, area) => {
+            const bounds = area.getBoundingClientRect();
             const ratio = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
             return Math.round(viewportStart + ratio * (viewportEnd - viewportStart));
           };
-          const selectPointerMonth = (event) => showChartMonth(chart, pointerMonthIndex(event));
-          const pointerIsNearPinnedMonth = (event) => {
+          const pointerIsNearPinnedMonth = (event, area) => {
             const index = sharedChartViewport.pinnedMonthIndex;
             if (index === null || index < viewportStart || index > viewportEnd) return false;
-            const bounds = hitArea.getBoundingClientRect();
+            const bounds = area.getBoundingClientRect();
             const ratio = (index - viewportStart) / Math.max(1, viewportEnd - viewportStart);
             const pinnedX = bounds.left + ratio * bounds.width;
             return Math.abs(event.clientX - pinnedX) <= 8;
@@ -590,56 +779,70 @@
           let panStartX;
           let panViewportStart;
           let didDrag = false;
-          hitArea.addEventListener("pointerdown", (event) => {
-            cancelAnimationFrame(viewportAnimation);
-            panStartX = event.clientX;
-            panViewportStart = viewportStart;
-            didDrag = false;
-            hitArea.setPointerCapture(event.pointerId);
-          });
-          hitArea.addEventListener("pointermove", (event) => {
-            if (panStartX === undefined) {
-              if (sharedChartViewport.pinnedMonthIndex === null) selectPointerMonth(event);
-              return;
-            }
-            if (Math.abs(event.clientX - panStartX) > 4) didDrag = true;
-            if (!didDrag || viewportStart === 0 && viewportEnd === count - 1) return;
-            const bounds = hitArea.getBoundingClientRect();
-            const shift = Math.round((panStartX - event.clientX) / bounds.width * (viewportEnd - viewportStart));
-            const visible = viewportEnd - viewportStart + 1;
-            viewportStart = Math.max(0, Math.min(count - visible, panViewportStart + shift));
-            viewportEnd = viewportStart + visible - 1;
-            updateViewport();
-          });
-          hitArea.addEventListener("pointerup", (event) => {
-            if (panStartX === undefined) return;
-            const dragged = didDrag;
-            panStartX = undefined;
-            didDrag = false;
-            hitArea.releasePointerCapture(event.pointerId);
-            if (dragged) {
-              const index = sharedChartViewport.pinnedMonthIndex ?? pointerMonthIndex(event);
-              showChartMonth(chart, index);
-            } else if (pointerIsNearPinnedMonth(event)) {
-              togglePinnedChartMonth(chart, sharedChartViewport.pinnedMonthIndex);
-            } else {
-              togglePinnedChartMonth(chart, pointerMonthIndex(event));
-            }
-          });
-          hitArea.addEventListener("pointercancel", () => {
-            panStartX = undefined;
-            didDrag = false;
-          });
-          hitArea.addEventListener("keydown", (event) => {
-            const currentIndex = Number(chart.dataset.chartMonthIndex ?? 0);
-            let nextIndex;
-            if (event.key === "ArrowRight") nextIndex = currentIndex + 1;
-            else if (event.key === "ArrowLeft") nextIndex = currentIndex - 1;
-            else if (event.key === "Home") nextIndex = 0;
-            else if (event.key === "End") nextIndex = Number(hitArea.getAttribute("aria-valuemax")) - 1;
-            else return;
-            event.preventDefault();
-            pinChartMonth(chart, nextIndex);
+          interactionAreas.forEach((area) => {
+            area.addEventListener("pointerdown", (event) => {
+              cancelAnimationFrame(viewportAnimation);
+              panStartX = event.clientX;
+              panViewportStart = viewportStart;
+              didDrag = false;
+              area.setPointerCapture(event.pointerId);
+            });
+            area.addEventListener("pointermove", (event) => {
+              if (panStartX === undefined) {
+                if (sharedChartViewport.pinnedMonthIndex === null) {
+                  const index = pointerMonthIndex(event, area);
+                  showChartMonth(chart, index);
+                  if (area.matches("[data-contribution-hit-area]")) {
+                    showContributionHover(chart, index);
+                  }
+                }
+                return;
+              }
+              if (Math.abs(event.clientX - panStartX) > 4) didDrag = true;
+              if (!didDrag || viewportStart === 0 && viewportEnd === count - 1) return;
+              const bounds = area.getBoundingClientRect();
+              const shift = Math.round((panStartX - event.clientX) / bounds.width * (viewportEnd - viewportStart));
+              const visible = viewportEnd - viewportStart + 1;
+              viewportStart = Math.max(0, Math.min(count - visible, panViewportStart + shift));
+              viewportEnd = viewportStart + visible - 1;
+              updateViewport();
+            });
+            area.addEventListener("pointerup", (event) => {
+              if (panStartX === undefined) return;
+              const dragged = didDrag;
+              panStartX = undefined;
+              didDrag = false;
+              area.releasePointerCapture(event.pointerId);
+              if (dragged) {
+                const index = sharedChartViewport.pinnedMonthIndex ?? pointerMonthIndex(event, area);
+                showChartMonth(chart, index);
+              } else if (pointerIsNearPinnedMonth(event, area)) {
+                togglePinnedChartMonth(chart, sharedChartViewport.pinnedMonthIndex);
+              } else {
+                togglePinnedChartMonth(chart, pointerMonthIndex(event, area));
+              }
+              if (area.matches("[data-contribution-hit-area]")) {
+                showContributionHover(chart, Number(chart.dataset.chartMonthIndex ?? 0));
+              }
+            });
+            area.addEventListener("pointercancel", () => {
+              panStartX = undefined;
+              didDrag = false;
+            });
+            area.addEventListener("keydown", (event) => {
+              const currentIndex = Number(chart.dataset.chartMonthIndex ?? 0);
+              let nextIndex;
+              if (event.key === "ArrowRight") nextIndex = currentIndex + 1;
+              else if (event.key === "ArrowLeft") nextIndex = currentIndex - 1;
+              else if (event.key === "Home") nextIndex = 0;
+              else if (event.key === "End") nextIndex = Number(area.getAttribute("aria-valuemax")) - 1;
+              else return;
+              event.preventDefault();
+              pinChartMonth(chart, nextIndex);
+              if (area.matches("[data-contribution-hit-area]")) {
+                showContributionHover(chart, Math.max(0, Math.min(nextIndex, count - 1)));
+              }
+            });
           });
           for (const marker of chart.querySelectorAll("[data-chart-milestone-marker]")) {
             const restoreMonthHover = () => {

@@ -271,9 +271,20 @@ change its visible month range, and `⛶` to restore the full plan. When zoomed,
 drag across the plot to pan. Switching scenarios preserves the selected month
 and visible date range. The chart recalculates its Y-axis from visible balances,
 so shorter periods use their available vertical space; milestones
-above that visible range are hidden. Its compact hover panel shows the current
-month's total balance, passive income, gross contribution, and gross withdrawal.
-A persistent inspector below the chart follows the selected month and shows each
+above that visible range are hidden. A compact cash-flow chart below the balance
+plot shows gross recurring contributions above zero and gross recurring withdrawals
+below zero, summed across active assets and converted to `plan.currency`. Each
+stack uses the matching asset colors to show how the flow is divided. The visible
+inflow and outflow bounds are rounded independently, while sharing one linear scale;
+the zero baseline moves proportionally so magnitudes remain comparable without
+wasting chart height. Returns and
+`asset_adjustment` events are excluded. Its hover panel shows total contributions,
+total withdrawals, signed net flow, and each asset's absolute amount and share of
+its respective flow. The cash-flow chart shares the balance chart's month selection,
+pin, zoom, pan, keyboard navigation, and scenario; hiding asset lines does not
+change its totals. The balance chart's compact hover panel shows the current month's total
+balance, passive income, gross contribution, and gross withdrawal. A persistent
+inspector below the charts follows the selected month and shows each
 active asset's balance, return, contribution, withdrawal, passive income, and
 that month's events. Click a month to pin its cursor and inspectors while moving
 the pointer; click that month again to unpin it, or click another month to move

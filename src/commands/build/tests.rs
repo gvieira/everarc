@@ -51,6 +51,20 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("data-chart-month-inspector aria-live=\"polite\""));
     assert!(html.contains("data-chart-month-summary"));
     assert!(html.contains("data-chart-month-details"));
+    assert!(html.contains("data-contribution-chart"));
+    assert!(html.contains("data-contribution-bar"));
+    assert!(html.contains("data-withdrawal-bar"));
+    assert!(html.contains("data-net-flow-label="));
+    assert!(html.contains("data-contribution-amount="));
+    assert!(html.contains("data-contribution-hit-area"));
+    assert!(html.contains("Fluxo mensal"));
+    assert!(!html.contains("Contribuições mensais brutas"));
+    assert!(html.contains("contribution-fill-0"));
+    assert!(html.contains("data-contribution-hover-card"));
+    assert!(html.contains("showContributionHover(chart, index)"));
+    assert!(html.contains("percentageFormatter.format"));
+    assert!(html.contains("const roundedFlowMaximum"));
+    assert!(html.contains("chart.dataset.flowBaseline = flowBaseline"));
     assert!(html.contains(
         "hoverCard.replaceChildren(selected.querySelector(\"[data-chart-month-summary]\").cloneNode(true))"
     ));
@@ -58,10 +72,10 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
         "inspector.replaceChildren(selected.querySelector(\"[data-chart-month-details]\").cloneNode(true))"
     ));
     assert!(html.contains("pinnedMonthIndex: null"));
-    assert!(html.contains("togglePinnedChartMonth(chart, pointerMonthIndex(event))"));
+    assert!(html.contains("togglePinnedChartMonth(chart, pointerMonthIndex(event, area))"));
     assert!(html.contains("pinChartMonth(chart, nextIndex)"));
     assert!(html.contains("if (dragged)"));
-    assert!(html.contains("pointerIsNearPinnedMonth(event)"));
+    assert!(html.contains("pointerIsNearPinnedMonth(event, area)"));
     assert!(html.contains("Math.abs(event.clientX - pinnedX) <= 8"));
     assert!(html.contains("const hiddenChartAssetIds = new Set()"));
     assert!(html.contains("applyAllChartAssetVisibility()"));

@@ -52,6 +52,10 @@ pub struct DashboardText {
     pub assets: &'static str,
     pub annual_return: &'static str,
     pub monthly_contribution: &'static str,
+    pub monthly_cash_flow: &'static str,
+    pub contributions: &'static str,
+    pub withdrawals: &'static str,
+    pub net_flow: &'static str,
     pub contribution: &'static str,
     pub monthly_withdrawal: &'static str,
     pub withdrawal: &'static str,
@@ -159,12 +163,14 @@ pub struct DashboardChartAssetMilestone<'projection> {
 
 #[derive(Serialize)]
 pub struct DashboardChartMonthPresentation<'projection> {
+    pub index: usize,
     pub month: String,
     pub x: String,
     pub y: String,
     pub balance: String,
     pub total: String,
     pub monthly_contributions: String,
+    pub monthly_contributions_amount: String,
     pub has_monthly_contributions: bool,
     pub monthly_withdrawals: String,
     pub has_monthly_withdrawals: bool,
@@ -181,6 +187,10 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub native_balance: String,
     pub annual_expected_return: String,
     pub monthly_contribution: String,
+    pub plan_monthly_contribution: String,
+    pub plan_monthly_contribution_amount: String,
+    pub plan_monthly_withdrawal: String,
+    pub plan_monthly_withdrawal_amount: String,
     pub has_monthly_contribution: bool,
     pub monthly_contribution_currency: &'projection Currency,
     pub monthly_withdrawal: String,
@@ -538,6 +548,10 @@ impl DashboardText {
                 assets: "Assets",
                 annual_return: "Annual return",
                 monthly_contribution: "Monthly contribution",
+                monthly_cash_flow: "Monthly cash flow",
+                contributions: "Contributions",
+                withdrawals: "Withdrawals",
+                net_flow: "Net flow",
                 contribution: "Contribution",
                 monthly_withdrawal: "Monthly withdrawal",
                 withdrawal: "Withdrawal",
@@ -586,6 +600,10 @@ impl DashboardText {
                 assets: "Ativos",
                 annual_return: "Retorno anual",
                 monthly_contribution: "Contribuição mensal",
+                monthly_cash_flow: "Fluxo mensal",
+                contributions: "Contribuições",
+                withdrawals: "Retiradas",
+                net_flow: "Fluxo líquido",
                 contribution: "Contribuição",
                 monthly_withdrawal: "Retirada mensal",
                 withdrawal: "Retirada",
@@ -768,6 +786,28 @@ fn plan_flow_amount(
     amount * conversion_rate
 }
 
+fn total_monthly_contributions(
+    scenario: &crate::projection::ScenarioProjection<'_>,
+    index: usize,
+    plan_currency: &Currency,
+    conversion_rates: &[crate::config::ConversionRate],
+) -> Decimal {
+    scenario
+        .assets
+        .iter()
+        .filter(|asset| asset.monthly_balances[index].is_active)
+        .map(|asset| {
+            let contribution = &asset.monthly_balances[index].monthly_contribution;
+            plan_flow_amount(
+                contribution.amount,
+                &contribution.currency,
+                plan_currency,
+                conversion_rates,
+            )
+        })
+        .sum()
+}
+
 fn chart_months<'projection>(
     scenario: &'projection crate::projection::ScenarioProjection<'projection>,
     maximum: Decimal,
@@ -782,28 +822,23 @@ fn chart_months<'projection>(
         .iter()
         .enumerate()
         .map(|(index, total)| DashboardChartMonthPresentation {
+            index,
             month: format_month(total.month, locale),
             x: chart_x(index, last_index),
             y: chart_y(total.balance, maximum),
             balance: total.balance.to_string(),
             total: format_number(total.balance, locale),
             monthly_contributions: format_number(
-                scenario
-                    .assets
-                    .iter()
-                    .filter(|asset| asset.monthly_balances[index].is_active)
-                    .map(|asset| {
-                        let contribution = &asset.monthly_balances[index].monthly_contribution;
-                        plan_flow_amount(
-                            contribution.amount,
-                            &contribution.currency,
-                            plan_currency,
-                            conversion_rates,
-                        )
-                    })
-                    .sum(),
+                total_monthly_contributions(scenario, index, plan_currency, conversion_rates),
                 locale,
             ),
+            monthly_contributions_amount: total_monthly_contributions(
+                scenario,
+                index,
+                plan_currency,
+                conversion_rates,
+            )
+            .to_string(),
             has_monthly_contributions: scenario.assets.iter().any(|asset| {
                 let balance = &asset.monthly_balances[index];
                 balance.is_active && balance.monthly_contribution.amount != Decimal::ZERO
@@ -870,6 +905,54 @@ fn chart_months<'projection>(
                             balance.monthly_contribution.amount,
                             locale,
                         ),
+                        plan_monthly_contribution: format_number(
+                            if balance.is_active {
+                                plan_flow_amount(
+                                    balance.monthly_contribution.amount,
+                                    &balance.monthly_contribution.currency,
+                                    plan_currency,
+                                    conversion_rates,
+                                )
+                            } else {
+                                Decimal::ZERO
+                            },
+                            locale,
+                        ),
+                        plan_monthly_contribution_amount: if balance.is_active {
+                            plan_flow_amount(
+                                balance.monthly_contribution.amount,
+                                &balance.monthly_contribution.currency,
+                                plan_currency,
+                                conversion_rates,
+                            )
+                            .to_string()
+                        } else {
+                            Decimal::ZERO.to_string()
+                        },
+                        plan_monthly_withdrawal: format_number(
+                            if balance.is_active {
+                                plan_flow_amount(
+                                    balance.monthly_withdrawal.amount,
+                                    &balance.monthly_withdrawal.currency,
+                                    plan_currency,
+                                    conversion_rates,
+                                )
+                            } else {
+                                Decimal::ZERO
+                            },
+                            locale,
+                        ),
+                        plan_monthly_withdrawal_amount: if balance.is_active {
+                            plan_flow_amount(
+                                balance.monthly_withdrawal.amount,
+                                &balance.monthly_withdrawal.currency,
+                                plan_currency,
+                                conversion_rates,
+                            )
+                            .to_string()
+                        } else {
+                            Decimal::ZERO.to_string()
+                        },
                         has_monthly_contribution: balance.monthly_contribution.amount
                             != Decimal::ZERO,
                         monthly_contribution_currency: &balance.monthly_contribution.currency,
