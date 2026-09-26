@@ -3,7 +3,7 @@ use serde::{Serialize, Serializer, ser::SerializeStruct};
 
 use crate::config::{
     Asset, AssetMilestone, Config, ConversionRate, Currency, Event, FutureLivingCost, Month,
-    MonthlyContribution, MonthlyWithdrawal, Plan, RecurringFlowAdjustment, Scenario,
+    MonthlyContribution, MonthlyIncome, MonthlyWithdrawal, Plan, RecurringFlowAdjustment, Scenario,
     TotalBalanceMilestone, resolved_event_occurrences,
 };
 
@@ -196,6 +196,10 @@ impl<'config> ScenarioProjection<'config> {
     pub fn annual_inflation(&self) -> Decimal {
         self.scenario.annual_inflation
     }
+
+    pub fn monthly_income(&self) -> Option<&'config MonthlyIncome> {
+        self.scenario.monthly_income.as_ref()
+    }
 }
 
 impl Serialize for ScenarioProjection<'_> {
@@ -296,6 +300,7 @@ impl Serialize for AssetMonthProjection {
 pub struct TotalNetWorthMonthProjection {
     pub month: Month,
     pub balance: Decimal,
+    pub monthly_investment_rate: Option<Decimal>,
 }
 
 impl Serialize for TotalNetWorthMonthProjection {
@@ -303,9 +308,13 @@ impl Serialize for TotalNetWorthMonthProjection {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("TotalNetWorthMonthProjection", 2)?;
+        let mut state = serializer.serialize_struct("TotalNetWorthMonthProjection", 3)?;
         state.serialize_field("month", &self.month)?;
         state.serialize_field("balance", &self.balance.to_string())?;
+        state.serialize_field(
+            "monthly_investment_rate",
+            &self.monthly_investment_rate.map(|rate| rate.to_string()),
+        )?;
         state.end()
     }
 }
@@ -559,7 +568,7 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
                         })
                         .collect();
 
-                    let total_net_worth = project_total_net_worth(&assets);
+                    let total_net_worth = project_total_net_worth(config, scenario, &assets);
                     let asset_adjustments = resolved_asset_adjustments(config, scenario);
                     let contribution_settings = resolved_contribution_settings(config, scenario);
                     let withdrawal_settings = resolved_withdrawal_settings(config, scenario);
@@ -585,7 +594,11 @@ impl<'config> From<&'config Config> for PlanProjection<'config> {
     }
 }
 
-fn project_total_net_worth(assets: &[AssetProjection<'_>]) -> Vec<TotalNetWorthMonthProjection> {
+fn project_total_net_worth(
+    config: &Config,
+    scenario: &Scenario,
+    assets: &[AssetProjection<'_>],
+) -> Vec<TotalNetWorthMonthProjection> {
     let Some(first_asset) = assets.first() else {
         return Vec::new();
     };
@@ -594,12 +607,38 @@ fn project_total_net_worth(assets: &[AssetProjection<'_>]) -> Vec<TotalNetWorthM
         .monthly_balances
         .iter()
         .enumerate()
-        .map(|(index, balance)| TotalNetWorthMonthProjection {
-            month: balance.month,
-            balance: assets
-                .iter()
-                .map(|asset| asset.monthly_balances[index].plan_balance)
-                .sum(),
+        .map(|(index, balance)| {
+            let monthly_investment_rate = scenario.monthly_income.as_ref().map(|income| {
+                assets
+                    .iter()
+                    .filter_map(|asset| {
+                        let month = &asset.monthly_balances[index];
+                        month.is_active.then(|| {
+                            let contribution = &month.monthly_contribution;
+                            if contribution.currency == config.plan.currency {
+                                contribution.amount
+                            } else {
+                                contribution.amount
+                                    * config
+                                        .conversion_rate_to_plan_currency(asset.currency())
+                                        .expect("validated asset currencies have a conversion rate")
+                            }
+                        })
+                    })
+                    .sum::<Decimal>()
+                    / (income.amount
+                        * config
+                            .conversion_rate_to_plan_currency(&income.currency)
+                            .expect("validated income currencies have a conversion rate"))
+            });
+            TotalNetWorthMonthProjection {
+                month: balance.month,
+                balance: assets
+                    .iter()
+                    .map(|asset| asset.monthly_balances[index].plan_balance)
+                    .sum(),
+                monthly_investment_rate,
+            }
         })
         .collect()
 }

@@ -24,7 +24,7 @@
   <p class="eyebrow"><span class="ink-dot"></span>{{ text.plan_summary }}</p>
   <p class="passive-income">{{ scenario.end_of_plan_passive_income }}</p>
   <p class="passive-income-label">{{ text.end_of_plan_passive_income }}</p>
-  <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}</p>
+  <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}{% if scenario.monthly_income %} · {{ text.monthly_income }}: {{ scenario.monthly_income }}{{ text.per_month }}{% endif %}</p>
   {% if scenario.description %}<p class="scenario-description">{{ scenario.description }}</p>{% endif %}
   <div class="conversion-rates">
     <span tabindex="0">{{ text.conversion_rates }}</span>
@@ -143,7 +143,7 @@
     </svg>
     <div class="chart-hover-card" data-chart-hover-card aria-live="polite" hidden></div>
   </div>
-  <section class="contribution-chart" aria-label="{{ text.monthly_cash_flow }}" data-contribution-chart-panel data-month-label="{{ text.month }}" data-contributions-label="{{ text.contributions }}" data-withdrawals-label="{{ text.withdrawals }}" data-net-flow-label="{{ text.net_flow }}">
+  <section class="contribution-chart" aria-label="{{ text.monthly_cash_flow }}" data-contribution-chart-panel data-month-label="{{ text.month }}" data-contributions-label="{{ text.contributions }}" data-monthly-investment-rate-label="{{ text.monthly_investment_rate }}" data-withdrawals-label="{{ text.withdrawals }}" data-net-flow-label="{{ text.net_flow }}">
     <p class="contribution-chart-title">{{ text.monthly_cash_flow }}</p>
     <svg aria-label="{{ text.monthly_cash_flow }}: {{ scenario.name }}" role="img" viewBox="0 0 1000 145" data-contribution-chart>
       <defs><clipPath id="contribution-plot-{{ scenario.id }}"><rect x="80" y="20" width="870" height="90" /></clipPath></defs>
@@ -163,12 +163,12 @@
   <div class="chart-month-inspector" data-chart-month-inspector aria-live="polite"></div>
   <div data-chart-month-data hidden>
     {% for month in scenario.chart_months %}
-    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-month-key="{{ month.month_key }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" data-chart-total-balance="{{ month.balance }}"{% if month.actual_total_balance %} data-chart-actual-total-balance="{{ month.actual_total_balance }}"{% endif %} {% if not loop.first %}hidden{% endif %}>
+    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-month-key="{{ month.month_key }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" data-chart-total-balance="{{ month.balance }}"{% if month.actual_total_balance %} data-chart-actual-total-balance="{{ month.actual_total_balance }}"{% endif %}{% if month.monthly_investment_rate %} data-chart-month-investment-rate="{{ month.monthly_investment_rate }}"{% endif %} {% if not loop.first %}hidden{% endif %}>
       <div class="chart-inspector-summary" data-chart-month-summary>
         <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
         <p><span>{{ text.passive_income }}</span><strong>{% if month.annualized_passive_income_yield %}<small aria-label="{{ text.annualized_passive_income_yield }}">{{ month.annualized_passive_income_yield }}</small> {% endif %}{{ month.passive_income }}</strong></p>
-        {% if month.has_monthly_contributions %}<p><span>{{ text.contribution }}</span><strong>{{ month.monthly_contributions }}</strong></p>{% endif %}
+        {% if month.has_monthly_contributions or month.monthly_investment_rate %}<p><span>{{ text.contribution }}</span><strong>{% if month.monthly_investment_rate %}<small aria-label="{{ text.monthly_investment_rate }}">{{ month.monthly_investment_rate }}</small> {% endif %}{{ month.monthly_contributions }}</strong></p>{% endif %}
         {% if month.has_monthly_withdrawals %}<p><span>{{ text.withdrawal }}</span><strong>{{ month.monthly_withdrawals }}</strong></p>{% endif %}
         {% if month.actual_total %}<div class="chart-actual-total"><p><span>{{ text.actual }}</span><strong>{{ month.actual_total }}</strong></p><p class="chart-actual-difference{% if month.actual_total_difference_is_positive %} is-positive{% else %} is-negative{% endif %}"><span>{{ text.difference }}</span><strong>{{ month.actual_total_difference }}</strong></p></div>{% endif %}
       </div>

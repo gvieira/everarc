@@ -311,6 +311,12 @@
           };
           appendSummary(contributionChart.dataset.monthLabel, month.dataset.chartMonthLabel);
           appendSummary(contributionChart.dataset.contributionsLabel, signed(contributionTotal));
+          if (month.dataset.chartMonthInvestmentRate) {
+            appendSummary(
+              contributionChart.dataset.monthlyInvestmentRateLabel,
+              month.dataset.chartMonthInvestmentRate,
+            );
+          }
           appendSummary(contributionChart.dataset.withdrawalsLabel, signed(-withdrawalTotal));
           appendSummary(contributionChart.dataset.netFlowLabel, signed(contributionTotal - withdrawalTotal), true);
           const appendGroup = (label, segments, total, amountKey, valueKey, sign) => {

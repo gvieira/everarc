@@ -24,6 +24,7 @@ end = "2026-02"
 id = "base"
 name = "Base"
 annual_inflation = "0"
+monthly_income = { amount = "100", currency = "USD" }
 
 [[scenarios.assets]]
 id = "cash"
@@ -56,6 +57,55 @@ value = "100"
     assert_eq!(
         projection.scenarios[0].total_net_worth[1].balance,
         Decimal::new(120, 0)
+    );
+    assert_eq!(
+        projection.scenarios[0].total_net_worth[0].monthly_investment_rate,
+        Some(Decimal::new(1, 1))
+    );
+}
+
+#[test]
+fn converts_asset_currency_contributions_for_monthly_investment_rate() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+
+[[conversion_rates]]
+from = "EUR"
+to = "USD"
+rate = "2"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+monthly_income = { amount = "100", currency = "USD" }
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "EUR"
+annual_expected_return = "0"
+monthly_contribution = { amount = "10", currency = "EUR" }
+
+[[scenarios.assets.holdings]]
+id = "initial-balance"
+name = "Initial balance"
+currency = "EUR"
+value = "0"
+"#,
+    );
+
+    let projection = PlanProjection::from(&config);
+    assert_eq!(
+        projection.scenarios[0].total_net_worth[0].monthly_investment_rate,
+        Some(Decimal::new(2, 1))
     );
 }
 

@@ -61,6 +61,8 @@ description = "Expected returns and contributions under current assumptions."
 selected = true
 # Annual decimal fraction: 0.03 means 3%; negative values represent deflation.
 annual_inflation = "0.03"
+# Optional positive monthly income with an explicit currency.
+monthly_income = { amount = "5000.00", currency = "USD" }
 
 # Root scenarios have one or more assets.
 [[scenarios.assets]]
@@ -232,7 +234,11 @@ For example, an asset ending at a manual split and each replacement asset can
 use `ends = "2032-01"` and `starts = "2032-01"`, respectively.
 `annual_expected_return` is an effective annual fraction: `"0.5"` means 50%
 per year, while `"0.06"` means 6%. Everarc compounds it monthly so twelve
-projected months produce the configured annual return. `monthly_contribution`
+projected months produce the configured annual return. An optional scenario
+`monthly_income` is an optional object with a positive quoted-decimal `amount`
+and a `currency` that is either `plan.currency` or has a configured conversion
+rate to it; child scenarios inherit it unless they specify their own value.
+`monthly_contribution`
 and the optional `monthly_withdrawal` are objects with nonnegative
 quoted-decimal `amount` values and a `currency` equal to either the asset
 currency or `plan.currency`. Contributions and withdrawals are independent and
@@ -301,12 +307,15 @@ inflow and outflow bounds are rounded independently, while sharing one linear sc
 the zero baseline moves proportionally so magnitudes remain comparable without
 wasting chart height. Returns and
 `asset_adjustment` events are excluded. Its hover panel shows total contributions,
-total withdrawals, signed net flow, and each asset's absolute amount and share of
-its respective flow. The cash-flow chart shares the balance chart's month selection,
+the invested percentage of monthly income when configured, total withdrawals,
+signed net flow, and each asset's absolute amount and share of its respective
+flow. The cash-flow chart shares the balance chart's month selection,
 pin, zoom, pan, keyboard navigation, and scenario; hiding asset lines does not
 change its totals. The balance chart's compact hover panel shows the current month's total
-balance, passive income, gross contribution, and gross withdrawal. A persistent
-inspector below the charts follows the selected month and shows each
+balance, passive income, gross contribution, and gross withdrawal. When a
+scenario has `monthly_income`, the contribution value also shows the gross
+contribution as a percentage of that income. A persistent inspector below the
+charts follows the selected month and shows each
 active asset's balance, return, contribution, withdrawal, passive income, and
 that month's events. Click a month to pin its cursor and inspectors while moving
 the pointer; click that month again to unpin it, or click another month to move

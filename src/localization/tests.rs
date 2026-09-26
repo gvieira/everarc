@@ -30,6 +30,7 @@ target = "1000"
 id = "base"
 name = "Base"
 annual_inflation = "0"
+monthly_income = { amount = "100", currency = "USD" }
 
 [[scenarios.assets]]
 id = "cash"
@@ -78,6 +79,12 @@ target = "1500"
             .starts_with("M 80 ")
     );
     assert_eq!(dashboard.scenarios[0].chart_months.len(), 2);
+    assert_eq!(
+        dashboard.scenarios[0].chart_months[0]
+            .monthly_investment_rate
+            .as_deref(),
+        Some("10.00%")
+    );
     assert_eq!(
         dashboard.scenarios[0].chart_months[0].assets[0].comparable_plan_balance,
         None

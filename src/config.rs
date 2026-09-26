@@ -112,6 +112,8 @@ pub struct Scenario {
     pub selected: bool,
     #[serde(default = "inherit_decimal", deserialize_with = "deserialize_decimal")]
     pub annual_inflation: Decimal,
+    #[serde(default)]
+    pub monthly_income: Option<MonthlyIncome>,
     pub extends: Option<String>,
     #[serde(default)]
     pub assets: Vec<Asset>,
@@ -119,6 +121,14 @@ pub struct Scenario {
     pub events: Vec<Event>,
     #[serde(default)]
     pub milestones: Vec<AssetMilestone>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MonthlyIncome {
+    #[serde(deserialize_with = "deserialize_decimal")]
+    pub amount: Decimal,
+    pub currency: Currency,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -732,6 +742,16 @@ pub enum ConfigError {
     ScenarioNameTooLong { id: String, maximum: usize },
     #[error("scenario `{id}` annual inflation must be greater than -1")]
     InvalidAnnualInflation { id: String },
+    #[error("scenario `{id}` monthly income must be positive")]
+    InvalidMonthlyIncome { id: String },
+    #[error(
+        "monthly income currency `{income_currency}` for scenario `{scenario_id}` must have a conversion rate to plan currency `{plan_currency}`"
+    )]
+    InvalidMonthlyIncomeCurrency {
+        scenario_id: String,
+        income_currency: Currency,
+        plan_currency: Currency,
+    },
     #[error("duplicate scenario id `{id}`")]
     DuplicateScenarioId { id: String },
     #[error("scenario `{id}` extends unknown scenario `{parent_id}`")]
@@ -1024,6 +1044,8 @@ impl Config {
                     if scenario.annual_inflation == INHERIT_DECIMAL {
                         scenario.annual_inflation = parent.annual_inflation;
                     }
+                    scenario.monthly_income =
+                        scenario.monthly_income.or(parent.monthly_income.clone());
                     let mut assets = parent.assets.clone();
                     for child_asset in &scenario.assets {
                         if let Some(index) =
@@ -1244,6 +1266,23 @@ impl Config {
                 return Err(ConfigError::InvalidAnnualInflation {
                     id: scenario.id.clone(),
                 });
+            }
+            if let Some(income) = &scenario.monthly_income {
+                if income.amount <= Decimal::ZERO {
+                    return Err(ConfigError::InvalidMonthlyIncome {
+                        id: scenario.id.clone(),
+                    });
+                }
+                if self
+                    .conversion_rate_to_plan_currency(&income.currency)
+                    .is_none()
+                {
+                    return Err(ConfigError::InvalidMonthlyIncomeCurrency {
+                        scenario_id: scenario.id.clone(),
+                        income_currency: income.currency.clone(),
+                        plan_currency: self.plan.currency.clone(),
+                    });
+                }
             }
             if scenario.selected && has_selected_scenario {
                 return Err(ConfigError::MultipleSelectedScenarios);

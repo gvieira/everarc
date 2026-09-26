@@ -119,6 +119,7 @@ end = "2026-12"
 id = "base"
 name = "Base"
 annual_inflation = "0.03"
+monthly_income = { amount = "5000", currency = "USD" }
 
 [[scenarios.assets]]
 id = "brokerage"
@@ -158,6 +159,10 @@ annual_expected_return = "0.08"
     let scenario = &config.scenarios[1];
     let asset = &scenario.assets[0];
     assert_eq!(scenario.annual_inflation, Decimal::new(3, 2));
+    assert_eq!(
+        scenario.monthly_income.as_ref().map(|income| income.amount),
+        Some(Decimal::new(5000, 0))
+    );
     assert_eq!(asset.name, "Brokerage");
     assert_eq!(asset.annual_expected_return, Decimal::new(8, 2));
     assert_eq!(asset.monthly_contribution.amount, Decimal::new(1000, 0));
@@ -169,6 +174,37 @@ annual_expected_return = "0.08"
     assert_eq!(asset.starts, Some("2026-03".parse().unwrap()));
     assert_eq!(asset.ends, Some("2026-10".parse().unwrap()));
     assert_eq!(scenario.milestones.len(), 1);
+}
+
+#[test]
+fn rejects_nonpositive_monthly_income() {
+    for income in [Decimal::ZERO, Decimal::NEGATIVE_ONE] {
+        let mut config: Config = toml::from_str(include_str!("../../everarc.toml")).unwrap();
+        config.scenarios[0].monthly_income = Some(MonthlyIncome {
+            amount: income,
+            currency: Currency("USD".into()),
+        });
+
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidMonthlyIncome { .. })
+        ));
+    }
+}
+
+#[test]
+fn rejects_monthly_income_without_a_plan_currency_conversion() {
+    let mut config: Config = toml::from_str(include_str!("../../everarc.toml")).unwrap();
+    config.scenarios[0]
+        .monthly_income
+        .as_mut()
+        .unwrap()
+        .currency = Currency("EUR".into());
+
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InvalidMonthlyIncomeCurrency { .. })
+    ));
 }
 
 #[test]
