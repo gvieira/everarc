@@ -1228,3 +1228,113 @@ monthly_contribution = { rate = "-0.5" }
     assert_eq!(parent[12].monthly_contribution.amount, Decimal::new(20, 0));
     assert_eq!(child[12].monthly_contribution.amount, Decimal::new(10, 0));
 }
+
+#[test]
+fn compares_actual_balances_per_active_asset_and_requires_complete_totals() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[[conversion_rates]]
+from = "EUR"
+to = "USD"
+rate = "2"
+
+[actual_balances."2026-01"]
+cash = "90"
+fund = "999"
+
+[actual_balances."2026-02"]
+cash = "110"
+fund = "20"
+
+[actual_balances."2026-03"]
+cash = "120"
+
+[[scenarios]]
+id = "cash-only"
+name = "Cash only"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "100"
+
+[[scenarios]]
+id = "full"
+name = "Full"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "100"
+
+[[scenarios.assets]]
+id = "fund"
+name = "Fund"
+currency = "EUR"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "EUR" }
+starts = "2026-02"
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "EUR"
+value = "10"
+"#,
+    );
+    let projection = PlanProjection::from(&config);
+    let comparisons = ActualBalanceComparisons::new(&config, &projection);
+
+    let cash_only = &comparisons.scenarios[0];
+    assert_eq!(cash_only.scenario_id, "cash-only");
+    assert_eq!(cash_only.months[1].month.to_string(), "2026-02");
+    assert_eq!(cash_only.months[1].assets.len(), 1);
+    assert_eq!(
+        cash_only.months[1].total.as_ref().unwrap().actual_balance,
+        Decimal::new(110, 0)
+    );
+
+    let full = &comparisons.scenarios[1];
+    assert_eq!(full.months[0].assets.len(), 1);
+    assert_eq!(full.months[0].assets[0].asset_id, "cash");
+    assert_eq!(full.months[1].assets.len(), 2);
+    let fund = &full.months[1].assets[1];
+    assert_eq!(fund.planned_native_balance, Decimal::new(10, 0));
+    assert_eq!(fund.actual_native_balance, Decimal::new(20, 0));
+    assert_eq!(fund.native_difference, Decimal::new(10, 0));
+    assert_eq!(fund.planned_plan_balance, Decimal::new(20, 0));
+    assert_eq!(fund.actual_plan_balance, Decimal::new(40, 0));
+    assert_eq!(fund.plan_difference, Decimal::new(20, 0));
+    let total = full.months[1].total.as_ref().unwrap();
+    assert_eq!(total.planned_balance, Decimal::new(120, 0));
+    assert_eq!(total.actual_balance, Decimal::new(150, 0));
+    assert_eq!(total.difference, Decimal::new(30, 0));
+    assert_eq!(full.months[2].assets.len(), 1);
+    assert!(full.months[2].total.is_none());
+}

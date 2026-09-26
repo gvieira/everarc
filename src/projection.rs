@@ -15,6 +15,114 @@ pub struct PlanProjection<'config> {
 }
 
 #[derive(Debug)]
+pub struct ActualBalanceComparisons<'config> {
+    pub scenarios: Vec<ScenarioActualBalanceComparison<'config>>,
+}
+
+#[derive(Debug)]
+pub struct ScenarioActualBalanceComparison<'config> {
+    pub scenario_id: &'config str,
+    pub months: Vec<MonthActualBalanceComparison<'config>>,
+}
+
+#[derive(Debug)]
+pub struct MonthActualBalanceComparison<'config> {
+    pub month: Month,
+    pub assets: Vec<AssetActualBalanceComparison<'config>>,
+    pub total: Option<TotalActualBalanceComparison>,
+}
+
+#[derive(Debug)]
+pub struct AssetActualBalanceComparison<'config> {
+    pub asset_id: &'config str,
+    pub planned_native_balance: Decimal,
+    pub actual_native_balance: Decimal,
+    pub native_difference: Decimal,
+    pub planned_plan_balance: Decimal,
+    pub actual_plan_balance: Decimal,
+    pub plan_difference: Decimal,
+}
+
+#[derive(Debug)]
+pub struct TotalActualBalanceComparison {
+    pub planned_balance: Decimal,
+    pub actual_balance: Decimal,
+    pub difference: Decimal,
+}
+
+impl<'config> ActualBalanceComparisons<'config> {
+    pub fn new(config: &'config Config, projection: &'config PlanProjection<'config>) -> Self {
+        Self {
+            scenarios: projection
+                .scenarios
+                .iter()
+                .map(|scenario| ScenarioActualBalanceComparison {
+                    scenario_id: scenario.id(),
+                    months: scenario
+                        .total_net_worth
+                        .iter()
+                        .enumerate()
+                        .map(|(index, total)| {
+                            let actual_balances = config.actual_balances.get(&total.month);
+                            let active_assets = scenario
+                                .assets
+                                .iter()
+                                .filter_map(|asset| {
+                                    let planned = &asset.monthly_balances[index];
+                                    if !planned.is_active {
+                                        return None;
+                                    }
+                                    let actual = actual_balances?.get(asset.id())?.0;
+                                    let actual_plan_balance = actual
+                                        * config
+                                            .conversion_rate_to_plan_currency(asset.currency())
+                                            .expect(
+                                                "validated asset currencies have a conversion rate",
+                                            );
+                                    Some(AssetActualBalanceComparison {
+                                        asset_id: asset.id(),
+                                        planned_native_balance: planned.native_balance,
+                                        actual_native_balance: actual,
+                                        native_difference: actual - planned.native_balance,
+                                        planned_plan_balance: planned.plan_balance,
+                                        actual_plan_balance,
+                                        plan_difference: actual_plan_balance - planned.plan_balance,
+                                    })
+                                })
+                                .collect::<Vec<_>>();
+                            let active_asset_count = scenario
+                                .assets
+                                .iter()
+                                .filter(|asset| asset.monthly_balances[index].is_active)
+                                .count();
+                            let actual_total = (active_asset_count > 0
+                                && active_assets.len() == active_asset_count)
+                                .then(|| {
+                                    let actual_balance = active_assets
+                                        .iter()
+                                        .map(|asset| asset.actual_plan_balance)
+                                        .sum();
+                                    TotalActualBalanceComparison {
+                                        planned_balance: total.balance,
+                                        actual_balance,
+                                        difference: actual_balance - total.balance,
+                                    }
+                                });
+
+                            MonthActualBalanceComparison {
+                                month: total.month,
+                                assets: active_assets,
+                                total: actual_total,
+                            }
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct PlanContext<'config> {
     plan: &'config Plan,
     conversion_rates: &'config [ConversionRate],

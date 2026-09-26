@@ -120,7 +120,10 @@
       .asset-line-5 { stroke: #b28a32; }
       .asset-line-6 { stroke: #3f9c9c; }
       .asset-line-7 { stroke: #c56868; }
-      .total-line { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 4.5; }
+      .total-line { fill: none; stroke: #928d86; stroke-linecap: round; stroke-linejoin: round; stroke-width: 4.5; }
+      .actual-total-area { fill: rgba(133, 128, 215, .22); stroke: #8580d7; stroke-linejoin: round; stroke-width: 2.5; pointer-events: none; }
+      .actual-total-area[hidden] { display: none; }
+      .actual-total-contour { fill: none; stroke: #6d65c2; stroke-linecap: round; stroke-linejoin: round; stroke-width: 4; pointer-events: none; }
       .chart-cursor[hidden] { display: none; }
       .chart-cursor-line { stroke: var(--ink); stroke-dasharray: 4 5; stroke-width: 1.5; }
       .chart-cursor-point { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
@@ -147,6 +150,9 @@
       .chart-inspector-summary span, .chart-inspector-comparable { color: var(--muted); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; }
       .chart-inspector-summary strong { color: var(--ink); text-align: right; }
       .chart-inspector-summary small { color: var(--muted); font: inherit; }
+      .chart-actual-total { display: grid; gap: .35rem; margin-top: .3rem; padding-top: .5rem; border-top: 1px dashed var(--line); }
+      .chart-actual-difference.is-positive strong { color: #3d8d5a; }
+      .chart-actual-difference.is-negative strong { color: #c34f4f; }
       .chart-month-inspector { margin-top: 1rem; padding: 1rem; background: rgba(255, 253, 250, .64); border: 1px solid rgba(30, 30, 30, .13); border-radius: 8px 6px 10px 7px; }
       .chart-month-inspector-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: .65rem; }
       .chart-month-inspector-heading strong { font: 700 .78rem/1.2 "Space Mono", monospace; }
@@ -176,6 +182,11 @@
       .chart-asset-assumption { color: #6f6861; font-size: .62rem; font-weight: 700; }
       .chart-asset-event { display: flex; justify-content: space-between; gap: .7rem; color: #6f6861; font-size: .64rem; font-weight: 700; }
       .chart-asset-event strong { color: var(--ink); white-space: nowrap; }
+      .chart-actual-comparison { display: grid; gap: .18rem; margin-top: .3rem; padding-top: .45rem; border-top: 1px dashed var(--line); color: var(--ink); font-size: .65rem; }
+      .chart-actual-comparison span, .chart-actual-comparison strong { display: grid; grid-template-columns: 4.4rem 1fr; gap: .35rem; }
+      .chart-actual-comparison small { color: var(--muted); font: inherit; letter-spacing: .06em; text-transform: uppercase; }
+      .chart-actual-comparison strong.is-positive { color: #3d8d5a; }
+      .chart-actual-comparison strong.is-negative { color: #c34f4f; }
       .projection { fill: none; stroke: var(--ink); stroke-dasharray: 7 7; stroke-linecap: round; stroke-width: 3; }
       .chart-points circle { fill: var(--card); stroke: var(--ink); stroke-width: 3; }
       .chart-points circle:last-child { fill: var(--lavender); }
@@ -183,6 +194,8 @@
       .chart-legend { display: flex; flex-wrap: wrap; gap: 1rem; color: var(--muted); font: .68rem/1.3 "Space Mono", monospace; }
       .chart-legend span { display: inline-flex; align-items: center; gap: .4rem; }
       .legend-line, .legend-asset, .legend-target { display: inline-block; width: 22px; border-top: 3px solid var(--ink); }
+      .legend-line { border-top-color: #928d86; }
+      .legend-actual { display: inline-block; width: 22px; height: .65rem; background: rgba(133, 128, 215, .22); border-top: 3px solid #6d65c2; }
       .legend-asset { opacity: .78; border-top-width: 2.5px; }
       .legend-asset.asset-line-0 { border-top-color: #62a7dc; }
       .legend-asset.asset-line-1 { border-top-color: #d99a74; }
@@ -538,9 +551,11 @@
             const monthIndexForX = (x) => Math.round((x - 80) / 870 * (count - 1));
             const months = [...chart.querySelectorAll("[data-chart-month]")];
             const visibleMonths = months.filter((_, index) => index >= Math.ceil(viewportStart) && index <= Math.floor(viewportEnd));
+            const actualsEnabled = true;
             const balances = visibleMonths.flatMap((month) => [
               Number(month.dataset.chartTotalBalance),
               ...[...month.querySelectorAll("[data-chart-asset]")].map((asset) => Number(asset.dataset.chartAssetBalance)),
+              ...(actualsEnabled && month.dataset.chartActualTotalBalance ? [Number(month.dataset.chartActualTotalBalance)] : []),
             ]);
             const dataMaximum = Math.max(...balances, 1);
             const goals = [...chart.querySelectorAll("[data-chart-total-milestone]")];
@@ -663,6 +678,26 @@
             });
             const pathFor = (points) => points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
             chart.querySelector(".total-line").setAttribute("d", pathFor(months.map((month) => ({ x: month.dataset.chartX, y: month.dataset.chartY }))));
+            const actualLine = chart.querySelector("[data-chart-actual-line]");
+            actualLine.hidden = !actualsEnabled;
+            const actualPoints = months
+              .map((month, index) => ({ index, balance: month.dataset.chartActualTotalBalance }))
+              .filter((point) => point.balance !== undefined)
+              .map((point) => ({
+                ...point,
+                x: months[point.index].dataset.chartX,
+                y: yForBalance(Number(point.balance)),
+                command: point.index > 0 && months[point.index - 1].dataset.chartActualTotalBalance !== undefined ? "L" : "M",
+              }));
+            actualLine.setAttribute("d", actualPoints.map((point, index, points) => {
+              const startsArea = point.command === "M" ? `M ${point.x} 435 L ${point.x} ${point.y}` : `L ${point.x} ${point.y}`;
+              const endsArea = index === points.length - 1 || points[index + 1].command === "M" ? ` L ${point.x} 435 Z` : "";
+              return `${startsArea}${endsArea}`;
+            }).join(" "));
+            chart.querySelector("[data-chart-actual-contour]").setAttribute(
+              "d",
+              actualPoints.map((point) => `${point.command} ${point.x} ${point.y}`).join(" "),
+            );
             const assets = months[0].querySelectorAll("[data-chart-asset]");
             assets.forEach((_, assetIndex) => {
               const points = months

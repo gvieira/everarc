@@ -22,9 +22,15 @@ pub struct Config {
     pub milestones: Vec<TotalBalanceMilestone>,
     #[serde(default)]
     pub future_living_costs: Vec<FutureLivingCost>,
+    #[serde(default)]
+    pub actual_balances: HashMap<Month, HashMap<String, ActualBalance>>,
     pub display: DisplaySettings,
     pub scenarios: Vec<Scenario>,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(transparent)]
+pub struct ActualBalance(#[serde(deserialize_with = "deserialize_decimal")] pub Decimal);
 
 #[derive(Debug, Deserialize)]
 pub struct DisplaySettings {
@@ -562,7 +568,7 @@ where
         .transpose()
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Month {
     year: u16,
     month: u8,
@@ -677,6 +683,12 @@ pub enum ConfigError {
     },
     #[error("plan end month {end} is before start month {start}")]
     InvalidPlanRange { start: Month, end: Month },
+    #[error("actual-balance month {month} is outside the plan range")]
+    ActualBalanceOutsidePlan { month: Month },
+    #[error("actual balance refers to unknown asset `{asset_id}`")]
+    UnknownActualBalanceAsset { asset_id: String },
+    #[error("actual-balance asset `{asset_id}` uses different currencies across scenarios")]
+    InconsistentActualBalanceAssetCurrency { asset_id: String },
     #[error("conversion rate `{from}` → `{to}` must be greater than zero")]
     InvalidConversionRate { from: Currency, to: Currency },
     #[error(
@@ -974,7 +986,8 @@ impl Config {
         self.validate_conversion_rates()?;
         self.validate_total_balance_milestones()?;
         self.validate_future_living_costs()?;
-        self.validate_scenarios()
+        self.validate_scenarios()?;
+        self.validate_actual_balances()
     }
 
     fn resolve_scenario_inheritance(&mut self) -> Result<(), ConfigError> {
@@ -1170,6 +1183,35 @@ impl Config {
                 return Err(ConfigError::InvalidFutureLivingCostInflation {
                     id: cost.id.clone(),
                 });
+            }
+        }
+
+        Ok(())
+    }
+
+    fn validate_actual_balances(&self) -> Result<(), ConfigError> {
+        for (month, balances) in &self.actual_balances {
+            if *month < self.plan.start || *month > self.plan.end {
+                return Err(ConfigError::ActualBalanceOutsidePlan { month: *month });
+            }
+
+            for asset_id in balances.keys() {
+                let mut currencies = self
+                    .scenarios
+                    .iter()
+                    .flat_map(|scenario| scenario.assets.iter())
+                    .filter(|asset| asset.id == *asset_id)
+                    .map(|asset| &asset.currency);
+                let Some(currency) = currencies.next() else {
+                    return Err(ConfigError::UnknownActualBalanceAsset {
+                        asset_id: asset_id.clone(),
+                    });
+                };
+                if currencies.any(|candidate| candidate != currency) {
+                    return Err(ConfigError::InconsistentActualBalanceAssetCurrency {
+                        asset_id: asset_id.clone(),
+                    });
+                }
             }
         }
 

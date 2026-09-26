@@ -617,3 +617,183 @@ assets = []
         Err(ConfigError::InvalidAnnualInflation { .. })
     ));
 }
+
+#[test]
+fn accepts_partial_actual_balances_in_asset_currency() {
+    let mut config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[actual_balances."2026-02"]
+cash = "-12.50"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+"#,
+    )
+    .expect("configuration parses");
+
+    config.validate().unwrap();
+    assert_eq!(
+        config.actual_balances[&"2026-02".parse().unwrap()]["cash"].0,
+        Decimal::new(-1250, 2)
+    );
+}
+
+#[test]
+fn rejects_actual_balances_outside_the_plan_or_for_unknown_assets() {
+    let outside_plan = r#"
+[actual_balances."2025-12"]
+cash = "1"
+"#;
+    let unknown_asset = r#"
+[actual_balances."2026-02"]
+other = "1"
+"#;
+
+    for (record, expected) in [(outside_plan, "outside"), (unknown_asset, "unknown")] {
+        let source = format!(
+            r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+{record}
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = {{ amount = "0", currency = "USD" }}
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+"#
+        );
+        let mut config: Config = toml::from_str(&source).expect("configuration parses");
+        assert!(match expected {
+            "outside" => matches!(
+                config.validate(),
+                Err(ConfigError::ActualBalanceOutsidePlan { .. })
+            ),
+            _ => matches!(
+                config.validate(),
+                Err(ConfigError::UnknownActualBalanceAsset { .. })
+            ),
+        });
+    }
+}
+
+#[test]
+fn rejects_actual_balance_asset_currency_mismatches_and_unquoted_values() {
+    let mut config: Config = toml::from_str(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[[conversion_rates]]
+from = "EUR"
+to = "USD"
+rate = "1.1"
+
+[actual_balances."2026-02"]
+cash = "1"
+
+[[scenarios]]
+id = "usd"
+name = "USD"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+
+[[scenarios]]
+id = "eur"
+name = "EUR"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "EUR"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "EUR" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "EUR"
+value = "0"
+"#,
+    )
+    .expect("configuration parses");
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::InconsistentActualBalanceAssetCurrency { .. })
+    ));
+
+    let error = toml::from_str::<Config>(
+        r#"
+[display]
+locale = "en-US"
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-01"
+[actual_balances."2026-01"]
+cash = 1
+scenarios = []
+"#,
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("invalid type"), "{error}");
+}

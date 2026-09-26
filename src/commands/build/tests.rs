@@ -10,7 +10,8 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     config.scenarios[0].selected = true;
     config.validate().expect("sample configuration validates");
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     let html = render_dashboard(&dashboard).expect("dashboard renders");
 
     assert!(!html.contains("Car purchase -25.000,00"));

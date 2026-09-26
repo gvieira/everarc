@@ -2,8 +2,11 @@ use rust_decimal::Decimal;
 use serde::Serialize;
 
 use crate::{
-    config::{Currency, Locale, Month},
-    projection::{AppliedAssetEventKind, PlanMoney, PlanProjection},
+    config::{Config, Currency, Locale, Month},
+    projection::{
+        ActualBalanceComparisons, AppliedAssetEventKind, PlanMoney, PlanProjection,
+        ScenarioActualBalanceComparison,
+    },
 };
 
 const CHART_LEFT: u32 = 80;
@@ -62,6 +65,7 @@ pub struct DashboardText {
     pub annualized_passive_income_yield: &'static str,
     pub per_month: &'static str,
     pub total_net_worth_legend: &'static str,
+    pub actual_total_legend: &'static str,
     pub goals_legend: &'static str,
     pub zoom_in: &'static str,
     pub zoom_out: &'static str,
@@ -73,6 +77,9 @@ pub struct DashboardText {
     pub hide_asset: &'static str,
     pub show_all_assets: &'static str,
     pub hide_all_assets: &'static str,
+    pub actual: &'static str,
+    pub planned: &'static str,
+    pub difference: &'static str,
 }
 
 #[derive(Serialize)]
@@ -129,6 +136,8 @@ pub struct DashboardScenarioPresentation<'projection> {
     pub annual_inflation: String,
     pub end_of_plan_passive_income: String,
     pub chart_path: String,
+    pub actual_chart_path: String,
+    pub actual_chart_line_path: String,
     pub chart_assets: Vec<DashboardChartAssetLinePresentation<'projection>>,
     pub chart_months: Vec<DashboardChartMonthPresentation<'projection>>,
     pub future_living_costs: DashboardFutureLivingCostsPresentation<'projection>,
@@ -165,10 +174,16 @@ pub struct DashboardChartAssetMilestone<'projection> {
 pub struct DashboardChartMonthPresentation<'projection> {
     pub index: usize,
     pub month: String,
+    pub month_key: String,
     pub x: String,
     pub y: String,
     pub balance: String,
     pub total: String,
+    pub actual_total_balance: Option<String>,
+    pub actual_total: Option<String>,
+    pub actual_total_difference: Option<String>,
+    pub actual_total_difference_is_positive: Option<bool>,
+    pub has_actual_asset_balances: bool,
     pub monthly_contributions: String,
     pub monthly_contributions_amount: String,
     pub has_monthly_contributions: bool,
@@ -203,6 +218,11 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub color_index: usize,
     pub currency: &'projection Currency,
     pub comparable_plan_balance: Option<String>,
+    pub actual_native_balance: Option<String>,
+    pub native_balance_difference: Option<String>,
+    pub native_balance_difference_is_positive: Option<bool>,
+    pub actual_comparable_plan_balance: Option<String>,
+    pub plan_balance_difference: Option<String>,
     pub events: Vec<DashboardAssetEventPresentation<'projection>>,
 }
 
@@ -239,7 +259,20 @@ pub struct DashboardMilestonePresentation<'projection> {
 }
 
 impl<'projection> DashboardPresentation<'projection> {
-    pub fn new(projection: &'projection PlanProjection<'projection>, locale: Locale) -> Self {
+    pub fn with_actual_balances(
+        config: &'projection Config,
+        projection: &'projection PlanProjection<'projection>,
+        locale: Locale,
+    ) -> Self {
+        let comparisons = ActualBalanceComparisons::new(config, projection);
+        Self::from_comparisons(projection, Some(&comparisons), locale)
+    }
+
+    fn from_comparisons(
+        projection: &'projection PlanProjection<'projection>,
+        comparisons: Option<&ActualBalanceComparisons<'projection>>,
+        locale: Locale,
+    ) -> Self {
         let default_scenario_id = projection
             .scenarios
             .iter()
@@ -333,6 +366,26 @@ impl<'projection> DashboardPresentation<'projection> {
                         locale,
                     ),
                     chart_path: chart_path(&scenario.total_net_worth, chart_scale.maximum),
+                    actual_chart_path: actual_chart_path(
+                        comparisons.and_then(|comparisons| {
+                            comparisons
+                                .scenarios
+                                .iter()
+                                .find(|comparison| comparison.scenario_id == scenario.id())
+                        }),
+                        &scenario.total_net_worth,
+                        chart_scale.maximum,
+                    ),
+                    actual_chart_line_path: actual_chart_line_path(
+                        comparisons.and_then(|comparisons| {
+                            comparisons
+                                .scenarios
+                                .iter()
+                                .find(|comparison| comparison.scenario_id == scenario.id())
+                        }),
+                        &scenario.total_net_worth,
+                        chart_scale.maximum,
+                    ),
                     chart_assets: scenario
                         .assets
                         .iter()
@@ -386,6 +439,12 @@ impl<'projection> DashboardPresentation<'projection> {
                         projection.plan.currency(),
                         projection.plan.conversion_rates(),
                         &text,
+                        comparisons.and_then(|comparisons| {
+                            comparisons
+                                .scenarios
+                                .iter()
+                                .find(|comparison| comparison.scenario_id == scenario.id())
+                        }),
                     ),
                     future_living_costs: DashboardFutureLivingCostsPresentation {
                         costs: scenario
@@ -558,6 +617,7 @@ impl DashboardText {
                 annualized_passive_income_yield: "Annualized passive-income yield",
                 per_month: "/month",
                 total_net_worth_legend: "Total net worth",
+                actual_total_legend: "Actual total",
                 goals_legend: "Goals",
                 zoom_in: "Zoom in",
                 zoom_out: "Zoom out",
@@ -569,6 +629,9 @@ impl DashboardText {
                 hide_asset: "Hide",
                 show_all_assets: "Show all",
                 hide_all_assets: "Hide all",
+                actual: "Actual",
+                planned: "Planned",
+                difference: "Difference",
             },
             Locale::PtBr => Self {
                 scenario: "Cenário",
@@ -610,6 +673,7 @@ impl DashboardText {
                 annualized_passive_income_yield: "Rendimento anualizado da renda passiva",
                 per_month: "/mês",
                 total_net_worth_legend: "Patrimônio líquido total",
+                actual_total_legend: "Total real",
                 goals_legend: "Metas",
                 zoom_in: "Aumentar zoom",
                 zoom_out: "Diminuir zoom",
@@ -621,6 +685,9 @@ impl DashboardText {
                 hide_asset: "Ocultar",
                 show_all_assets: "Mostrar todos",
                 hide_all_assets: "Ocultar todos",
+                actual: "Real",
+                planned: "Planejado",
+                difference: "Diferença",
             },
         }
     }
@@ -740,6 +807,86 @@ fn chart_path(
         .join(" ")
 }
 
+fn actual_chart_path(
+    comparison: Option<&ScenarioActualBalanceComparison<'_>>,
+    projected_months: &[crate::projection::TotalNetWorthMonthProjection],
+    maximum: Decimal,
+) -> String {
+    let Some(comparison) = comparison else {
+        return String::new();
+    };
+    let last_index = projected_months.len().saturating_sub(1);
+    let points = comparison
+        .months
+        .iter()
+        .enumerate()
+        .filter_map(|(index, month)| {
+            debug_assert_eq!(month.month, projected_months[index].month);
+            month
+                .total
+                .as_ref()
+                .map(|total| (index, total.actual_balance))
+        })
+        .collect::<Vec<_>>();
+
+    points
+        .iter()
+        .enumerate()
+        .map(|(point_index, (index, balance))| {
+            let x = chart_x(*index, last_index);
+            let y = chart_y(*balance, maximum);
+            let starts_area = point_index == 0 || points[point_index - 1].0 + 1 != *index;
+            let ends_area =
+                point_index + 1 == points.len() || points[point_index + 1].0 != *index + 1;
+            let start = if starts_area {
+                format!("M {x} 435 L {x} {y}")
+            } else {
+                format!("L {x} {y}")
+            };
+            let end = ends_area
+                .then(|| format!(" L {x} 435 Z"))
+                .unwrap_or_default();
+            format!("{start}{end}")
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn actual_chart_line_path(
+    comparison: Option<&ScenarioActualBalanceComparison<'_>>,
+    projected_months: &[crate::projection::TotalNetWorthMonthProjection],
+    maximum: Decimal,
+) -> String {
+    let Some(comparison) = comparison else {
+        return String::new();
+    };
+    let last_index = projected_months.len().saturating_sub(1);
+    comparison
+        .months
+        .iter()
+        .enumerate()
+        .filter_map(|(index, month)| {
+            month
+                .total
+                .as_ref()
+                .map(|total| (index, total.actual_balance))
+        })
+        .map(|(index, balance)| {
+            let command = if index > 0 && comparison.months[index - 1].total.is_some() {
+                "L"
+            } else {
+                "M"
+            };
+            format!(
+                "{command} {} {}",
+                chart_x(index, last_index),
+                chart_y(balance, maximum)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 fn asset_chart_path(asset: &crate::projection::AssetProjection<'_>, maximum: Decimal) -> String {
     let last_index = asset.monthly_balances.len().saturating_sub(1);
     asset
@@ -815,199 +962,264 @@ fn chart_months<'projection>(
     plan_currency: &'projection Currency,
     conversion_rates: &[crate::config::ConversionRate],
     text: &DashboardText,
+    comparison: Option<&ScenarioActualBalanceComparison<'projection>>,
 ) -> Vec<DashboardChartMonthPresentation<'projection>> {
     let last_index = scenario.total_net_worth.len().saturating_sub(1);
     scenario
         .total_net_worth
         .iter()
         .enumerate()
-        .map(|(index, total)| DashboardChartMonthPresentation {
-            index,
-            month: format_month(total.month, locale),
-            x: chart_x(index, last_index),
-            y: chart_y(total.balance, maximum),
-            balance: total.balance.to_string(),
-            total: format_number(total.balance, locale),
-            monthly_contributions: format_number(
-                total_monthly_contributions(scenario, index, plan_currency, conversion_rates),
-                locale,
-            ),
-            monthly_contributions_amount: total_monthly_contributions(
-                scenario,
+        .map(|(index, total)| {
+            let month_comparison = comparison.and_then(|comparison| comparison.months.get(index));
+            DashboardChartMonthPresentation {
                 index,
-                plan_currency,
-                conversion_rates,
-            )
-            .to_string(),
-            has_monthly_contributions: scenario.assets.iter().any(|asset| {
-                let balance = &asset.monthly_balances[index];
-                balance.is_active && balance.monthly_contribution.amount != Decimal::ZERO
-            }),
-            monthly_withdrawals: format_number(
-                scenario
-                    .assets
-                    .iter()
-                    .filter(|asset| asset.monthly_balances[index].is_active)
-                    .map(|asset| {
-                        let withdrawal = &asset.monthly_balances[index].monthly_withdrawal;
-                        plan_flow_amount(
-                            withdrawal.amount,
-                            &withdrawal.currency,
-                            plan_currency,
-                            conversion_rates,
-                        )
-                    })
-                    .sum(),
-                locale,
-            ),
-            has_monthly_withdrawals: scenario.assets.iter().any(|asset| {
-                let balance = &asset.monthly_balances[index];
-                balance.is_active && balance.monthly_withdrawal.amount != Decimal::ZERO
-            }),
-            passive_income: format_number(
-                scenario
-                    .assets
-                    .iter()
-                    .map(|asset| asset.monthly_balances[index].plan_passive_income)
-                    .sum(),
-                locale,
-            ),
-            annualized_passive_income_yield: (total.balance > Decimal::ZERO).then(|| {
-                format_percentage(
+                month: format_month(total.month, locale),
+                month_key: total.month.to_string(),
+                x: chart_x(index, last_index),
+                y: chart_y(total.balance, maximum),
+                balance: total.balance.to_string(),
+                total: format_number(
+                    month_comparison
+                        .and_then(|comparison| comparison.total.as_ref())
+                        .map_or(total.balance, |comparison| comparison.planned_balance),
+                    locale,
+                ),
+                actual_total_balance: month_comparison
+                    .and_then(|comparison| comparison.total.as_ref())
+                    .map(|total| total.actual_balance.to_string()),
+                actual_total: month_comparison
+                    .and_then(|comparison| comparison.total.as_ref())
+                    .map(|total| format_number(total.actual_balance, locale)),
+                actual_total_difference: month_comparison
+                    .and_then(|comparison| comparison.total.as_ref())
+                    .map(|total| format_signed_number(total.difference, locale)),
+                actual_total_difference_is_positive: month_comparison
+                    .and_then(|comparison| comparison.total.as_ref())
+                    .map(|total| total.difference >= Decimal::ZERO),
+                has_actual_asset_balances: month_comparison
+                    .is_some_and(|comparison| !comparison.assets.is_empty()),
+                monthly_contributions: format_number(
+                    total_monthly_contributions(scenario, index, plan_currency, conversion_rates),
+                    locale,
+                ),
+                monthly_contributions_amount: total_monthly_contributions(
+                    scenario,
+                    index,
+                    plan_currency,
+                    conversion_rates,
+                )
+                .to_string(),
+                has_monthly_contributions: scenario.assets.iter().any(|asset| {
+                    let balance = &asset.monthly_balances[index];
+                    balance.is_active && balance.monthly_contribution.amount != Decimal::ZERO
+                }),
+                monthly_withdrawals: format_number(
+                    scenario
+                        .assets
+                        .iter()
+                        .filter(|asset| asset.monthly_balances[index].is_active)
+                        .map(|asset| {
+                            let withdrawal = &asset.monthly_balances[index].monthly_withdrawal;
+                            plan_flow_amount(
+                                withdrawal.amount,
+                                &withdrawal.currency,
+                                plan_currency,
+                                conversion_rates,
+                            )
+                        })
+                        .sum(),
+                    locale,
+                ),
+                has_monthly_withdrawals: scenario.assets.iter().any(|asset| {
+                    let balance = &asset.monthly_balances[index];
+                    balance.is_active && balance.monthly_withdrawal.amount != Decimal::ZERO
+                }),
+                passive_income: format_number(
                     scenario
                         .assets
                         .iter()
                         .map(|asset| asset.monthly_balances[index].plan_passive_income)
-                        .sum::<Decimal>()
-                        * Decimal::from(12)
-                        / total.balance,
+                        .sum(),
                     locale,
-                )
-            }),
-            assets: scenario
-                .assets
-                .iter()
-                .enumerate()
-                .map(|(asset_index, asset)| {
-                    let balance = &asset.monthly_balances[index];
-                    let comparable_plan_balance = (asset.currency() != plan_currency)
-                        .then(|| format_number(balance.plan_balance, locale));
-                    DashboardChartAssetPresentation {
-                        id: asset.id(),
-                        name: asset.name(),
-                        is_active: balance.is_active,
-                        native_balance: format_number(balance.native_balance, locale),
-                        annual_expected_return: format_percentage(
-                            balance.annual_expected_return,
-                            locale,
-                        ),
-                        monthly_contribution: format_number(
-                            balance.monthly_contribution.amount,
-                            locale,
-                        ),
-                        plan_monthly_contribution: format_number(
-                            if balance.is_active {
+                ),
+                annualized_passive_income_yield: (total.balance > Decimal::ZERO).then(|| {
+                    format_percentage(
+                        scenario
+                            .assets
+                            .iter()
+                            .map(|asset| asset.monthly_balances[index].plan_passive_income)
+                            .sum::<Decimal>()
+                            * Decimal::from(12)
+                            / total.balance,
+                        locale,
+                    )
+                }),
+                assets: scenario
+                    .assets
+                    .iter()
+                    .enumerate()
+                    .map(|(asset_index, asset)| {
+                        let balance = &asset.monthly_balances[index];
+                        let asset_comparison = month_comparison.and_then(|comparison| {
+                            comparison
+                                .assets
+                                .iter()
+                                .find(|comparison| comparison.asset_id == asset.id())
+                        });
+                        let comparable_plan_balance =
+                            (asset.currency() != plan_currency).then(|| {
+                                format_number(
+                                    asset_comparison.map_or(balance.plan_balance, |comparison| {
+                                        comparison.planned_plan_balance
+                                    }),
+                                    locale,
+                                )
+                            });
+                        DashboardChartAssetPresentation {
+                            id: asset.id(),
+                            name: asset.name(),
+                            is_active: balance.is_active,
+                            native_balance: format_number(
+                                asset_comparison.map_or(balance.native_balance, |comparison| {
+                                    comparison.planned_native_balance
+                                }),
+                                locale,
+                            ),
+                            annual_expected_return: format_percentage(
+                                balance.annual_expected_return,
+                                locale,
+                            ),
+                            monthly_contribution: format_number(
+                                balance.monthly_contribution.amount,
+                                locale,
+                            ),
+                            plan_monthly_contribution: format_number(
+                                if balance.is_active {
+                                    plan_flow_amount(
+                                        balance.monthly_contribution.amount,
+                                        &balance.monthly_contribution.currency,
+                                        plan_currency,
+                                        conversion_rates,
+                                    )
+                                } else {
+                                    Decimal::ZERO
+                                },
+                                locale,
+                            ),
+                            plan_monthly_contribution_amount: if balance.is_active {
                                 plan_flow_amount(
                                     balance.monthly_contribution.amount,
                                     &balance.monthly_contribution.currency,
                                     plan_currency,
                                     conversion_rates,
                                 )
+                                .to_string()
                             } else {
-                                Decimal::ZERO
+                                Decimal::ZERO.to_string()
                             },
-                            locale,
-                        ),
-                        plan_monthly_contribution_amount: if balance.is_active {
-                            plan_flow_amount(
-                                balance.monthly_contribution.amount,
-                                &balance.monthly_contribution.currency,
-                                plan_currency,
-                                conversion_rates,
-                            )
-                            .to_string()
-                        } else {
-                            Decimal::ZERO.to_string()
-                        },
-                        plan_monthly_withdrawal: format_number(
-                            if balance.is_active {
+                            plan_monthly_withdrawal: format_number(
+                                if balance.is_active {
+                                    plan_flow_amount(
+                                        balance.monthly_withdrawal.amount,
+                                        &balance.monthly_withdrawal.currency,
+                                        plan_currency,
+                                        conversion_rates,
+                                    )
+                                } else {
+                                    Decimal::ZERO
+                                },
+                                locale,
+                            ),
+                            plan_monthly_withdrawal_amount: if balance.is_active {
                                 plan_flow_amount(
                                     balance.monthly_withdrawal.amount,
                                     &balance.monthly_withdrawal.currency,
                                     plan_currency,
                                     conversion_rates,
                                 )
+                                .to_string()
                             } else {
-                                Decimal::ZERO
+                                Decimal::ZERO.to_string()
                             },
-                            locale,
-                        ),
-                        plan_monthly_withdrawal_amount: if balance.is_active {
-                            plan_flow_amount(
+                            has_monthly_contribution: balance.monthly_contribution.amount
+                                != Decimal::ZERO,
+                            monthly_contribution_currency: &balance.monthly_contribution.currency,
+                            monthly_withdrawal: format_number(
                                 balance.monthly_withdrawal.amount,
-                                &balance.monthly_withdrawal.currency,
-                                plan_currency,
-                                conversion_rates,
-                            )
-                            .to_string()
-                        } else {
-                            Decimal::ZERO.to_string()
-                        },
-                        has_monthly_contribution: balance.monthly_contribution.amount
-                            != Decimal::ZERO,
-                        monthly_contribution_currency: &balance.monthly_contribution.currency,
-                        monthly_withdrawal: format_number(
-                            balance.monthly_withdrawal.amount,
-                            locale,
-                        ),
-                        has_monthly_withdrawal: balance.monthly_withdrawal.amount != Decimal::ZERO,
-                        monthly_withdrawal_currency: &balance.monthly_withdrawal.currency,
-                        passive_income: format_number(balance.plan_passive_income, locale),
-                        is_plan_currency: asset.currency() == plan_currency,
-                        y: chart_y(balance.plan_balance, maximum),
-                        balance: balance.plan_balance.to_string(),
-                        color_index: asset_index % CHART_ASSET_COLOR_COUNT,
-                        currency: asset.currency(),
-                        comparable_plan_balance,
-                        events: scenario
-                            .asset_events
-                            .iter()
-                            .filter(|event| {
-                                event.date == total.month && event.asset_id == asset.id()
-                            })
-                            .map(|event| DashboardAssetEventPresentation {
-                                name: event.name,
-                                value: match event.kind {
-                                    AppliedAssetEventKind::Adjustment => {
-                                        format_signed_number(*event.amount, locale)
-                                    }
-                                    AppliedAssetEventKind::ContributionSetting
-                                    | AppliedAssetEventKind::WithdrawalSetting => format!(
-                                        "{} {}{}",
-                                        format_number(*event.amount, locale),
-                                        event.currency.expect("flow events have a currency"),
-                                        text.per_month
-                                    ),
-                                    AppliedAssetEventKind::ContributionAdjustment
-                                    | AppliedAssetEventKind::WithdrawalAdjustment => format!(
-                                        "{} {}{}",
-                                        format_signed_number(*event.amount, locale),
-                                        event.currency.expect("flow events have a currency"),
-                                        text.per_month
-                                    ),
-                                    AppliedAssetEventKind::ContributionRateAdjustment
-                                    | AppliedAssetEventKind::WithdrawalRateAdjustment => {
-                                        format_signed_percentage(*event.amount, locale)
-                                    }
-                                    AppliedAssetEventKind::ExpectedReturn => {
-                                        format_percentage(*event.amount, locale)
-                                    }
-                                },
-                            })
-                            .collect(),
-                    }
-                })
-                .collect(),
+                                locale,
+                            ),
+                            has_monthly_withdrawal: balance.monthly_withdrawal.amount
+                                != Decimal::ZERO,
+                            monthly_withdrawal_currency: &balance.monthly_withdrawal.currency,
+                            passive_income: format_number(balance.plan_passive_income, locale),
+                            is_plan_currency: asset.currency() == plan_currency,
+                            y: chart_y(balance.plan_balance, maximum),
+                            balance: balance.plan_balance.to_string(),
+                            color_index: asset_index % CHART_ASSET_COLOR_COUNT,
+                            currency: asset.currency(),
+                            comparable_plan_balance,
+                            actual_native_balance: asset_comparison.map(|comparison| {
+                                format_number(comparison.actual_native_balance, locale)
+                            }),
+                            native_balance_difference: asset_comparison.map(|comparison| {
+                                format_signed_number(comparison.native_difference, locale)
+                            }),
+                            native_balance_difference_is_positive: asset_comparison
+                                .map(|comparison| comparison.native_difference >= Decimal::ZERO),
+                            actual_comparable_plan_balance: (asset.currency() != plan_currency)
+                                .then(|| {
+                                    asset_comparison.map(|comparison| {
+                                        format_number(comparison.actual_plan_balance, locale)
+                                    })
+                                })
+                                .flatten(),
+                            plan_balance_difference: (asset.currency() != plan_currency)
+                                .then(|| {
+                                    asset_comparison.map(|comparison| {
+                                        format_signed_number(comparison.plan_difference, locale)
+                                    })
+                                })
+                                .flatten(),
+                            events: scenario
+                                .asset_events
+                                .iter()
+                                .filter(|event| {
+                                    event.date == total.month && event.asset_id == asset.id()
+                                })
+                                .map(|event| DashboardAssetEventPresentation {
+                                    name: event.name,
+                                    value: match event.kind {
+                                        AppliedAssetEventKind::Adjustment => {
+                                            format_signed_number(*event.amount, locale)
+                                        }
+                                        AppliedAssetEventKind::ContributionSetting
+                                        | AppliedAssetEventKind::WithdrawalSetting => format!(
+                                            "{} {}{}",
+                                            format_number(*event.amount, locale),
+                                            event.currency.expect("flow events have a currency"),
+                                            text.per_month
+                                        ),
+                                        AppliedAssetEventKind::ContributionAdjustment
+                                        | AppliedAssetEventKind::WithdrawalAdjustment => format!(
+                                            "{} {}{}",
+                                            format_signed_number(*event.amount, locale),
+                                            event.currency.expect("flow events have a currency"),
+                                            text.per_month
+                                        ),
+                                        AppliedAssetEventKind::ContributionRateAdjustment
+                                        | AppliedAssetEventKind::WithdrawalRateAdjustment => {
+                                            format_signed_percentage(*event.amount, locale)
+                                        }
+                                        AppliedAssetEventKind::ExpectedReturn => {
+                                            format_percentage(*event.amount, locale)
+                                        }
+                                    },
+                                })
+                                .collect(),
+                        }
+                    })
+                    .collect(),
+            }
         })
         .collect()
 }

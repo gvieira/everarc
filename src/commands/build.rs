@@ -41,7 +41,8 @@ pub fn run(config_path: &Path, args: BuildArgs) -> Result<(), Box<dyn Error>> {
 fn build_once(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
     let config = Config::load(config_path)?;
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     fs::write(output_path, render_dashboard(&dashboard)?)?;
     Ok(())
 }

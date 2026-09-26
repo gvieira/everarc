@@ -127,7 +127,9 @@
       <g clip-path="url(#chart-plot-{{ scenario.id }})"><g data-chart-viewport>
         <g class="chart-grid">{% for x in chart.x_grid %}<path class="chart-five-year-grid" d="M{{ x }} 75 V435" />{% endfor %}</g>
         {% for milestone in chart.milestones %}<path class="target-line" data-chart-total-milestone data-chart-total-milestone-index="{{ loop.index0 }}" data-chart-total-milestone-balance="{{ milestone.balance }}" d="M80 {{ milestone.line_y }} H950" />{% endfor %}
+        <path class="actual-total-area" data-chart-actual-line d="{{ scenario.actual_chart_path }}" />
         <path class="total-line" d="{{ scenario.chart_path }}" />
+        <path class="actual-total-contour" data-chart-actual-contour d="{{ scenario.actual_chart_line_path }}" />
         {% for asset in scenario.chart_assets %}<path class="asset-line asset-line-{{ asset.color_index }}" data-chart-asset-line="{{ asset.asset_index }}" data-chart-asset-id="{{ asset.id }}" data-chart-asset-visual d="{{ asset.path }}" />{% for marker in asset.event_markers %}<circle class="chart-event-marker asset-line-{{ asset.color_index }}" data-chart-asset-index="{{ asset.asset_index }}" data-chart-asset-id="{{ asset.id }}" data-chart-asset-visual cx="{{ marker.x }}" cy="{{ marker.y }}" r="4" aria-hidden="true" />{% endfor %}{% endfor %}
         <g class="chart-cursor" data-chart-cursor hidden>
         <path class="chart-cursor-line" data-chart-cursor-line />
@@ -161,13 +163,14 @@
   <div class="chart-month-inspector" data-chart-month-inspector aria-live="polite"></div>
   <div data-chart-month-data hidden>
     {% for month in scenario.chart_months %}
-    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" data-chart-total-balance="{{ month.balance }}" {% if not loop.first %}hidden{% endif %}>
+    <section data-chart-month data-chart-month-index="{{ loop.index0 }}" data-chart-month-label="{{ month.month }}" data-chart-month-key="{{ month.month_key }}" data-chart-x="{{ month.x }}" data-chart-y="{{ month.y }}" data-chart-total-balance="{{ month.balance }}"{% if month.actual_total_balance %} data-chart-actual-total-balance="{{ month.actual_total_balance }}"{% endif %} {% if not loop.first %}hidden{% endif %}>
       <div class="chart-inspector-summary" data-chart-month-summary>
         <p><span>{{ text.month }}</span><strong>{{ month.month }}</strong></p>
         <p><span>{{ text.total }}</span><strong>{{ month.total }}</strong></p>
         <p><span>{{ text.passive_income }}</span><strong>{% if month.annualized_passive_income_yield %}<small aria-label="{{ text.annualized_passive_income_yield }}">{{ month.annualized_passive_income_yield }}</small> {% endif %}{{ month.passive_income }}</strong></p>
         {% if month.has_monthly_contributions %}<p><span>{{ text.contribution }}</span><strong>{{ month.monthly_contributions }}</strong></p>{% endif %}
         {% if month.has_monthly_withdrawals %}<p><span>{{ text.withdrawal }}</span><strong>{{ month.monthly_withdrawals }}</strong></p>{% endif %}
+        {% if month.actual_total %}<div class="chart-actual-total"><p><span>{{ text.actual }}</span><strong>{{ month.actual_total }}</strong></p><p class="chart-actual-difference{% if month.actual_total_difference_is_positive %} is-positive{% else %} is-negative{% endif %}"><span>{{ text.difference }}</span><strong>{{ month.actual_total_difference }}</strong></p></div>{% endif %}
       </div>
       <div data-chart-month-details>
         <div class="chart-month-inspector-heading"><div class="chart-inspector-heading-assets"><p class="chart-inspector-assets-label">{{ text.assets }}</p><span class="chart-asset-bulk-actions"><button type="button" data-chart-assets-show-all>{{ text.show_all_assets }}</button><span aria-hidden="true">·</span><button type="button" data-chart-assets-hide-all>{{ text.hide_all_assets }}</button></span></div><span class="chart-month-selection"><span class="chart-pin-indicator" data-chart-pin-indicator aria-hidden="true">{{ text.pinned }}</span><strong>{{ month.month }}</strong></span></div>
@@ -178,6 +181,7 @@
           <span class="chart-inspector-values"><span class="chart-inspector-native">{{ asset.native_balance }}{% if not asset.is_plan_currency %} {{ asset.currency }}{% endif %}</span>{% if asset.comparable_plan_balance %}<span class="chart-inspector-comparable"> ≈ {{ asset.comparable_plan_balance }}</span>{% endif %}</span>
           <span class="chart-asset-assumptions"><span class="chart-asset-assumption" aria-label="{{ text.annual_return }}: {{ asset.annual_expected_return }}">↗{{ asset.annual_expected_return }}</span>{% if asset.has_monthly_contribution %}<span class="chart-asset-assumption" aria-label="{{ text.monthly_contribution }}: {{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}">+{{ asset.monthly_contribution }} {{ asset.monthly_contribution_currency }}</span>{% endif %}{% if asset.has_monthly_withdrawal %}<span class="chart-asset-assumption" aria-label="{{ text.monthly_withdrawal }}: {{ asset.monthly_withdrawal }} {{ asset.monthly_withdrawal_currency }}">−{{ asset.monthly_withdrawal }} {{ asset.monthly_withdrawal_currency }}</span>{% endif %}<span class="chart-asset-assumption" aria-label="{{ text.passive_income }}: {{ asset.passive_income }}">☼{{ asset.passive_income }}</span></span>
           {% for event in asset.events %}<span class="chart-asset-event"><span>{{ event.name }}</span><strong>{{ event.value }}</strong></span>{% endfor %}
+          {% if month.has_actual_asset_balances %}<span class="chart-actual-comparison">{% if asset.actual_native_balance %}<span><small>{{ text.actual }}</small>{{ asset.actual_native_balance }}{% if asset.actual_comparable_plan_balance %} · ≈ {{ asset.actual_comparable_plan_balance }}{% endif %}</span><strong class="{% if asset.native_balance_difference_is_positive %}is-positive{% else %}is-negative{% endif %}"><small>{{ text.difference }}</small>{{ asset.native_balance_difference }}{% if asset.plan_balance_difference %} · ≈ {{ asset.plan_balance_difference }}{% endif %}</strong>{% else %}<span><small>{{ text.actual }}</small>—</span>{% endif %}</span>{% endif %}
         </div>
         {% endfor %}
         </div>
@@ -188,6 +192,7 @@
   <div class="chart-footer">
     <div class="chart-legend">
       <span><i class="legend-line"></i>{{ text.total_net_worth_legend }}</span>
+      <span><i class="legend-actual"></i>{{ text.actual_total_legend }}</span>
       <span><i class="legend-target"></i>{{ text.goals_legend }}</span>
     </div>
     <p class="chart-note">{{ text.pin_instruction }}</p>

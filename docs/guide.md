@@ -136,6 +136,28 @@ to follow. At most one scenario may be selected. The dashboard opens on it and
 marks it in the scenario bar; when none is selected, it opens on the first
 scenario.
 
+## Actual balances
+
+Optional actual end-of-month balances are shared across scenarios and grouped by
+month. The quoted month key uses `YYYY-MM`; each asset ID maps to a quoted
+decimal balance in that asset's own currency.
+
+```toml
+[actual_balances."2026-02"]
+brokerage = "28450.75"
+crypto = "0.12"
+
+[actual_balances."2026-03"]
+brokerage = "29110.40"
+```
+
+Missing asset/month entries are unknown, never zero. Balances may be negative.
+An actual-balance month must be within the plan range and every recorded asset
+ID must occur in at least one scenario. When a recorded ID occurs in multiple
+scenarios, its asset currency must be the same in each. Start recording with
+the last completed calendar month; Everarc does not require records for every
+asset or month.
+
 Each conversion rate must connect exactly one currency to `plan.currency`; for
 a USD plan, `BTC` → `USD` is valid but `BTC` → `BRL` is not. `rate` is a
 positive quoted decimal, and its direction is `1 from = rate to`. Rates are
@@ -296,6 +318,15 @@ and hide-all actions. Visibility follows same-ID assets across scenario switches
 but never changes projected balances or total net worth. The passive-income
 summary includes its annualized yield (monthly passive income multiplied by
 twelve, divided by total balance).
+
+Recorded actual balances are shared across scenarios. The projection chart can
+shows one translucent actual-total area; it has a value only for months where
+every asset active in the selected scenario has a recorded balance, so partial
+months produce gaps rather than misleading totals. The selected-month inspector
+shows each active asset's planned balance, recorded actual balance, and signed
+actual-minus-planned difference; missing records appear as an em dash when other assets have observations for
+the selected month. Foreign-currency actuals use the configured static
+conversion rates for total comparison.
 
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.

@@ -52,7 +52,8 @@ target = "1500"
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
 
     assert_eq!(dashboard.chart.y_ticks.last().unwrap().label, "1.5k");
     assert_eq!(dashboard.chart.milestones[0].line_y, "195.00");
@@ -152,7 +153,8 @@ monthly_contribution = { rate = "0" }
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     assert_eq!(dashboard.plan.duration, "1 month");
     assert_eq!(dashboard.plan.conversion_rates[0].rate, "10,000.00");
     assert_eq!(dashboard.plan.conversion_rates[0].from.to_string(), "BTC");
@@ -295,7 +297,8 @@ amount = "-1000"
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     let months = &dashboard.scenarios[0].chart_months;
 
     assert_eq!(months[0].monthly_contributions, "100.00");
@@ -355,7 +358,8 @@ recurrence = { every = 1, unit = "months" }
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     let scenario = &dashboard.scenarios[0];
 
     assert_eq!(scenario.chart_assets[0].event_markers.len(), 3);
@@ -455,7 +459,8 @@ value = "0"
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     assert_eq!(dashboard.scenarios[0].description, Some("Long-term plan."));
     let costs = &dashboard.scenarios[0].future_living_costs.costs;
 
@@ -503,7 +508,8 @@ value = "0"
 "#,
     );
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
 
     assert_eq!(dashboard.plan.duration, "1 mês");
     assert_eq!(dashboard.scenarios[0].end_of_plan_passive_income, "0,00");
@@ -560,7 +566,8 @@ value = "{index}"
 
     let config = config(&source);
     let projection = PlanProjection::from(&config);
-    let dashboard = DashboardPresentation::new(&projection, config.display.locale);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     let colors = dashboard.scenarios[0]
         .chart_assets
         .iter()
@@ -572,4 +579,54 @@ value = "{index}"
         dashboard.scenarios[0].chart_months[0].assets[8].color_index,
         0
     );
+}
+
+#[test]
+fn presents_actual_totals_and_asset_differences() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-02"
+
+[actual_balances."2026-01"]
+cash = "90"
+
+[actual_balances."2026-02"]
+cash = "120"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "100"
+"#,
+    );
+    let projection = PlanProjection::from(&config);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
+    let january = &dashboard.scenarios[0].chart_months[0];
+    let asset = &january.assets[0];
+
+    assert_eq!(january.actual_total.as_deref(), Some("90.00"));
+    assert_eq!(january.actual_total_difference.as_deref(), Some("-10.00"));
+    assert_eq!(asset.actual_native_balance.as_deref(), Some("90.00"));
+    assert_eq!(asset.native_balance_difference.as_deref(), Some("-10.00"));
+    assert!(dashboard.scenarios[0].actual_chart_path.contains("M 80"));
 }
