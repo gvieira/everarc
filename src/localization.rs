@@ -138,6 +138,7 @@ pub struct DashboardScenarioPresentation<'projection> {
     pub annual_inflation: String,
     pub end_of_plan_passive_income: String,
     pub monthly_income: Option<String>,
+    pub monthly_income_currency: Option<String>,
     pub chart_path: String,
     pub actual_chart_path: String,
     pub actual_chart_line_path: String,
@@ -372,6 +373,9 @@ impl<'projection> DashboardPresentation<'projection> {
                     monthly_income: scenario
                         .monthly_income()
                         .map(|income| format_number(income.amount, locale)),
+                    monthly_income_currency: scenario
+                        .monthly_income()
+                        .map(|income| income.currency.to_string()),
                     chart_path: chart_path(&scenario.total_net_worth, chart_scale.maximum),
                     actual_chart_path: actual_chart_path(
                         comparisons.and_then(|comparisons| {
@@ -623,7 +627,7 @@ impl DashboardText {
                 monthly_withdrawal: "Monthly withdrawal",
                 withdrawal: "Withdrawal",
                 annualized_passive_income_yield: "Annualized passive-income yield",
-                monthly_investment_rate: "Monthly income invested",
+                monthly_investment_rate: "Net monthly income invested",
                 per_month: "/month",
                 total_net_worth_legend: "Total net worth",
                 actual_total_legend: "Actual total",
@@ -681,7 +685,7 @@ impl DashboardText {
                 monthly_withdrawal: "Retirada mensal",
                 withdrawal: "Retirada",
                 annualized_passive_income_yield: "Rendimento anualizado da renda passiva",
-                monthly_investment_rate: "Renda mensal investida",
+                monthly_investment_rate: "Renda mensal líquida investida",
                 per_month: "/mês",
                 total_net_worth_legend: "Patrimônio líquido total",
                 actual_total_legend: "Total real",

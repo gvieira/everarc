@@ -307,14 +307,15 @@ inflow and outflow bounds are rounded independently, while sharing one linear sc
 the zero baseline moves proportionally so magnitudes remain comparable without
 wasting chart height. Returns and
 `asset_adjustment` events are excluded. Its hover panel shows total contributions,
-the invested percentage of monthly income when configured, total withdrawals,
+the net invested percentage of monthly income when configured, total withdrawals,
 signed net flow, and each asset's absolute amount and share of its respective
 flow. The cash-flow chart shares the balance chart's month selection,
 pin, zoom, pan, keyboard navigation, and scenario; hiding asset lines does not
 change its totals. The balance chart's compact hover panel shows the current month's total
 balance, passive income, gross contribution, and gross withdrawal. When a
-scenario has `monthly_income`, the contribution value also shows the gross
-contribution as a percentage of that income. A persistent inspector below the
+scenario has `monthly_income`, the contribution value also shows the net
+recurring investment (contributions minus withdrawals) as a percentage of that
+income. A persistent inspector below the
 charts follows the selected month and shows each
 active asset's balance, return, contribution, withdrawal, passive income, and
 that month's events. Click a month to pin its cursor and inspectors while moving

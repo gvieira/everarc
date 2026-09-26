@@ -65,7 +65,7 @@ value = "100"
 }
 
 #[test]
-fn converts_asset_currency_contributions_for_monthly_investment_rate() {
+fn converts_asset_currency_net_flows_for_monthly_investment_rate() {
     let config = config(
         r#"
 [display]
@@ -93,6 +93,7 @@ name = "Cash"
 currency = "EUR"
 annual_expected_return = "0"
 monthly_contribution = { amount = "10", currency = "EUR" }
+monthly_withdrawal = { amount = "5", currency = "EUR" }
 
 [[scenarios.assets.holdings]]
 id = "initial-balance"
@@ -105,7 +106,7 @@ value = "0"
     let projection = PlanProjection::from(&config);
     assert_eq!(
         projection.scenarios[0].total_net_worth[0].monthly_investment_rate,
-        Some(Decimal::new(2, 1))
+        Some(Decimal::new(1, 1))
     );
 }
 

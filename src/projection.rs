@@ -614,15 +614,15 @@ fn project_total_net_worth(
                     .filter_map(|asset| {
                         let month = &asset.monthly_balances[index];
                         month.is_active.then(|| {
-                            let contribution = &month.monthly_contribution;
-                            if contribution.currency == config.plan.currency {
-                                contribution.amount
-                            } else {
-                                contribution.amount
-                                    * config
-                                        .conversion_rate_to_plan_currency(asset.currency())
-                                        .expect("validated asset currencies have a conversion rate")
-                            }
+                            plan_monthly_flow_amount(
+                                config,
+                                month.monthly_contribution.amount,
+                                &month.monthly_contribution.currency,
+                            ) - plan_monthly_flow_amount(
+                                config,
+                                month.monthly_withdrawal.amount,
+                                &month.monthly_withdrawal.currency,
+                            )
                         })
                     })
                     .sum::<Decimal>()
@@ -641,6 +641,13 @@ fn project_total_net_worth(
             }
         })
         .collect()
+}
+
+fn plan_monthly_flow_amount(config: &Config, amount: Decimal, currency: &Currency) -> Decimal {
+    amount
+        * config
+            .conversion_rate_to_plan_currency(currency)
+            .expect("validated recurring-flow currencies have a conversion rate")
 }
 
 fn project_scenario_assets<'config>(config: &'config Config) -> Vec<Vec<AssetProjection<'config>>> {

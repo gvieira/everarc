@@ -24,7 +24,7 @@
   <p class="eyebrow"><span class="ink-dot"></span>{{ text.plan_summary }}</p>
   <p class="passive-income">{{ scenario.end_of_plan_passive_income }}</p>
   <p class="passive-income-label">{{ text.end_of_plan_passive_income }}</p>
-  <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}{% if scenario.monthly_income %} · {{ text.monthly_income }}: {{ scenario.monthly_income }}{{ text.per_month }}{% endif %}</p>
+  <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}{% if scenario.monthly_income %} · {{ text.monthly_income }}: {{ scenario.monthly_income }} {{ scenario.monthly_income_currency }}{{ text.per_month }}{% endif %}</p>
   {% if scenario.description %}<p class="scenario-description">{{ scenario.description }}</p>{% endif %}
   <div class="conversion-rates">
     <span tabindex="0">{{ text.conversion_rates }}</span>
