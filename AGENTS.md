@@ -4,19 +4,21 @@ See [README.md](./README.md) for the project overview.
 
 ## Collaboration style
 
-Keep plans and implementation narrowly scoped into small, reviewable
-architectural chunks. After each chunk, suggest a practical file-review
-order and wait for Gui's explicit approval before starting the next chunk.
+Implement features in small, reviewable chunks. After each chunk, report what
+changed and wait for Gui's explicit approval before starting the next chunk.
 
-Before starting a meaningfully big or architecturally consequential chunk,
-write a plan to `tmp/<goal-name>.md` describing scope and approach. Use a plan
-when the work has material design choices, spans several coordinated behaviors,
-or needs its scope agreed before implementation. Do not require one for a
-small, well-specified lift with an obvious implementation, such as a localized
-presentation tweak, a straightforward configuration field, or focused test
-updates. Proposing a chunk and asking a scoping question is not approval—do
-not write, edit, or run anything for that planned chunk until Gui explicitly
-approves the plan file.
+Before starting a meaningfully big or architecturally consequential feature,
+write one concise feature plan to `tmp/plan.md`, overwriting it for each new
+feature. Use one when the work has material design choices, spans several
+coordinated behaviors, or needs its scope agreed before implementation. Keep
+it short and use only these sections: `Outcome` (the completed feature),
+`Steps` (the full sequence of reviewable chunks), and `Next` (follow-up ideas
+outside the feature). Mark each step `[ ]` or `[Done]`; after an
+approved chunk, update only those markers before asking approval for the next
+one. Do not require a plan for a small, well-specified lift with an obvious
+implementation. Proposing a feature and asking a
+scoping question is not approval—do not write, edit, or run anything for its
+first chunk until Gui explicitly approves the plan.
 
 Gui is activelly learning Rust, which means you need to be extra-explicit
 when he asks questions. Do not take such questions as requests for changing
