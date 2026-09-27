@@ -27,6 +27,8 @@ currency = "USD"
 # `end` may equal `start`, but cannot be before it.
 start = "2026-01"
 end = "2030-12"
+# Optional annual retirement withdrawal rate; defaults to 4%.
+withdrawal_rate = "0.04"
 
 # Optional static rates. One BTC equals 67,500.25 USD.
 [[conversion_rates]]
@@ -327,7 +329,12 @@ and dimmed so the asset can be restored. The inspector also provides show-all
 and hide-all actions. Visibility follows same-ID assets across scenario switches
 but never changes projected balances or total net worth. The passive-income
 summary includes its annualized yield (monthly passive income multiplied by
-twelve, divided by total balance).
+twelve, divided by total balance). `plan.withdrawal_rate` is an optional annual
+decimal rate greater than zero and no more than one; it defaults to `"0.04"`.
+It is used only for the dashboard's end-of-plan retirement-withdrawal estimate
+and does not alter projections or configured withdrawals. **Resumo do plano**
+defaults to monthly passive income; its display switch can show that retirement
+withdrawal estimate instead with the **Safe withdrawal rate** switch.
 
 Recorded actual balances are shared across scenarios and are end-of-month
 checkpoints: an observed asset balance replaces its projection for that month,

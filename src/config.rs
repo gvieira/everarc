@@ -76,6 +76,11 @@ pub struct Plan {
     pub currency: Currency,
     pub start: Month,
     pub end: Month,
+    #[serde(
+        default = "default_withdrawal_rate",
+        deserialize_with = "deserialize_rate"
+    )]
+    pub withdrawal_rate: Decimal,
 }
 
 impl Plan {
@@ -547,6 +552,10 @@ fn inherit_decimal() -> Decimal {
     INHERIT_DECIMAL
 }
 
+fn default_withdrawal_rate() -> Decimal {
+    Decimal::new(4, 2)
+}
+
 fn deserialize_rate<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
 where
     D: Deserializer<'de>,
@@ -693,6 +702,8 @@ pub enum ConfigError {
     },
     #[error("plan end month {end} is before start month {start}")]
     InvalidPlanRange { start: Month, end: Month },
+    #[error("plan withdrawal rate {rate} must be greater than zero and no more than one")]
+    InvalidWithdrawalRate { rate: Decimal },
     #[error("actual-balance month {month} is outside the plan range")]
     ActualBalanceOutsidePlan { month: Month },
     #[error("actual balance refers to unknown asset `{asset_id}`")]
@@ -1875,6 +1886,11 @@ impl Plan {
             return Err(ConfigError::InvalidPlanRange {
                 start: self.start,
                 end: self.end,
+            });
+        }
+        if self.withdrawal_rate <= Decimal::ZERO || self.withdrawal_rate > Decimal::ONE {
+            return Err(ConfigError::InvalidWithdrawalRate {
+                rate: self.withdrawal_rate,
             });
         }
 

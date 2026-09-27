@@ -42,6 +42,27 @@ value = "0"
 }
 
 #[test]
+fn defaults_plan_withdrawal_rate_to_four_percent() {
+    assert_eq!(
+        recurring_adjustment_config("").plan.withdrawal_rate,
+        Decimal::new(4, 2)
+    );
+}
+
+#[test]
+fn rejects_invalid_plan_withdrawal_rates() {
+    for rate in [Decimal::ZERO, Decimal::new(101, 2)] {
+        let mut config = recurring_adjustment_config("");
+        config.plan.withdrawal_rate = rate;
+
+        assert!(matches!(
+            config.validate(),
+            Err(ConfigError::InvalidWithdrawalRate { rate: invalid_rate }) if invalid_rate == rate
+        ));
+    }
+}
+
+#[test]
 fn formats_and_chains_configuration_read_errors() {
     let error = ConfigError::Read {
         path: PathBuf::from("missing.toml"),

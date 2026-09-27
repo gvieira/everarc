@@ -145,6 +145,10 @@ impl<'config> PlanContext<'config> {
         self.plan.inclusive_month_count()
     }
 
+    pub fn withdrawal_rate(&self) -> Decimal {
+        self.plan.withdrawal_rate
+    }
+
     pub fn conversion_rates(&self) -> &'config [ConversionRate] {
         self.conversion_rates
     }

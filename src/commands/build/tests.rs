@@ -85,6 +85,10 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(html.contains("chartAssetActive.toLowerCase() === \"true\""));
     assert!(html.contains("Atingida em 04&#x2f;2043"));
     assert!(html.contains("data-scenario-plan-summary data-scenario-id=\"baseline\""));
+    assert!(html.contains("data-safe-withdrawal-rate-toggle"));
+    assert!(html.contains("Taxa de retirada segura"));
+    assert!(html.contains("data-monthly-withdrawal="));
+    assert!(html.contains("setPlanSummaryWithdrawalRate(card, toggle.checked)"));
     assert!(html.contains("data-scenario-default=\"true\""));
     assert!(html.contains(
         "Base <span class=\"scenario-selection-mark\" aria-label=\"Selecionado\">★</span><span class=\"scenario-description-tooltip\" role=\"tooltip\">Projeção com retornos, inflação e aportes esperados.</span>"
@@ -93,8 +97,8 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
         "<p class=\"scenario-description\">Projeção com retornos, inflação e aportes esperados.</p>"
     ));
     assert!(html.contains("scenario-selection-mark\" aria-label=\"Selecionado\">★</span>"));
-    assert!(html.contains("<p class=\"passive-income\">12.456,32</p>"));
-    assert!(html.contains("<p class=\"passive-income\">14.293,62</p>"));
+    assert!(html.contains("data-passive-income=\"12.456,32\""));
+    assert!(html.contains("data-passive-income=\"14.293,62\""));
     assert!(html.contains("<div class=\"conversion-rates\">"));
     assert!(html.contains("1 BTC = 85.000,00 USD"));
     assert!(html.contains("<span>Car purchase</span><strong>-25.000,00</strong>"));

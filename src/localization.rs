@@ -46,6 +46,8 @@ pub struct DashboardText {
     pub total_net_worth: &'static str,
     pub plan_summary: &'static str,
     pub end_of_plan_passive_income: &'static str,
+    pub end_of_plan_monthly_withdrawal: &'static str,
+    pub safe_withdrawal_rate: &'static str,
     pub monthly_income: &'static str,
     pub conversion_rates: &'static str,
     pub no_conversion_rates: &'static str,
@@ -137,6 +139,7 @@ pub struct DashboardScenarioPresentation<'projection> {
     pub is_default: bool,
     pub annual_inflation: String,
     pub end_of_plan_passive_income: String,
+    pub end_of_plan_monthly_withdrawal: String,
     pub monthly_income: Option<String>,
     pub monthly_income_currency: Option<String>,
     pub chart_path: String,
@@ -368,6 +371,16 @@ impl<'projection> DashboardPresentation<'projection> {
                             .filter_map(|asset| asset.monthly_balances.last())
                             .map(|month| month.plan_passive_income)
                             .sum(),
+                        locale,
+                    ),
+                    end_of_plan_monthly_withdrawal: format_number(
+                        scenario
+                            .total_net_worth
+                            .last()
+                            .expect("projections include every plan month")
+                            .balance
+                            * projection.plan.withdrawal_rate()
+                            / Decimal::from(12),
                         locale,
                     ),
                     monthly_income: scenario
@@ -609,6 +622,8 @@ impl DashboardText {
                 total_net_worth: "Total net worth",
                 plan_summary: "Plan summary",
                 end_of_plan_passive_income: "Monthly passive income at the end of the plan",
+                end_of_plan_monthly_withdrawal: "Estimated monthly retirement withdrawal",
+                safe_withdrawal_rate: "Safe withdrawal rate",
                 monthly_income: "Monthly income",
                 conversion_rates: "Conversion rates",
                 no_conversion_rates: "No conversion rates configured.",
@@ -667,6 +682,8 @@ impl DashboardText {
                 total_net_worth: "Patrimônio líquido total",
                 plan_summary: "Resumo do plano",
                 end_of_plan_passive_income: "Renda passiva mensal ao fim do plano",
+                end_of_plan_monthly_withdrawal: "Retirada mensal estimada na aposentadoria",
+                safe_withdrawal_rate: "Taxa de retirada segura",
                 monthly_income: "Renda mensal",
                 conversion_rates: "Taxas de conversão",
                 no_conversion_rates: "Nenhuma taxa de conversão configurada.",

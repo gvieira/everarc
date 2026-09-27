@@ -22,8 +22,12 @@
 <section class="paper-card net-worth-card" data-scenario-plan-summary data-scenario-id="{{ scenario.id }}" {% if not scenario.is_default %}hidden{% endif %}>
   <div class="tape tape-peach"></div>
   <p class="eyebrow"><span class="ink-dot"></span>{{ text.plan_summary }}</p>
-  <p class="passive-income">{{ scenario.end_of_plan_passive_income }}</p>
-  <p class="passive-income-label">{{ text.end_of_plan_passive_income }}</p>
+  <p class="passive-income" data-plan-summary-value data-passive-income="{{ scenario.end_of_plan_passive_income }}" data-monthly-withdrawal="{{ scenario.end_of_plan_monthly_withdrawal }}">{{ scenario.end_of_plan_passive_income }}</p>
+  <p class="passive-income-label" data-plan-summary-label data-passive-label="{{ text.end_of_plan_passive_income }}" data-withdrawal-label="{{ text.end_of_plan_monthly_withdrawal }}">{{ text.end_of_plan_passive_income }}</p>
+  <label class="plan-summary-toggle">
+    <input type="checkbox" data-safe-withdrawal-rate-toggle>
+    <span>{{ text.safe_withdrawal_rate }}</span>
+  </label>
   <p class="plan-context">{{ plan.currency }} · {{ plan.start }} → {{ plan.end }} · {{ plan.duration }}{% if scenario.monthly_income %} · {{ text.monthly_income }}: {{ scenario.monthly_income }} {{ scenario.monthly_income_currency }}{{ text.per_month }}{% endif %}</p>
   {% if scenario.description %}<p class="scenario-description">{{ scenario.description }}</p>{% endif %}
   <div class="conversion-rates">

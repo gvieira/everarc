@@ -632,6 +632,10 @@ value = "100"
     assert_eq!(january.actual_total_difference.as_deref(), Some("+0.00"));
     assert_eq!(asset.actual_native_balance.as_deref(), Some("90.00"));
     assert_eq!(asset.native_balance_difference.as_deref(), Some("+0.00"));
+    assert_eq!(
+        dashboard.scenarios[0].end_of_plan_monthly_withdrawal,
+        "0.33"
+    );
     assert_eq!(dashboard.scenarios[0].chart_months[1].total, "100.00");
     assert!(dashboard.scenarios[0].actual_chart_path.contains("M 80"));
 }
