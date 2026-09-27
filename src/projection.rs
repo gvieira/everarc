@@ -1235,6 +1235,13 @@ fn project_asset<'config>(
                     + native_monthly_contribution
                     - native_monthly_withdrawal
                     + adjustment_total;
+                if let Some(actual_balance) = config
+                    .actual_balances
+                    .get(&month)
+                    .and_then(|balances| balances.get(&asset.id))
+                {
+                    native_balance = actual_balance.0;
+                }
             }
             let projection = AssetMonthProjection {
                 month,

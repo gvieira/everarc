@@ -329,14 +329,17 @@ but never changes projected balances or total net worth. The passive-income
 summary includes its annualized yield (monthly passive income multiplied by
 twelve, divided by total balance).
 
-Recorded actual balances are shared across scenarios. The projection chart can
-shows one translucent actual-total area; it has a value only for months where
-every asset active in the selected scenario has a recorded balance, so partial
-months produce gaps rather than misleading totals. The selected-month inspector
-shows each active asset's planned balance, recorded actual balance, and signed
-actual-minus-planned difference; missing records appear as an em dash when other assets have observations for
-the selected month. Foreign-currency actuals use the configured static
-conversion rates for total comparison.
+Recorded actual balances are shared across scenarios and are end-of-month
+checkpoints: an observed asset balance replaces its projection for that month,
+and its projection resumes from the real balance in the following month. The
+projection chart shows one translucent actual-total area; it has a value only
+for months where every asset active in the selected scenario has a recorded
+balance, so partial months produce gaps rather than misleading totals. The
+selected-month inspector shows each active asset's projected balance, recorded
+actual balance, and signed actual-minus-projected difference; missing records
+appear as an em dash when other assets have observations for the selected month.
+Foreign-currency actuals use the configured static conversion rates for total
+comparison.
 
 `[[future_living_costs]]` is an optional collection of expected monthly living
 costs at the plan's end, expressed in today's `plan.currency` purchasing power.

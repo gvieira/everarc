@@ -603,9 +603,6 @@ end = "2026-02"
 [actual_balances."2026-01"]
 cash = "90"
 
-[actual_balances."2026-02"]
-cash = "120"
-
 [[scenarios]]
 id = "base"
 name = "Base"
@@ -616,7 +613,7 @@ id = "cash"
 name = "Cash"
 currency = "USD"
 annual_expected_return = "0"
-monthly_contribution = { amount = "0", currency = "USD" }
+monthly_contribution = { amount = "10", currency = "USD" }
 
 [[scenarios.assets.holdings]]
 id = "opening"
@@ -632,8 +629,9 @@ value = "100"
     let asset = &january.assets[0];
 
     assert_eq!(january.actual_total.as_deref(), Some("90.00"));
-    assert_eq!(january.actual_total_difference.as_deref(), Some("-10.00"));
+    assert_eq!(january.actual_total_difference.as_deref(), Some("+0.00"));
     assert_eq!(asset.actual_native_balance.as_deref(), Some("90.00"));
-    assert_eq!(asset.native_balance_difference.as_deref(), Some("-10.00"));
+    assert_eq!(asset.native_balance_difference.as_deref(), Some("+0.00"));
+    assert_eq!(dashboard.scenarios[0].chart_months[1].total, "100.00");
     assert!(dashboard.scenarios[0].actual_chart_path.contains("M 80"));
 }
