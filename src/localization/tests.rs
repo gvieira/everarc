@@ -92,6 +92,60 @@ target = "1500"
 }
 
 #[test]
+fn marks_asset_lifecycle_changes_as_notable_months() {
+    let config = config(
+        r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-04"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+starts = "2026-02"
+ends = "2026-03"
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+"#,
+    );
+    let projection = PlanProjection::from(&config);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
+    let months = &dashboard.scenarios[0].chart_months;
+
+    assert!(!months[0].has_notable_change);
+    assert!(months[1].has_notable_change);
+    assert!(months[2].has_notable_change);
+    assert!(!months[3].has_notable_change);
+    assert_eq!(months[1].assets[0].lifecycle_change, Some("Started"));
+    assert_eq!(months[2].assets[0].lifecycle_change, Some("Ended"));
+    assert_eq!(
+        dashboard.scenarios[0].chart_assets[0]
+            .lifecycle_markers
+            .iter()
+            .map(|marker| marker.kind)
+            .collect::<Vec<_>>(),
+        vec!["start", "end"]
+    );
+}
+
+#[test]
 fn chart_month_inspector_includes_converted_asset_values() {
     let config = config(
         r#"

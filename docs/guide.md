@@ -319,12 +319,16 @@ scenario has `monthly_income`, the contribution value also shows the net
 recurring investment (contributions minus withdrawals) as a percentage of that
 income. A persistent inspector below the
 charts follows the selected month and shows each
-active asset's balance, return, contribution, withdrawal, passive income, and
-that month's events. Click a month to pin its cursor and inspectors while moving
+active asset's balance, return, contribution, withdrawal, passive income,
+lifecycle changes, and that month's events. Click a month to pin its cursor and inspectors while moving
 the pointer; click that month again to unpin it, or click another month to move
-the pin. Keyboard month navigation also pins its selection. Dragging a zoomed
-chart pans without changing the pin. Each asset card's eye button shows or hides
-that asset's chart line, event markers, and milestones; the card stays visible
+the pin. When pinned, arrow buttons move to the previous or next notable month:
+a month containing an asset event or an asset starting or ending. Keyboard month
+navigation also pins its selection. Dragging a zoomed
+chart pans without changing the pin. Asset starts and ends appear as upward and
+downward triangle markers; hovering or focusing one identifies the asset and
+change. Each asset card's eye button shows or hides that asset's chart line,
+event markers, lifecycle markers, and milestones; the card stays visible
 and dimmed so the asset can be restored. The inspector also provides show-all
 and hide-all actions. Visibility follows same-ID assets across scenario switches
 but never changes projected balances or total net worth. The passive-income

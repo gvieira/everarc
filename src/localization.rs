@@ -77,6 +77,10 @@ pub struct DashboardText {
     pub reset_zoom: &'static str,
     pub pinned: &'static str,
     pub pin_instruction: &'static str,
+    pub previous_notable_month: &'static str,
+    pub next_notable_month: &'static str,
+    pub asset_started: &'static str,
+    pub asset_ended: &'static str,
     pub show_asset: &'static str,
     pub hide_asset: &'static str,
     pub show_all_assets: &'static str,
@@ -160,6 +164,7 @@ pub struct DashboardChartAssetLinePresentation<'projection> {
     pub asset_index: usize,
     pub color_index: usize,
     pub event_markers: Vec<DashboardChartEventMarker>,
+    pub lifecycle_markers: Vec<DashboardChartLifecycleMarker>,
     pub milestone_markers: Vec<DashboardChartAssetMilestone<'projection>>,
 }
 
@@ -167,6 +172,14 @@ pub struct DashboardChartAssetLinePresentation<'projection> {
 pub struct DashboardChartEventMarker {
     pub x: String,
     pub y: String,
+}
+
+#[derive(Serialize)]
+pub struct DashboardChartLifecycleMarker {
+    pub x: String,
+    pub y: String,
+    pub kind: &'static str,
+    pub label: &'static str,
 }
 
 #[derive(Serialize)]
@@ -191,6 +204,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub actual_total_difference: Option<String>,
     pub actual_total_difference_is_positive: Option<bool>,
     pub has_actual_asset_balances: bool,
+    pub has_notable_change: bool,
     pub monthly_contributions: String,
     pub monthly_contributions_amount: String,
     pub has_monthly_contributions: bool,
@@ -232,6 +246,7 @@ pub struct DashboardChartAssetPresentation<'projection> {
     pub actual_comparable_plan_balance: Option<String>,
     pub plan_balance_difference: Option<String>,
     pub events: Vec<DashboardAssetEventPresentation<'projection>>,
+    pub lifecycle_change: Option<&'static str>,
 }
 
 #[derive(Serialize)]
@@ -432,6 +447,29 @@ impl<'projection> DashboardPresentation<'projection> {
                                 .map(|(index, balance)| DashboardChartEventMarker {
                                     x: chart_x(index, asset.monthly_balances.len() - 1),
                                     y: chart_y(balance.plan_balance, chart_scale.maximum),
+                                })
+                                .collect(),
+                            lifecycle_markers: asset
+                                .monthly_balances
+                                .iter()
+                                .enumerate()
+                                .filter_map(|(index, balance)| {
+                                    let starts = index > 0
+                                        && !asset.monthly_balances[index - 1].is_active
+                                        && balance.is_active;
+                                    let ends = index + 1 < asset.monthly_balances.len()
+                                        && balance.is_active
+                                        && !asset.monthly_balances[index + 1].is_active;
+                                    (starts || ends).then(|| DashboardChartLifecycleMarker {
+                                        x: chart_x(index, asset.monthly_balances.len() - 1),
+                                        y: chart_y(balance.plan_balance, chart_scale.maximum),
+                                        kind: if starts { "start" } else { "end" },
+                                        label: if starts {
+                                            text.asset_started
+                                        } else {
+                                            text.asset_ended
+                                        },
+                                    })
                                 })
                                 .collect(),
                             milestone_markers: scenario
@@ -653,6 +691,10 @@ impl DashboardText {
                 reset_zoom: "Show full plan",
                 pinned: "Pinned",
                 pin_instruction: "Click a month to pin/unpin",
+                previous_notable_month: "Previous notable month",
+                next_notable_month: "Next notable month",
+                asset_started: "Started",
+                asset_ended: "Ended",
                 show_asset: "Show",
                 hide_asset: "Hide",
                 show_all_assets: "Show all",
@@ -713,6 +755,10 @@ impl DashboardText {
                 reset_zoom: "Mostrar plano completo",
                 pinned: "Fixado",
                 pin_instruction: "Clique em um mês para fixar/desafixar",
+                previous_notable_month: "Mês notável anterior",
+                next_notable_month: "Próximo mês notável",
+                asset_started: "Iniciado",
+                asset_ended: "Encerrado",
                 show_asset: "Mostrar",
                 hide_asset: "Ocultar",
                 show_all_assets: "Mostrar todos",
@@ -1030,6 +1076,19 @@ fn chart_months<'projection>(
                     .map(|total| total.difference >= Decimal::ZERO),
                 has_actual_asset_balances: month_comparison
                     .is_some_and(|comparison| !comparison.assets.is_empty()),
+                has_notable_change: scenario
+                    .asset_events
+                    .iter()
+                    .any(|event| event.date == total.month)
+                    || scenario.assets.iter().any(|asset| {
+                        let balance = &asset.monthly_balances[index];
+                        (index > 0
+                            && !asset.monthly_balances[index - 1].is_active
+                            && balance.is_active)
+                            || (index + 1 < asset.monthly_balances.len()
+                                && balance.is_active
+                                && !asset.monthly_balances[index + 1].is_active)
+                    }),
                 monthly_contributions: format_number(
                     total_monthly_contributions(scenario, index, plan_currency, conversion_rates),
                     locale,
@@ -1215,6 +1274,19 @@ fn chart_months<'projection>(
                                     })
                                 })
                                 .flatten(),
+                            lifecycle_change: if index > 0
+                                && !asset.monthly_balances[index - 1].is_active
+                                && balance.is_active
+                            {
+                                Some(text.asset_started)
+                            } else if index + 1 < asset.monthly_balances.len()
+                                && balance.is_active
+                                && !asset.monthly_balances[index + 1].is_active
+                            {
+                                Some(text.asset_ended)
+                            } else {
+                                None
+                            },
                             events: scenario
                                 .asset_events
                                 .iter()

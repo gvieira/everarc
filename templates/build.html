@@ -115,6 +115,9 @@
       .target-line { fill: none; stroke: #d55151; stroke-dasharray: 8 7; stroke-width: 2; }
       .target-label { fill: #b63f3f; font: 700 11px "Space Mono", monospace; }
       .chart-asset-milestone { fill: var(--card); stroke-width: 2.8; stroke-linejoin: round; }
+      .chart-asset-lifecycle-marker { fill: var(--card); stroke-width: 2.8; stroke-linejoin: round; }
+      .chart-asset-lifecycle-start { fill: var(--mint); }
+      .chart-asset-lifecycle-end { fill: var(--peach); }
       .axis { fill: none; stroke: var(--ink); stroke-width: 2.4; }
       .total-shadow { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; transform: translate(2px, 2px); }
       .asset-line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; opacity: .78; }
@@ -136,14 +139,14 @@
       .chart-card.is-month-pinned .chart-cursor-point { fill: var(--lavender); }
       .chart-event-marker { fill: var(--card); stroke-width: 2.5; }
       .chart-event-marker { opacity: 1; }
-      .chart-event-marker.asset-line-0, .chart-asset-milestone.asset-line-0 { stroke: #62a7dc; }
-      .chart-event-marker.asset-line-1, .chart-asset-milestone.asset-line-1 { stroke: #d99a74; }
-      .chart-event-marker.asset-line-2, .chart-asset-milestone.asset-line-2 { stroke: #8580d7; }
-      .chart-event-marker.asset-line-3, .chart-asset-milestone.asset-line-3 { stroke: #5eae78; }
-      .chart-event-marker.asset-line-4, .chart-asset-milestone.asset-line-4 { stroke: #bb7fa6; }
-      .chart-event-marker.asset-line-5, .chart-asset-milestone.asset-line-5 { stroke: #b28a32; }
-      .chart-event-marker.asset-line-6, .chart-asset-milestone.asset-line-6 { stroke: #3f9c9c; }
-      .chart-event-marker.asset-line-7, .chart-asset-milestone.asset-line-7 { stroke: #c56868; }
+      .chart-event-marker.asset-line-0, .chart-asset-milestone.asset-line-0, .chart-asset-lifecycle-marker.asset-line-0 { stroke: #62a7dc; }
+      .chart-event-marker.asset-line-1, .chart-asset-milestone.asset-line-1, .chart-asset-lifecycle-marker.asset-line-1 { stroke: #d99a74; }
+      .chart-event-marker.asset-line-2, .chart-asset-milestone.asset-line-2, .chart-asset-lifecycle-marker.asset-line-2 { stroke: #8580d7; }
+      .chart-event-marker.asset-line-3, .chart-asset-milestone.asset-line-3, .chart-asset-lifecycle-marker.asset-line-3 { stroke: #5eae78; }
+      .chart-event-marker.asset-line-4, .chart-asset-milestone.asset-line-4, .chart-asset-lifecycle-marker.asset-line-4 { stroke: #bb7fa6; }
+      .chart-event-marker.asset-line-5, .chart-asset-milestone.asset-line-5, .chart-asset-lifecycle-marker.asset-line-5 { stroke: #b28a32; }
+      .chart-event-marker.asset-line-6, .chart-asset-milestone.asset-line-6, .chart-asset-lifecycle-marker.asset-line-6 { stroke: #3f9c9c; }
+      .chart-event-marker.asset-line-7, .chart-asset-milestone.asset-line-7, .chart-asset-lifecycle-marker.asset-line-7 { stroke: #c56868; }
       .chart-grid, .target-line, .target-label, .asset-line, .total-line, .chart-event-marker, .chart-cursor, .axis { pointer-events: none; }
       .is-chart-asset-hidden { display: none; }
       .chart-hit-area { fill: transparent; cursor: crosshair; }
@@ -163,6 +166,10 @@
       .chart-month-inspector-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: .65rem; }
       .chart-month-inspector-heading strong { font: 700 .78rem/1.2 "Space Mono", monospace; }
       .chart-month-selection { display: inline-flex; align-items: center; gap: .5rem; }
+      .chart-notable-month-navigation { display: none; gap: .25rem; }
+      .chart-card.is-month-pinned .chart-notable-month-navigation { display: inline-flex; }
+      .chart-notable-month-navigation button { width: 1.5rem; height: 1.5rem; padding: 0; border: 1px solid var(--line); border-radius: .3rem; background: var(--paper); color: var(--ink); cursor: pointer; font: inherit; }
+      .chart-notable-month-navigation button:disabled { cursor: default; opacity: .45; }
       .chart-pin-indicator { padding: .15rem .35rem; background: var(--lavender); border-radius: 4px 3px 5px 3px; color: var(--ink); font: 700 .58rem/1.2 "Space Mono", monospace; letter-spacing: .06em; text-transform: uppercase; visibility: hidden; }
       .chart-pin-indicator.is-visible { visibility: visible; }
       .chart-inspector-heading-assets { display: flex; align-items: baseline; gap: .65rem; }
@@ -182,10 +189,11 @@
       .chart-eye, .chart-eye-slash { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
       .chart-eye-slash { opacity: 0; }
       .chart-inspector-asset.is-chart-hidden .chart-eye-slash { opacity: 1; }
-      .chart-inspector-asset.is-chart-hidden .chart-inspector-asset-title, .chart-inspector-asset.is-chart-hidden .chart-inspector-values, .chart-inspector-asset.is-chart-hidden .chart-asset-assumptions, .chart-inspector-asset.is-chart-hidden .chart-asset-event { opacity: .42; }
+      .chart-inspector-asset.is-chart-hidden .chart-inspector-asset-title, .chart-inspector-asset.is-chart-hidden .chart-inspector-values, .chart-inspector-asset.is-chart-hidden .chart-asset-assumptions, .chart-inspector-asset.is-chart-hidden .chart-asset-lifecycle-change, .chart-inspector-asset.is-chart-hidden .chart-asset-event { opacity: .42; }
       .chart-inspector-comparable { font-size: inherit; letter-spacing: 0; text-transform: none; }
       .chart-asset-assumptions { display: flex; flex-wrap: wrap; gap: .5rem; }
       .chart-asset-assumption { color: #6f6861; font-size: .62rem; font-weight: 700; }
+      .chart-asset-lifecycle-change { color: #6f6861; font-size: .64rem; font-weight: 700; }
       .chart-asset-event { display: flex; justify-content: space-between; gap: .7rem; color: #6f6861; font-size: .64rem; font-weight: 700; }
       .chart-asset-event strong { color: var(--ink); white-space: nowrap; }
       .chart-actual-comparison { display: grid; gap: .18rem; margin-top: .3rem; padding-top: .45rem; border-top: 1px dashed var(--line); color: var(--ink); font-size: .65rem; }
@@ -397,6 +405,17 @@
           const pinIndicator = inspector.querySelector("[data-chart-pin-indicator]");
           pinIndicator.classList.toggle("is-visible", isPinned);
           pinIndicator.setAttribute("aria-hidden", String(!isPinned));
+          const notableMonths = months
+            .map((month, monthIndex) => month.hasAttribute("data-chart-notable-month") ? monthIndex : null)
+            .filter((monthIndex) => monthIndex !== null);
+          const previousNotableMonth = notableMonths.filter((monthIndex) => monthIndex < index).pop();
+          const nextNotableMonth = notableMonths.find((monthIndex) => monthIndex > index);
+          const previousNotableButton = inspector.querySelector("[data-chart-previous-notable-month]");
+          const nextNotableButton = inspector.querySelector("[data-chart-next-notable-month]");
+          previousNotableButton.disabled = previousNotableMonth === undefined;
+          nextNotableButton.disabled = nextNotableMonth === undefined;
+          previousNotableButton.dataset.chartNotableMonthIndex = previousNotableMonth ?? "";
+          nextNotableButton.dataset.chartNotableMonthIndex = nextNotableMonth ?? "";
           const frame = chart.querySelector(".chart-frame");
           const svgBounds = chart.querySelector("svg").getBoundingClientRect();
           const frameBounds = frame.getBoundingClientRect();
@@ -536,6 +555,11 @@
               if (hiddenChartAssetIds.has(assetId)) hiddenChartAssetIds.delete(assetId);
               else hiddenChartAssetIds.add(assetId);
               applyAllChartAssetVisibility();
+              return;
+            }
+            const notableMonthButton = event.target.closest("[data-chart-previous-notable-month], [data-chart-next-notable-month]");
+            if (notableMonthButton) {
+              pinChartMonth(chart, Number(notableMonthButton.dataset.chartNotableMonthIndex));
               return;
             }
             if (event.target.closest("[data-chart-assets-show-all]")) {
@@ -730,7 +754,7 @@
                 .filter((point, index, all) => point.active && (point.command = index === 0 || !all[index - 1].active ? "M" : "L"));
               chart.querySelector(`[data-chart-asset-line="${assetIndex}"]`).setAttribute("d", points.map((point) => `${point.command} ${point.x} ${point.y}`).join(" "));
             });
-            chart.querySelectorAll(".chart-event-marker, [data-chart-milestone-marker]").forEach((marker) => {
+            chart.querySelectorAll(".chart-event-marker, [data-chart-milestone-marker], [data-chart-lifecycle-marker]").forEach((marker) => {
               const pathCoordinates = marker.getAttribute("d")?.match(/^M([^ ]+) ([^ ]+)/);
               const x = Number(marker.getAttribute("cx") ?? pathCoordinates?.[1]);
               const index = marker.dataset.chartMonthIndex ??= String(monthIndexForX(x));
@@ -901,7 +925,7 @@
               }
             });
           });
-          for (const marker of chart.querySelectorAll("[data-chart-milestone-marker]")) {
+          for (const marker of chart.querySelectorAll("[data-chart-milestone-marker], [data-chart-lifecycle-marker]")) {
             const restoreMonthHover = () => {
               showChartMonth(chart, Number(chart.dataset.chartMonthIndex ?? 0));
             };
