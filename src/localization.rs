@@ -28,6 +28,10 @@ pub struct DashboardPresentation<'projection> {
 pub struct DashboardText {
     pub scenario: &'static str,
     pub choose_scenario: &'static str,
+    pub appearance: &'static str,
+    pub automatic_theme: &'static str,
+    pub light_mode: &'static str,
+    pub dark_mode: &'static str,
     pub selected: &'static str,
     pub scenarios: &'static str,
     pub annual_inflation: &'static str,
@@ -642,6 +646,10 @@ impl DashboardText {
             Locale::EnUs => Self {
                 scenario: "Scenario",
                 choose_scenario: "Choose a scenario",
+                appearance: "Appearance",
+                automatic_theme: "Auto",
+                light_mode: "Light",
+                dark_mode: "Dark",
                 selected: "Selected",
                 scenarios: "scenarios",
                 annual_inflation: "Annual inflation",
@@ -706,6 +714,10 @@ impl DashboardText {
             Locale::PtBr => Self {
                 scenario: "Cenário",
                 choose_scenario: "Escolha um cenário",
+                appearance: "Aparência",
+                automatic_theme: "Auto",
+                light_mode: "Claro",
+                dark_mode: "Escuro",
                 selected: "Selecionado",
                 scenarios: "cenários",
                 annual_inflation: "Inflação anual",

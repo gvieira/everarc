@@ -18,6 +18,20 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
     assert!(!html.contains("Car purchase -25.000,00"));
     assert!(!html.contains("<title>Everarc ·"));
     assert!(html.contains("<title>Everarc</title>"));
+    assert!(html.contains("<footer class=\"dashboard-footer\">\n        <fieldset class=\"theme-picker\" data-theme-picker>"));
+    assert!(html.contains("</div>\n      <footer class=\"dashboard-footer\">"));
+    assert!(html.contains("<legend>Aparência</legend>"));
+    assert!(html.contains("name=\"dashboard-theme\" value=\"auto\" checked><span>Auto</span>"));
+    assert!(html.contains("name=\"dashboard-theme\" value=\"light\"><span>Claro</span>"));
+    assert!(html.contains("name=\"dashboard-theme\" value=\"dark\"><span>Escuro</span>"));
+    assert!(html.contains("(prefers-color-scheme: dark)"));
+    assert!(html.contains("localStorage.getItem(\"everarc-theme\")"));
+    assert!(html.contains("localStorage.setItem(\"everarc-theme\", preference)"));
+    assert!(html.contains("localStorage.removeItem(\"everarc-theme\")"));
+    assert!(html.contains("systemTheme.addEventListener(\"change\""));
+    assert!(html.contains("dataset.themePreference === \"auto\""));
+    assert!(html.contains("html[data-theme=\"dark\"]"));
+    assert!(html.contains("html[data-theme=\"dark\"] .scenario-switcher"));
     assert!(html.contains("↗7,00%"));
     assert!(html.contains("+3.000,00 USD</span>"));
     assert!(!html.contains("−0,00 USD"));
@@ -143,6 +157,23 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
         assert!(!value.contains("USD"));
     }
     assert!(html.contains("BTC</span>"));
+}
+
+#[test]
+fn renders_english_appearance_options() {
+    let mut config: Config =
+        toml::from_str(include_str!("../../../everarc.toml")).expect("sample configuration parses");
+    config.display.locale = crate::config::Locale::EnUs;
+    config.validate().expect("sample configuration validates");
+    let projection = PlanProjection::from(&config);
+    let dashboard =
+        DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
+    let html = render_dashboard(&dashboard).expect("dashboard renders");
+
+    assert!(html.contains("<legend>Appearance</legend>"));
+    assert!(html.contains("value=\"auto\" checked><span>Auto</span>"));
+    assert!(html.contains("value=\"light\"><span>Light</span>"));
+    assert!(html.contains("value=\"dark\"><span>Dark</span>"));
 }
 
 #[test]

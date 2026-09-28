@@ -140,6 +140,11 @@ to follow. At most one scenario may be selected. The dashboard opens on it and
 marks it in the scenario bar; when none is selected, it opens on the first
 scenario.
 
+The generated dashboard's **Appearance** selector in the footer defaults to **Auto**, following
+your browser's light/dark setting, including changes while the dashboard is open.
+Choose **Light** or **Dark** to override it; your choice is saved in this browser
+when storage is available. Choose **Auto** again to clear the saved override.
+
 ## Actual balances
 
 Optional actual end-of-month balances are shared across scenarios and grouped by
