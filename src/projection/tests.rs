@@ -65,10 +65,23 @@ value = "100"
     let base = &projection.scenarios[0].assets[0].monthly_balances;
     let higher = &projection.scenarios[1].assets[0].monthly_balances;
 
+    assert_eq!(base[0].pre_actual_native_balance, Decimal::new(110, 0));
     assert_eq!(base[0].native_balance, Decimal::new(150, 0));
+    assert_eq!(base[1].pre_actual_native_balance, Decimal::new(160, 0));
     assert_eq!(base[1].native_balance, Decimal::new(160, 0));
+    assert_eq!(higher[0].pre_actual_native_balance, Decimal::new(120, 0));
     assert_eq!(higher[0].native_balance, Decimal::new(150, 0));
     assert_eq!(higher[1].native_balance, Decimal::new(170, 0));
+
+    let comparisons = ActualBalanceComparisons::new(&config, &projection);
+    assert_eq!(
+        comparisons.scenarios[0].months[0].assets[0].native_difference,
+        Decimal::new(40, 0)
+    );
+    assert_eq!(
+        comparisons.scenarios[1].months[0].assets[0].native_difference,
+        Decimal::new(30, 0)
+    );
 }
 
 #[test]
@@ -1429,26 +1442,42 @@ value = "10"
     assert_eq!(cash_only.scenario_id, "cash-only");
     assert_eq!(cash_only.months[1].month.to_string(), "2026-02");
     assert_eq!(cash_only.months[1].assets.len(), 1);
-    assert_eq!(
-        cash_only.months[1].total.as_ref().unwrap().actual_balance,
-        Decimal::new(110, 0)
-    );
+    let cash_total = cash_only.months[1].total.as_ref().unwrap();
+    assert_eq!(cash_total.planned_balance, Decimal::new(90, 0));
+    assert_eq!(cash_total.actual_balance, Decimal::new(110, 0));
+    assert_eq!(cash_total.difference, Decimal::new(20, 0));
 
     let full = &comparisons.scenarios[1];
     assert_eq!(full.months[0].assets.len(), 1);
     assert_eq!(full.months[0].assets[0].asset_id, "cash");
+    assert_eq!(
+        full.months[0].assets[0].native_difference,
+        Decimal::new(-10, 0)
+    );
     assert_eq!(full.months[1].assets.len(), 2);
+    let cash = &full.months[1].assets[0];
+    assert_eq!(cash.planned_native_balance, Decimal::new(90, 0));
+    assert_eq!(cash.actual_native_balance, Decimal::new(110, 0));
+    assert_eq!(cash.native_difference, Decimal::new(20, 0));
     let fund = &full.months[1].assets[1];
-    assert_eq!(fund.planned_native_balance, Decimal::new(20, 0));
+    assert_eq!(fund.planned_native_balance, Decimal::new(10, 0));
     assert_eq!(fund.actual_native_balance, Decimal::new(20, 0));
-    assert_eq!(fund.native_difference, Decimal::ZERO);
-    assert_eq!(fund.planned_plan_balance, Decimal::new(40, 0));
+    assert_eq!(fund.native_difference, Decimal::new(10, 0));
+    assert_eq!(fund.planned_plan_balance, Decimal::new(20, 0));
     assert_eq!(fund.actual_plan_balance, Decimal::new(40, 0));
-    assert_eq!(fund.plan_difference, Decimal::ZERO);
+    assert_eq!(fund.plan_difference, Decimal::new(20, 0));
     let total = full.months[1].total.as_ref().unwrap();
-    assert_eq!(total.planned_balance, Decimal::new(150, 0));
+    assert_eq!(total.planned_balance, Decimal::new(110, 0));
     assert_eq!(total.actual_balance, Decimal::new(150, 0));
-    assert_eq!(total.difference, Decimal::ZERO);
+    assert_eq!(total.difference, Decimal::new(40, 0));
     assert_eq!(full.months[2].assets.len(), 1);
+    assert_eq!(
+        full.months[2].assets[0].planned_native_balance,
+        Decimal::new(110, 0)
+    );
+    assert_eq!(
+        full.months[2].assets[0].native_difference,
+        Decimal::new(10, 0)
+    );
     assert!(full.months[2].total.is_none());
 }

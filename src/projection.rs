@@ -81,12 +81,14 @@ impl<'config> ActualBalanceComparisons<'config> {
                                             );
                                     Some(AssetActualBalanceComparison {
                                         asset_id: asset.id(),
-                                        planned_native_balance: planned.native_balance,
+                                        planned_native_balance: planned.pre_actual_native_balance,
                                         actual_native_balance: actual,
-                                        native_difference: actual - planned.native_balance,
-                                        planned_plan_balance: planned.plan_balance,
+                                        native_difference: actual
+                                            - planned.pre_actual_native_balance,
+                                        planned_plan_balance: planned.pre_actual_plan_balance,
                                         actual_plan_balance,
-                                        plan_difference: actual_plan_balance - planned.plan_balance,
+                                        plan_difference: actual_plan_balance
+                                            - planned.pre_actual_plan_balance,
                                     })
                                 })
                                 .collect::<Vec<_>>();
@@ -102,10 +104,17 @@ impl<'config> ActualBalanceComparisons<'config> {
                                         .iter()
                                         .map(|asset| asset.actual_plan_balance)
                                         .sum();
+                                    let planned_balance = scenario
+                                        .assets
+                                        .iter()
+                                        .map(|asset| {
+                                            asset.monthly_balances[index].pre_actual_plan_balance
+                                        })
+                                        .sum();
                                     TotalActualBalanceComparison {
-                                        planned_balance: total.balance,
+                                        planned_balance,
                                         actual_balance,
-                                        difference: actual_balance - total.balance,
+                                        difference: actual_balance - planned_balance,
                                     }
                                 });
 
@@ -271,6 +280,9 @@ pub struct AssetMonthProjection {
     pub monthly_withdrawal: MonthlyWithdrawal,
     pub native_balance: Decimal,
     pub plan_balance: Decimal,
+    /// End-of-month forecast before an observed balance replaces it.
+    pub pre_actual_native_balance: Decimal,
+    pub pre_actual_plan_balance: Decimal,
     pub native_passive_income: Decimal,
     pub plan_passive_income: Decimal,
 }
@@ -1239,6 +1251,9 @@ fn project_asset<'config>(
                     + native_monthly_contribution
                     - native_monthly_withdrawal
                     + adjustment_total;
+            }
+            let pre_actual_native_balance = native_balance;
+            if is_active {
                 if let Some(actual_balance) = config
                     .actual_balances
                     .get(&month)
@@ -1255,6 +1270,8 @@ fn project_asset<'config>(
                 monthly_withdrawal: monthly_withdrawal.clone(),
                 native_balance,
                 plan_balance: native_balance * conversion_rate,
+                pre_actual_native_balance,
+                pre_actual_plan_balance: pre_actual_native_balance * conversion_rate,
                 native_passive_income,
                 plan_passive_income,
             };

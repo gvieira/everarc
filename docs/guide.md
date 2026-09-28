@@ -346,9 +346,10 @@ defaults to monthly passive income; its display switch can show that retirement
 withdrawal estimate instead with the **Safe withdrawal rate** switch.
 
 Recorded actual balances are shared across scenarios and are end-of-month
-checkpoints: an observed asset balance replaces its projection for that month,
-and its projection resumes from the real balance in the following month. The
-projection chart shows one translucent actual-total area; it has a value only
+checkpoints: the projected end-of-month balance is retained for comparison
+before an observed asset balance replaces it. Subsequent months project from
+the real balance, not from an independent no-actuals forecast. The projection
+chart shows one translucent actual-total area; it has a value only
 for months where every asset active in the selected scenario has a recorded
 balance, so partial months produce gaps rather than misleading totals. The
 selected-month inspector shows each active asset's projected balance, recorded
@@ -394,8 +395,14 @@ path is `everarc.html` in the current working directory. Use `-o` or
 Use `--data-output PATH` to also write a pretty-printed JSON projection for
 LLMs and other tools. It contains calculated monthly and per-asset balances,
 cash flow, passive income, applied events, actual-balance comparisons, future
-living-cost projections, and goal results for every scenario. Decimal values
-are JSON strings to preserve their exact precision. It does not include
+living-cost projections, and goal results for every scenario. Monthly `balance`
+fields (and `total_balance`) include any recorded checkpoint. When an actual
+balance exists, its comparison object includes both `balance` (observed) and
+`planned_balance` (forecast before that month's checkpoint), plus
+`difference_from_plan` (observed minus forecast). Asset comparisons also have
+`plan_currency_balance` and `planned_plan_currency_balance` at the configured
+conversion rate. A total comparison exists only when all active assets have
+recorded balances. Decimal values are JSON strings to preserve their exact precision. It does not include
 localized dashboard text, chart geometry, browser state, or configuration
 values that are not needed to understand the calculated results. Use `-w` or
 `--watch` to rebuild when the configuration file

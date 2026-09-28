@@ -65,6 +65,7 @@ pub struct MonthExport<'config> {
 #[derive(Serialize)]
 pub struct ActualTotalExport {
     pub balance: String,
+    pub planned_balance: String,
     pub difference_from_plan: String,
 }
 
@@ -92,8 +93,10 @@ pub struct MoneyExport<'config> {
 #[derive(Serialize)]
 pub struct ActualAssetExport {
     pub balance: String,
+    pub planned_balance: String,
     pub difference_from_plan: String,
     pub plan_currency_balance: String,
+    pub planned_plan_currency_balance: String,
     pub plan_currency_difference_from_plan: String,
 }
 
@@ -223,6 +226,7 @@ fn scenario_export<'config>(
                     .and_then(|month| month.total.as_ref())
                     .map(|total| ActualTotalExport {
                         balance: decimal(total.actual_balance),
+                        planned_balance: decimal(total.planned_balance),
                         difference_from_plan: decimal(total.difference),
                     }),
                 assets: scenario
@@ -257,8 +261,10 @@ fn scenario_export<'config>(
                             plan_currency_passive_income: decimal(month.plan_passive_income),
                             actual_balance: actual.map(|actual| ActualAssetExport {
                                 balance: decimal(actual.actual_native_balance),
+                                planned_balance: decimal(actual.planned_native_balance),
                                 difference_from_plan: decimal(actual.native_difference),
                                 plan_currency_balance: decimal(actual.actual_plan_balance),
+                                planned_plan_currency_balance: decimal(actual.planned_plan_balance),
                                 plan_currency_difference_from_plan: decimal(actual.plan_difference),
                             }),
                         }
@@ -337,4 +343,99 @@ fn scenario_export<'config>(
 
 fn decimal(value: Decimal) -> String {
     value.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    #[test]
+    fn exports_pre_checkpoint_forecasts_and_rebased_future_balances() {
+        let mut config: Config = toml::from_str(
+            r#"
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-02"
+
+[[conversion_rates]]
+from = "EUR"
+to = "USD"
+rate = "2"
+
+[actual_balances."2026-01"]
+cash = "95"
+fund = "20"
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "10", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "100"
+
+[[scenarios.assets]]
+id = "fund"
+name = "Fund"
+currency = "EUR"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "EUR" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "EUR"
+value = "10"
+"#,
+        )
+        .expect("configuration parses");
+        config.validate().expect("configuration validates");
+        let projection = PlanProjection::from(&config);
+        let json =
+            serde_json::to_value(ProjectionExport::with_actual_balances(&config, &projection))
+                .expect("export serializes");
+        let january = &json["scenarios"][0]["months"][0];
+        let cash = &january["assets"][0];
+        let fund = &january["assets"][1];
+
+        assert_eq!(january["total_balance"], "135");
+        assert_eq!(january["actual_total_balance"]["balance"], "135");
+        assert_eq!(january["actual_total_balance"]["planned_balance"], "130");
+        assert_eq!(january["actual_total_balance"]["difference_from_plan"], "5");
+        assert_eq!(cash["balance"], "95");
+        assert_eq!(cash["actual_balance"]["planned_balance"], "110");
+        assert_eq!(cash["actual_balance"]["balance"], "95");
+        assert_eq!(cash["actual_balance"]["difference_from_plan"], "-15");
+        assert_eq!(fund["actual_balance"]["planned_balance"], "10");
+        assert_eq!(
+            fund["actual_balance"]["planned_plan_currency_balance"],
+            "20"
+        );
+        assert_eq!(fund["actual_balance"]["plan_currency_balance"], "40");
+        assert_eq!(
+            fund["actual_balance"]["plan_currency_difference_from_plan"],
+            "20"
+        );
+
+        let february = &json["scenarios"][0]["months"][1];
+        assert_eq!(february["total_balance"], "145");
+        assert_eq!(february["assets"][0]["balance"], "105");
+        assert!(february["actual_total_balance"].is_null());
+        assert!(february["assets"][0]["actual_balance"].is_null());
+    }
 }
