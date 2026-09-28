@@ -1,6 +1,7 @@
 mod cli;
 mod commands;
 mod config;
+mod data_export;
 mod localization;
 mod projection;
 

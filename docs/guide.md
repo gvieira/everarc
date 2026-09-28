@@ -386,9 +386,16 @@ everarc check
 `build` renders an HTML document from the configuration. Its default output
 path is `everarc.html` in the current working directory. Use `-o` or
 `--output` to choose a different path; an existing output file is overwritten.
-Use `-w` or `--watch` to rebuild when the configuration file changes; stop
-watch mode with `Ctrl-C`. Watch mode writes the HTML file but does not serve it
-or refresh a browser.
+Use `--data-output PATH` to also write a pretty-printed JSON projection for
+LLMs and other tools. It contains calculated monthly and per-asset balances,
+cash flow, passive income, applied events, actual-balance comparisons, future
+living-cost projections, and goal results for every scenario. Decimal values
+are JSON strings to preserve their exact precision. It does not include
+localized dashboard text, chart geometry, browser state, or configuration
+values that are not needed to understand the calculated results. Use `-w` or
+`--watch` to rebuild when the configuration file
+changes; stop watch mode with `Ctrl-C`. Watch mode updates both output files,
+but does not serve them or refresh a browser.
 
 ```sh
 everarc build
@@ -396,6 +403,9 @@ everarc build
 
 everarc build --output site.html
 # creates site.html
+
+# creates everarc.html and dashboard-data.json
+everarc build --data-output dashboard-data.json
 
 everarc build --watch
 # rebuilds everarc.html after changes to everarc.toml

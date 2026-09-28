@@ -1,4 +1,5 @@
 use super::*;
+use crate::data_export::ProjectionExport;
 
 #[test]
 fn renders_inherited_event_rows_without_plan_currency_codes() {
@@ -142,4 +143,49 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
         assert!(!value.contains("USD"));
     }
     assert!(html.contains("BTC</span>"));
+}
+
+#[test]
+fn writes_dashboard_data_as_pretty_json() {
+    let output_directory = env::temp_dir().join(format!(
+        "everarc-build-test-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock is after the Unix epoch")
+            .as_nanos()
+    ));
+    fs::create_dir(&output_directory).expect("test output directory creates");
+
+    let config_path = output_directory.join("everarc.toml");
+    let html_path = output_directory.join("everarc.html");
+    let data_path = output_directory.join("dashboard-data.json");
+    fs::write(&config_path, include_str!("../../../everarc.toml"))
+        .expect("sample configuration writes");
+
+    build_once(&config_path, &html_path, Some(&data_path)).expect("dashboard builds");
+
+    let config = Config::load(&config_path).expect("sample configuration loads");
+    let projection = PlanProjection::from(&config);
+    let data = fs::read_to_string(&data_path).expect("dashboard data reads");
+    let actual: serde_json::Value = serde_json::from_str(&data).expect("dashboard data is JSON");
+    let expected = ProjectionExport::with_actual_balances(&config, &projection);
+
+    assert!(html_path.is_file());
+    assert!(data.starts_with("{\n"));
+    assert_eq!(actual["plan"]["currency"], "USD");
+    assert_eq!(actual["plan"]["start"], "2026-01");
+    assert_eq!(actual["scenarios"][0]["id"], "baseline");
+    assert!(actual["scenarios"][0]["months"].is_array());
+    assert!(actual["scenarios"][0]["months"][0]["assets"].is_array());
+    assert!(actual["scenarios"][0]["outcome"]["end_balance"].is_string());
+    assert!(actual["scenarios"][0]["events"].is_array());
+    assert!(actual["scenarios"][0]["future_living_costs"]["costs"].is_array());
+    assert!(actual.get("locale").is_none());
+    assert!(actual.get("text").is_none());
+    assert_eq!(
+        actual,
+        serde_json::to_value(expected).expect("projection export serializes")
+    );
+
+    fs::remove_dir_all(output_directory).expect("test output directory removes");
 }

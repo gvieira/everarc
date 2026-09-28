@@ -11,7 +11,10 @@ use clap::Args;
 use minijinja::{Environment, context};
 use notify::{Event, RecursiveMode, Watcher};
 
-use crate::{config::Config, localization::DashboardPresentation, projection::PlanProjection};
+use crate::{
+    config::Config, data_export::ProjectionExport, localization::DashboardPresentation,
+    projection::PlanProjection,
+};
 
 const TEMPLATE: &str = include_str!("../../templates/build.html");
 const DASHBOARD_TEMPLATE: &str = include_str!("../../templates/components/dashboard.html");
@@ -23,6 +26,10 @@ pub struct BuildArgs {
     #[arg(short, long, default_value = "everarc.html", value_name = "PATH")]
     pub output: PathBuf,
 
+    /// Write the dashboard data model as JSON to this path.
+    #[arg(long, value_name = "PATH")]
+    pub data_output: Option<PathBuf>,
+
     /// Rebuild when the configuration file changes.
     #[arg(short, long)]
     pub watch: bool,
@@ -32,18 +39,26 @@ pub fn run(config_path: &Path, args: BuildArgs) -> Result<(), Box<dyn Error>> {
     let config_path = absolute_path(config_path)?;
 
     if args.watch {
-        watch(&config_path, &args.output)
+        watch(&config_path, &args.output, args.data_output.as_deref())
     } else {
-        build_once(&config_path, &args.output)
+        build_once(&config_path, &args.output, args.data_output.as_deref())
     }
 }
 
-fn build_once(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
+fn build_once(
+    config_path: &Path,
+    output_path: &Path,
+    data_output_path: Option<&Path>,
+) -> Result<(), Box<dyn Error>> {
     let config = Config::load(config_path)?;
     let projection = PlanProjection::from(&config);
     let dashboard =
         DashboardPresentation::with_actual_balances(&config, &projection, config.display.locale);
     fs::write(output_path, render_dashboard(&dashboard)?)?;
+    if let Some(data_output_path) = data_output_path {
+        let data = ProjectionExport::with_actual_balances(&config, &projection);
+        fs::write(data_output_path, serde_json::to_string_pretty(&data)?)?;
+    }
     Ok(())
 }
 
@@ -56,7 +71,11 @@ fn render_dashboard(dashboard: &DashboardPresentation<'_>) -> Result<String, min
         .render(context!(dashboard => dashboard))
 }
 
-fn watch(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
+fn watch(
+    config_path: &Path,
+    output_path: &Path,
+    data_output_path: Option<&Path>,
+) -> Result<(), Box<dyn Error>> {
     let watch_directory = config_path
         .parent()
         .expect("an absolute path always has a parent");
@@ -68,14 +87,14 @@ fn watch(config_path: &Path, output_path: &Path) -> Result<(), Box<dyn Error>> {
     watcher.watch(watch_directory, RecursiveMode::NonRecursive)?;
     eprintln!("watching `{}` for changes", config_path.display());
 
-    if let Err(error) = build_once(config_path, output_path) {
+    if let Err(error) = build_once(config_path, output_path, data_output_path) {
         eprintln!("error: {error}");
     }
 
     loop {
         wait_for_change(&receiver, config_path)?;
 
-        if let Err(error) = build_once(config_path, output_path) {
+        if let Err(error) = build_once(config_path, output_path, data_output_path) {
             eprintln!("error: {error}");
         }
     }
