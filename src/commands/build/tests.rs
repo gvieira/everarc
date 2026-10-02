@@ -183,6 +183,9 @@ fn renders_month_notes_as_plain_text_only_in_the_inspector() {
     for (locale, label) in [(Locale::EnUs, "Month note"), (Locale::PtBr, "Nota do mês")] {
         let mut config: Config = toml::from_str(include_str!("../../../everarc.toml")).unwrap();
         config.display.locale = locale;
+        for actual in config.actual_months.values_mut() {
+            actual.note = None;
+        }
         let note = "Car repair <script>alert('x')</script> & savings.\nSecond line.";
         config
             .actual_months
