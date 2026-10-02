@@ -687,8 +687,9 @@ currency = "USD"
 start = "2026-01"
 end = "2026-03"
 
-[actual_balances."2026-02"]
-cash = "-12.50"
+[actual_months."2026-02"]
+note = "An unexpected expense."
+balances = { cash = "-12.50" }
 
 [[scenarios]]
 id = "base"
@@ -713,20 +714,86 @@ value = "0"
 
     config.validate().unwrap();
     assert_eq!(
-        config.actual_balances[&"2026-02".parse().unwrap()]["cash"].0,
+        config.actual_months[&"2026-02".parse().unwrap()].balances["cash"].0,
         Decimal::new(-1250, 2)
     );
+    assert_eq!(
+        config.actual_months[&"2026-02".parse().unwrap()]
+            .note
+            .as_deref(),
+        Some("An unexpected expense.")
+    );
+}
+
+#[test]
+fn validates_note_only_actual_months_and_rejects_old_or_unknown_fields() {
+    let source = r#"
+[display]
+locale = "en-US"
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+[actual_months."2026-02"]
+note = "Saved more than expected."
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+[[scenarios.assets]]
+id = "note"
+name = "An asset named note"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "0", currency = "USD" }
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+"#;
+    let mut config: Config = toml::from_str(source).unwrap();
+    config.validate().unwrap();
+    let actual = &config.actual_months[&"2026-02".parse().unwrap()];
+    assert!(actual.balances.is_empty());
+    assert_eq!(actual.note.as_deref(), Some("Saved more than expected."));
+
+    let mut outside: Config = toml::from_str(&source.replace("2026-02", "2025-12")).unwrap();
+    assert!(matches!(
+        outside.validate(),
+        Err(ConfigError::ActualMonthOutsidePlan { .. })
+    ));
+
+    for invalid in [
+        source.replace("actual_months", "actual_balances"),
+        source.replace("note =", "notes ="),
+        source.replace("note = \"Saved more than expected.\"", "note = 123"),
+    ] {
+        assert!(toml::from_str::<Config>(&invalid).is_err());
+    }
+
+    let with_balance = source.replace(
+        "note = \"Saved more than expected.\"",
+        "balances = { note = \"12.50\" }",
+    );
+    let mut config: Config = toml::from_str(&with_balance).unwrap();
+    config.validate().unwrap();
+    let actual = &config.actual_months[&"2026-02".parse().unwrap()];
+    assert!(actual.note.is_none());
+    assert_eq!(actual.balances["note"].0, Decimal::new(1250, 2));
 }
 
 #[test]
 fn rejects_actual_balances_outside_the_plan_or_for_unknown_assets() {
     let outside_plan = r#"
-[actual_balances."2025-12"]
-cash = "1"
+[actual_months."2025-12"]
+balances = { cash = "1" }
 "#;
     let unknown_asset = r#"
-[actual_balances."2026-02"]
-other = "1"
+[actual_months."2026-02"]
+balances = { other = "1" }
 "#;
 
     for (record, expected) in [(outside_plan, "outside"), (unknown_asset, "unknown")] {
@@ -765,7 +832,7 @@ value = "0"
         assert!(match expected {
             "outside" => matches!(
                 config.validate(),
-                Err(ConfigError::ActualBalanceOutsidePlan { .. })
+                Err(ConfigError::ActualMonthOutsidePlan { .. })
             ),
             _ => matches!(
                 config.validate(),
@@ -792,8 +859,8 @@ from = "EUR"
 to = "USD"
 rate = "1.1"
 
-[actual_balances."2026-02"]
-cash = "1"
+[actual_months."2026-02"]
+balances = { cash = "1" }
 
 [[scenarios]]
 id = "usd"
@@ -846,8 +913,8 @@ locale = "en-US"
 currency = "USD"
 start = "2026-01"
 end = "2026-01"
-[actual_balances."2026-01"]
-cash = 1
+[actual_months."2026-01"]
+balances = { cash = 1 }
 scenarios = []
 "#,
     )

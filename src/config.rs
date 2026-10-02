@@ -23,9 +23,17 @@ pub struct Config {
     #[serde(default)]
     pub future_living_costs: Vec<FutureLivingCost>,
     #[serde(default)]
-    pub actual_balances: HashMap<Month, HashMap<String, ActualBalance>>,
+    pub actual_months: HashMap<Month, ActualMonth>,
     pub display: DisplaySettings,
     pub scenarios: Vec<Scenario>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ActualMonth {
+    #[serde(default)]
+    pub balances: HashMap<String, ActualBalance>,
+    pub note: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -704,8 +712,8 @@ pub enum ConfigError {
     InvalidPlanRange { start: Month, end: Month },
     #[error("plan withdrawal rate {rate} must be greater than zero and no more than one")]
     InvalidWithdrawalRate { rate: Decimal },
-    #[error("actual-balance month {month} is outside the plan range")]
-    ActualBalanceOutsidePlan { month: Month },
+    #[error("actual month {month} is outside the plan range")]
+    ActualMonthOutsidePlan { month: Month },
     #[error("actual balance refers to unknown asset `{asset_id}`")]
     UnknownActualBalanceAsset { asset_id: String },
     #[error("actual-balance asset `{asset_id}` uses different currencies across scenarios")]
@@ -1018,7 +1026,7 @@ impl Config {
         self.validate_total_balance_milestones()?;
         self.validate_future_living_costs()?;
         self.validate_scenarios()?;
-        self.validate_actual_balances()
+        self.validate_actual_months()
     }
 
     fn resolve_scenario_inheritance(&mut self) -> Result<(), ConfigError> {
@@ -1222,13 +1230,13 @@ impl Config {
         Ok(())
     }
 
-    fn validate_actual_balances(&self) -> Result<(), ConfigError> {
-        for (month, balances) in &self.actual_balances {
+    fn validate_actual_months(&self) -> Result<(), ConfigError> {
+        for (month, actual) in &self.actual_months {
             if *month < self.plan.start || *month > self.plan.end {
-                return Err(ConfigError::ActualBalanceOutsidePlan { month: *month });
+                return Err(ConfigError::ActualMonthOutsidePlan { month: *month });
             }
 
-            for asset_id in balances.keys() {
+            for asset_id in actual.balances.keys() {
                 let mut currencies = self
                     .scenarios
                     .iter()

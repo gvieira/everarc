@@ -28,6 +28,7 @@ pub struct ScenarioActualBalanceComparison<'config> {
 #[derive(Debug)]
 pub struct MonthActualBalanceComparison<'config> {
     pub month: Month,
+    pub note: Option<&'config str>,
     pub assets: Vec<AssetActualBalanceComparison<'config>>,
     pub total: Option<TotalActualBalanceComparison>,
 }
@@ -63,7 +64,10 @@ impl<'config> ActualBalanceComparisons<'config> {
                         .iter()
                         .enumerate()
                         .map(|(index, total)| {
-                            let actual_balances = config.actual_balances.get(&total.month);
+                            let actual_balances = config
+                                .actual_months
+                                .get(&total.month)
+                                .map(|actual| &actual.balances);
                             let active_assets = scenario
                                 .assets
                                 .iter()
@@ -120,6 +124,10 @@ impl<'config> ActualBalanceComparisons<'config> {
 
                             MonthActualBalanceComparison {
                                 month: total.month,
+                                note: config
+                                    .actual_months
+                                    .get(&total.month)
+                                    .and_then(|actual| actual.note.as_deref()),
                                 assets: active_assets,
                                 total: actual_total,
                             }
@@ -1255,9 +1263,9 @@ fn project_asset<'config>(
             let pre_actual_native_balance = native_balance;
             if is_active {
                 if let Some(actual_balance) = config
-                    .actual_balances
+                    .actual_months
                     .get(&month)
-                    .and_then(|balances| balances.get(&asset.id))
+                    .and_then(|actual| actual.balances.get(&asset.id))
                 {
                     native_balance = actual_balance.0;
                 }

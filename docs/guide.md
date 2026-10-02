@@ -145,24 +145,35 @@ your browser's light/dark setting, including changes while the dashboard is open
 Choose **Light** or **Dark** to override it; your choice is saved in this browser
 when storage is available. Choose **Auto** again to clear the saved override.
 
-## Actual balances
+## Actual months
 
-Optional actual end-of-month balances are shared across scenarios and grouped by
-month. The quoted month key uses `YYYY-MM`; each asset ID maps to a quoted
-decimal balance in that asset's own currency.
+Optional actual months are shared across scenarios. The quoted month key uses
+`YYYY-MM`; `balances` maps asset IDs to quoted end-of-month decimal balances in
+each asset's own currency. An optional plain-text `note` describes the month
+without affecting calculations.
 
 ```toml
-[actual_balances."2026-02"]
-brokerage = "28450.75"
-crypto = "0.12"
+[actual_months."2026-02"]
+note = "Unexpected car repair; invested less than planned."
+balances = { brokerage = "28450.75", crypto = "0.12" }
 
-[actual_balances."2026-03"]
-brokerage = "29110.40"
+[actual_months."2026-03"]
+balances = { brokerage = "29110.40" }
+
+[actual_months."2026-04"]
+note = "Saved more than expected; balances not recorded yet."
 ```
 
+`balances` may be omitted for a note-only month. The dashboard shows the note
+in the selected-month inspector, preserving line breaks and treating it as plain
+text (not HTML or Markdown). Notes follow month selection and pinning, and remain
+the same when switching scenarios. Months without notes show no note section.
+The former `actual_balances` configuration table is no longer accepted; migrate
+each month to `actual_months` and move its asset entries into `balances`.
+
 Missing asset/month entries are unknown, never zero. Balances may be negative.
-An actual-balance month must be within the plan range and every recorded asset
-ID must occur in at least one scenario. When a recorded ID occurs in multiple
+An actual month (including a note-only month) must be within the plan range.
+Every recorded asset ID must occur in at least one scenario. When a recorded ID occurs in multiple
 scenarios, its asset currency must be the same in each. Start recording with
 the last completed calendar month; Everarc does not require records for every
 asset or month.
@@ -394,12 +405,14 @@ path is `everarc.html` in the current working directory. Use `-o` or
 `--output` to choose a different path; an existing output file is overwritten.
 Use `--data-output PATH` to also write a pretty-printed JSON projection for
 LLMs and other tools. It contains calculated monthly and per-asset balances,
-cash flow, passive income, applied events, actual-balance comparisons, future
-living-cost projections, and goal results for every scenario. Monthly `balance`
+cash flow, passive income, applied events, actual-balance comparisons, monthly
+notes, future living-cost projections, and goal results for every scenario. Monthly `balance`
 fields (and `total_balance`) include any recorded checkpoint. When an actual
 balance exists, its comparison object includes both `balance` (observed) and
 `planned_balance` (forecast before that month's checkpoint), plus
-`difference_from_plan` (observed minus forecast). Asset comparisons also have
+`difference_from_plan` (observed minus forecast). Each scenario month also has
+`actual_note`, containing the shared month's note or `null` when none is configured,
+even when the note has no recorded balances. Asset comparisons also have
 `plan_currency_balance` and `planned_plan_currency_balance` at the configured
 conversion rate. A total comparison exists only when all active assets have
 recorded balances. Decimal values are JSON strings to preserve their exact precision. It does not include

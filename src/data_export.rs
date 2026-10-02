@@ -56,6 +56,7 @@ pub struct ScenarioOutcomeExport {
 #[derive(Serialize)]
 pub struct MonthExport<'config> {
     pub month: Month,
+    pub actual_note: Option<&'config str>,
     pub total_balance: String,
     pub monthly_investment_rate: Option<String>,
     pub actual_total_balance: Option<ActualTotalExport>,
@@ -219,6 +220,9 @@ fn scenario_export<'config>(
             .enumerate()
             .map(|(index, total)| MonthExport {
                 month: total.month,
+                actual_note: comparison
+                    .and_then(|comparison| comparison.months.get(index))
+                    .and_then(|month| month.note),
                 total_balance: decimal(total.balance),
                 monthly_investment_rate: total.monthly_investment_rate.map(decimal),
                 actual_total_balance: comparison
@@ -360,16 +364,19 @@ locale = "en-US"
 [plan]
 currency = "USD"
 start = "2026-01"
-end = "2026-02"
+end = "2026-03"
 
 [[conversion_rates]]
 from = "EUR"
 to = "USD"
 rate = "2"
 
-[actual_balances."2026-01"]
-cash = "95"
-fund = "20"
+[actual_months."2026-01"]
+note = "Unexpected expense & extra savings."
+balances = { cash = "95", fund = "20" }
+
+[actual_months."2026-02"]
+note = "Balances not recorded yet."
 
 [[scenarios]]
 id = "base"
@@ -401,6 +408,11 @@ id = "opening"
 name = "Opening"
 currency = "EUR"
 value = "10"
+
+[[scenarios]]
+id = "child"
+name = "Child"
+extends = "base"
 "#,
         )
         .expect("configuration parses");
@@ -413,6 +425,10 @@ value = "10"
         let cash = &january["assets"][0];
         let fund = &january["assets"][1];
 
+        assert_eq!(
+            january["actual_note"],
+            "Unexpected expense & extra savings."
+        );
         assert_eq!(january["total_balance"], "135");
         assert_eq!(january["actual_total_balance"]["balance"], "135");
         assert_eq!(january["actual_total_balance"]["planned_balance"], "130");
@@ -433,9 +449,17 @@ value = "10"
         );
 
         let february = &json["scenarios"][0]["months"][1];
+        assert_eq!(february["actual_note"], "Balances not recorded yet.");
         assert_eq!(february["total_balance"], "145");
         assert_eq!(february["assets"][0]["balance"], "105");
         assert!(february["actual_total_balance"].is_null());
         assert!(february["assets"][0]["actual_balance"].is_null());
+        assert!(json["scenarios"][0]["months"][2]["actual_note"].is_null());
+        for index in 0..3 {
+            assert_eq!(
+                json["scenarios"][0]["months"][index]["actual_note"],
+                json["scenarios"][1]["months"][index]["actual_note"]
+            );
+        }
     }
 }

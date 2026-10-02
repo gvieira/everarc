@@ -654,8 +654,12 @@ currency = "USD"
 start = "2026-01"
 end = "2026-02"
 
-[actual_balances."2026-01"]
-cash = "90"
+[actual_months."2026-01"]
+note = "Car repair."
+balances = { cash = "90" }
+
+[actual_months."2026-02"]
+note = "Saved more; balances pending."
 
 [[scenarios]]
 id = "base"
@@ -682,6 +686,12 @@ value = "100"
     let january = &dashboard.scenarios[0].chart_months[0];
     let asset = &january.assets[0];
 
+    assert_eq!(january.actual_note, Some("Car repair."));
+    assert_eq!(
+        dashboard.scenarios[0].chart_months[1].actual_note,
+        Some("Saved more; balances pending.")
+    );
+    assert!(!dashboard.scenarios[0].chart_months[1].has_actual_asset_balances);
     assert_eq!(january.actual_total.as_deref(), Some("90.00"));
     assert_eq!(january.total, "110.00");
     assert_eq!(january.balance, "90");

@@ -20,8 +20,12 @@ currency = "USD"
 start = "2026-01"
 end = "2026-02"
 
-[actual_balances."2026-01"]
-cash = "150"
+[actual_months."2026-01"]
+note = "Saved extra."
+balances = { cash = "150" }
+
+[actual_months."2026-02"]
+note = "A note without a balance checkpoint."
 
 [[scenarios]]
 id = "base"
@@ -74,6 +78,10 @@ value = "100"
     assert_eq!(higher[1].native_balance, Decimal::new(170, 0));
 
     let comparisons = ActualBalanceComparisons::new(&config, &projection);
+    for scenario in &comparisons.scenarios {
+        assert!(scenario.months[1].assets.is_empty());
+        assert!(scenario.months[1].total.is_none());
+    }
     assert_eq!(
         comparisons.scenarios[0].months[0].assets[0].native_difference,
         Decimal::new(40, 0)
@@ -1373,16 +1381,14 @@ from = "EUR"
 to = "USD"
 rate = "2"
 
-[actual_balances."2026-01"]
-cash = "90"
-fund = "999"
+[actual_months."2026-01"]
+balances = { cash = "90", fund = "999" }
 
-[actual_balances."2026-02"]
-cash = "110"
-fund = "20"
+[actual_months."2026-02"]
+balances = { cash = "110", fund = "20" }
 
-[actual_balances."2026-03"]
-cash = "120"
+[actual_months."2026-03"]
+balances = { cash = "120" }
 
 [[scenarios]]
 id = "cash-only"

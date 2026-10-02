@@ -177,6 +177,64 @@ fn renders_english_appearance_options() {
 }
 
 #[test]
+fn renders_month_notes_as_plain_text_only_in_the_inspector() {
+    use crate::config::{ActualMonth, Locale};
+
+    for (locale, label) in [(Locale::EnUs, "Month note"), (Locale::PtBr, "Nota do mês")] {
+        let mut config: Config = toml::from_str(include_str!("../../../everarc.toml")).unwrap();
+        config.display.locale = locale;
+        let note = "Car repair <script>alert('x')</script> & savings.\nSecond line.";
+        config
+            .actual_months
+            .get_mut(&"2026-01".parse().unwrap())
+            .unwrap()
+            .note = Some(note.to_owned());
+        config.actual_months.insert(
+            "2026-03".parse().unwrap(),
+            ActualMonth {
+                balances: Default::default(),
+                note: Some("Balances pending.".to_owned()),
+            },
+        );
+        config.validate().unwrap();
+        let projection = PlanProjection::from(&config);
+        let dashboard = DashboardPresentation::with_actual_balances(&config, &projection, locale);
+        let html = render_dashboard(&dashboard).unwrap();
+
+        assert!(!html.contains("<script>alert('x')</script>"));
+        assert!(html.contains("&lt;script&gt;"));
+        assert!(html.contains("&amp; savings.\nSecond line."));
+        assert!(html.contains(&format!("class=\"chart-month-note-label\">{label}</p>")));
+        assert!(html.contains("white-space: pre-wrap; overflow-wrap: anywhere"));
+
+        for scenario in &dashboard.scenarios {
+            assert_eq!(scenario.chart_months[0].actual_note, Some(note));
+            assert!(scenario.chart_months[1].actual_note.is_none());
+            assert_eq!(
+                scenario.chart_months[2].actual_note,
+                Some("Balances pending.")
+            );
+            assert!(!scenario.chart_months[2].has_actual_asset_balances);
+        }
+        let months: Vec<_> = html.split("<section data-chart-month ").skip(1).collect();
+        assert_eq!(
+            months.len(),
+            dashboard.scenarios.len() * dashboard.scenarios[0].chart_months.len()
+        );
+        for (index, month) in months.iter().enumerate() {
+            let month = month.split("</section>").next().unwrap();
+            let (summary, details) = month.split_once("<div data-chart-month-details>").unwrap();
+            assert!(!summary.contains("data-chart-month-note"));
+            let month_index = index % dashboard.scenarios[0].chart_months.len();
+            assert_eq!(
+                details.contains("data-chart-month-note"),
+                month_index == 0 || month_index == 2
+            );
+        }
+    }
+}
+
+#[test]
 fn writes_dashboard_data_as_pretty_json() {
     let output_directory = env::temp_dir().join(format!(
         "everarc-build-test-{}",

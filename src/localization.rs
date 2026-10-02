@@ -92,6 +92,7 @@ pub struct DashboardText {
     pub actual: &'static str,
     pub planned: &'static str,
     pub difference: &'static str,
+    pub month_note: &'static str,
 }
 
 #[derive(Serialize)]
@@ -199,6 +200,7 @@ pub struct DashboardChartMonthPresentation<'projection> {
     pub index: usize,
     pub month: String,
     pub month_key: String,
+    pub actual_note: Option<&'projection str>,
     pub x: String,
     pub y: String,
     pub balance: String,
@@ -710,6 +712,7 @@ impl DashboardText {
                 actual: "Actual",
                 planned: "Planned",
                 difference: "Difference",
+                month_note: "Month note",
             },
             Locale::PtBr => Self {
                 scenario: "Cenário",
@@ -778,6 +781,7 @@ impl DashboardText {
                 actual: "Real",
                 planned: "Planejado",
                 difference: "Diferença",
+                month_note: "Nota do mês",
             },
         }
     }
@@ -1065,6 +1069,7 @@ fn chart_months<'projection>(
                 index,
                 month: format_month(total.month, locale),
                 month_key: total.month.to_string(),
+                actual_note: month_comparison.and_then(|comparison| comparison.note),
                 x: chart_x(index, last_index),
                 y: chart_y(total.balance, maximum),
                 balance: total.balance.to_string(),
