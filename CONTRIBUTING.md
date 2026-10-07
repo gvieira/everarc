@@ -13,12 +13,21 @@ the checkout:
 cargo build --locked
 cargo fmt --check
 cargo test --locked
-cargo clippy --locked --all-targets
+cargo clippy --locked --all-targets -- -D warnings
 ```
 
-Use `cargo fmt` to apply formatting. Review Clippy diagnostics and avoid adding
-new warnings. Tests use the synthetic configuration in
+GitHub Actions runs tests and strict Clippy on clean Linux, macOS, and Windows
+checkouts. It also checks formatting and tests with Rust 1.87.0 on Linux. To
+check minimum-version compatibility locally, install that toolchain and run
+`cargo +1.87.0 test --locked`.
+
+Use `cargo fmt` to apply formatting. Clippy warnings fail CI; resolve them before
+submitting a pull request. Tests use the synthetic configuration in
 `tests/fixtures/everarc.toml`; no personal root configuration is required.
+
+The test suite includes a CLI watcher smoke test that checks HTML and JSON
+rebuilds after a configuration edit. It uses temporary synthetic data and runs
+in the CI OS matrix. Run it alone with `cargo test --locked --test watch`.
 
 For a CLI smoke test:
 
