@@ -26,7 +26,7 @@ currency = "USD"
 # First and last included months, using the exact YYYY-MM format.
 # `end` may equal `start`, but cannot be before it.
 start = "2026-01"
-end = "2030-12"
+end = "2045-12"
 # Optional annual retirement withdrawal rate; defaults to 4%.
 withdrawal_rate = "0.04"
 

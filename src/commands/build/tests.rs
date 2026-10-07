@@ -3,8 +3,8 @@ use crate::data_export::ProjectionExport;
 
 #[test]
 fn renders_inherited_event_rows_without_plan_currency_codes() {
-    let mut config: Config =
-        toml::from_str(include_str!("../../../everarc.toml")).expect("sample configuration parses");
+    let mut config: Config = toml::from_str(include_str!("../../../tests/fixtures/everarc.toml"))
+        .expect("sample configuration parses");
     for scenario in &mut config.scenarios {
         scenario.selected = false;
     }
@@ -161,8 +161,8 @@ fn renders_inherited_event_rows_without_plan_currency_codes() {
 
 #[test]
 fn renders_english_appearance_options() {
-    let mut config: Config =
-        toml::from_str(include_str!("../../../everarc.toml")).expect("sample configuration parses");
+    let mut config: Config = toml::from_str(include_str!("../../../tests/fixtures/everarc.toml"))
+        .expect("sample configuration parses");
     config.display.locale = crate::config::Locale::EnUs;
     config.validate().expect("sample configuration validates");
     let projection = PlanProjection::from(&config);
@@ -181,7 +181,8 @@ fn renders_month_notes_as_plain_text_only_in_the_inspector() {
     use crate::config::{ActualMonth, Locale};
 
     for (locale, label) in [(Locale::EnUs, "Month note"), (Locale::PtBr, "Nota do mês")] {
-        let mut config: Config = toml::from_str(include_str!("../../../everarc.toml")).unwrap();
+        let mut config: Config =
+            toml::from_str(include_str!("../../../tests/fixtures/everarc.toml")).unwrap();
         config.display.locale = locale;
         for actual in config.actual_months.values_mut() {
             actual.note = None;
@@ -251,8 +252,11 @@ fn writes_dashboard_data_as_pretty_json() {
     let config_path = output_directory.join("everarc.toml");
     let html_path = output_directory.join("everarc.html");
     let data_path = output_directory.join("dashboard-data.json");
-    fs::write(&config_path, include_str!("../../../everarc.toml"))
-        .expect("sample configuration writes");
+    fs::write(
+        &config_path,
+        include_str!("../../../tests/fixtures/everarc.toml"),
+    )
+    .expect("sample configuration writes");
 
     build_once(&config_path, &html_path, Some(&data_path)).expect("dashboard builds");
 

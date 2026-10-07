@@ -20,7 +20,8 @@ The numbers depend on your assumptions. They aren't predictions.
 
 ## Getting started
 
-You'll need [Rust](https://rustup.rs/) to build from source. From this checkout:
+You'll need [Rust](https://rustup.rs/) 1.87 or newer to build from source.
+From this checkout:
 
 ```sh
 cargo install --path .
@@ -60,3 +61,27 @@ adjust assumptions or interpret projections; Everarc does the calculations.
 Everarc is written in Rust. It reads and validates the TOML, calculates
 projections month by month, and renders an HTML dashboard you can open in your
 browser. There's no server to run.
+
+## Privacy
+
+Everarc calculates projections locally. Your TOML configuration and generated
+HTML/JSON reports can contain sensitive balances, scenario details, and monthly
+notes—including scenarios not currently selected in the dashboard. Treat these
+files as private; review and sanitize them before sharing, publishing, or
+uploading them to an LLM service.
+
+The dashboard requests stylesheets and fonts from Google Fonts
+(`fonts.googleapis.com` and `fonts.gstatic.com`). Those requests expose your IP
+address and browser request metadata to Google, but Everarc does not send your
+financial data with them. It is not completely network-independent: when
+opened offline or with those requests blocked, it uses fallback fonts.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development commands, pull request
+expectations, and bug reporting. Report security vulnerabilities privately as
+described in [SECURITY.md](SECURITY.md).
+
+## License
+
+Everarc is licensed under the [MIT License](LICENSE).

@@ -1,0 +1,156 @@
+# Synthetic regression fixture. Values and labels are intentionally stable:
+# rendering tests assert exact calculations and localized output from this plan.
+[display]
+locale = "pt-BR"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2045-12"
+withdrawal_rate = "0.04"
+
+[[conversion_rates]]
+from = "BTC"
+to = "USD"
+rate = "85000.00"
+
+[actual_months."2026-01"]
+balances = { brokerage = "88500.00", bitcoin = "0.255" }
+
+[actual_months."2026-02"]
+note = "Synthetic month note for dashboard tests."
+balances = { brokerage = "91250.00", bitcoin = "0.260" }
+
+[[milestones]]
+id = "financial-independence"
+name = "Financial independence"
+target = "1500000.00"
+
+[[future_living_costs]]
+id = "housing"
+name = "Moradia"
+description = "Aluguel, condomínio e manutenção."
+annual_inflation = "0.06"
+monthly_cost = "2500.00"
+
+[[future_living_costs]]
+id = "health"
+name = "Seguro de saúde"
+description = "Plano de saúde e despesas médicas recorrentes."
+monthly_cost = "1500.00"
+
+[[future_living_costs]]
+id = "daily-life"
+name = "Alimentação, transporte e vida cotidiana"
+description = "Compras, transporte, serviços e lazer."
+monthly_cost = "2000.00"
+
+[[scenarios]]
+id = "baseline"
+name = "Base"
+description = "Projeção com retornos, inflação e aportes esperados."
+annual_inflation = "0.03"
+monthly_income = { amount = "10000.00", currency = "USD" }
+
+[[scenarios.assets]]
+id = "brokerage"
+name = "Brokerage account"
+currency = "USD"
+annual_expected_return = "0.06"
+monthly_contribution = { amount = "2500.00", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "world-etf"
+name = "World ETF"
+currency = "USD"
+value = "60000.00"
+
+[[scenarios.assets.holdings]]
+id = "treasury-bonds"
+name = "Treasury bonds"
+currency = "USD"
+value = "25000.00"
+
+[[scenarios.assets]]
+id = "bitcoin"
+name = "Bitcoin"
+currency = "BTC"
+annual_expected_return = "0.08"
+monthly_contribution = { amount = "0", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "bitcoin-balance"
+name = "Bitcoin balance"
+currency = "BTC"
+value = "0.25"
+
+[[scenarios.assets]]
+id = "bond-ladder"
+name = "Short-term bond ladder"
+currency = "USD"
+annual_expected_return = "0.04"
+monthly_contribution = { amount = "0", currency = "USD" }
+monthly_withdrawal = { amount = "100.00", currency = "USD" }
+starts = "2032-01"
+ends = "2037-12"
+
+[[scenarios.assets.holdings]]
+id = "bond-ladder-balance"
+name = "Short-term bonds"
+currency = "USD"
+value = "10000.00"
+
+[[scenarios.events]]
+id = "increase-contribution"
+name = "Increase contribution"
+date = "2028-01"
+type = "set_monthly_contribution"
+asset_id = "brokerage"
+monthly_contribution = { amount = "3000.00", currency = "USD" }
+
+[[scenarios.events]]
+id = "increase-expected-return"
+name = "Increase expected return"
+date = "2034-01"
+type = "set_annual_expected_return"
+asset_id = "brokerage"
+rate = "0.08"
+
+[[scenarios.events]]
+id = "car-purchase"
+name = "Car purchase"
+date = "2030-06"
+type = "asset_adjustment"
+asset_id = "brokerage"
+amount = "-25000.00"
+
+[[scenarios.milestones]]
+id = "brokerage-500k"
+name = "Brokerage reaches 500k"
+asset_id = "brokerage"
+target = "500000.00"
+
+[[scenarios]]
+id = "optimistic"
+name = "Optimistic"
+description = "Higher-growth scenario with inherited baseline assumptions."
+extends = "baseline"
+selected = true
+
+[[scenarios.assets]]
+id = "brokerage"
+annual_expected_return = "0.07"
+
+[[scenarios.events]]
+id = "optimistic-increase-contribution"
+name = "Increase optimistic contribution"
+date = "2028-01"
+type = "set_monthly_contribution"
+asset_id = "brokerage"
+monthly_contribution = { amount = "3500.00", currency = "USD" }
+
+[[scenarios.milestones]]
+id = "brokerage-750k"
+name = "Brokerage reaches 750k"
+asset_id = "brokerage"
+target = "750000.00"

@@ -1,5 +1,27 @@
 use super::*;
 
+#[test]
+fn guide_getting_started_example_validates_and_projects() {
+    let guide = include_str!("../../docs/guide.md");
+    let (_, example) = guide
+        .split_once("```toml\n")
+        .expect("guide contains a TOML example");
+    let (example, _) = example
+        .split_once("```")
+        .expect("guide TOML example has a closing fence");
+    let mut config: Config = toml::from_str(example).expect("guide example parses");
+    config.validate().expect("guide example validates");
+
+    let projection = crate::projection::PlanProjection::from(&config);
+    assert_eq!(projection.scenarios.len(), 2);
+    for scenario in &projection.scenarios {
+        assert_eq!(
+            scenario.total_net_worth.len(),
+            usize::try_from(config.plan.inclusive_month_count()).expect("month count fits usize")
+        );
+    }
+}
+
 fn recurring_adjustment_config(event: &str) -> Config {
     let source = format!(
         r#"
@@ -115,7 +137,8 @@ assets = []
 
 #[test]
 fn rejects_scenario_names_longer_than_32_characters() {
-    let mut config: Config = toml::from_str(include_str!("../../everarc.toml")).unwrap();
+    let mut config: Config =
+        toml::from_str(include_str!("../../tests/fixtures/everarc.toml")).unwrap();
     config.scenarios[0].name = "A scenario name that exceeds 32 chars".into();
 
     assert!(matches!(
@@ -200,7 +223,8 @@ annual_expected_return = "0.08"
 #[test]
 fn rejects_nonpositive_monthly_income() {
     for income in [Decimal::ZERO, Decimal::NEGATIVE_ONE] {
-        let mut config: Config = toml::from_str(include_str!("../../everarc.toml")).unwrap();
+        let mut config: Config =
+            toml::from_str(include_str!("../../tests/fixtures/everarc.toml")).unwrap();
         config.scenarios[0].monthly_income = Some(MonthlyIncome {
             amount: income,
             currency: Currency("USD".into()),
@@ -215,7 +239,8 @@ fn rejects_nonpositive_monthly_income() {
 
 #[test]
 fn rejects_monthly_income_without_a_plan_currency_conversion() {
-    let mut config: Config = toml::from_str(include_str!("../../everarc.toml")).unwrap();
+    let mut config: Config =
+        toml::from_str(include_str!("../../tests/fixtures/everarc.toml")).unwrap();
     config.scenarios[0]
         .monthly_income
         .as_mut()

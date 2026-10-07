@@ -2,6 +2,10 @@
 name = "everarc"
 version = "0.20.0"
 edition = "2024"
+rust-version = "1.87"
+description = "Long-term financial planning from TOML with an interactive HTML dashboard"
+repository = "https://github.com/gvieira/everarc"
+license = "MIT"
 
 [dependencies]
 clap = { version = "4.6.6", features = ["derive"] }

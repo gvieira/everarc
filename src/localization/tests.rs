@@ -442,7 +442,7 @@ fn localizes_month_displays() {
 
 #[test]
 fn adds_vertical_chart_grid_lines_at_five_year_calendar_marks() {
-    let config = config(include_str!("../../everarc.toml"));
+    let config = config(include_str!("../../tests/fixtures/everarc.toml"));
     let projection = PlanProjection::from(&config);
     let months = &projection.scenarios[0].total_net_worth;
 

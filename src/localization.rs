@@ -937,9 +937,11 @@ fn actual_chart_path(
             } else {
                 format!("L {x} {y}")
             };
-            let end = ends_area
-                .then(|| format!(" L {x} 435 Z"))
-                .unwrap_or_default();
+            let end = if ends_area {
+                format!(" L {x} 435 Z")
+            } else {
+                String::new()
+            };
             format!("{start}{end}")
         })
         .collect::<Vec<_>>()
