@@ -462,4 +462,67 @@ extends = "base"
             );
         }
     }
+
+    #[test]
+    fn exports_only_enabled_event_occurrences_and_their_calculated_balances() {
+        let mut config: Config =
+            toml::from_str(include_str!("../tests/fixtures/event-overrides.toml")).unwrap();
+        config.validate().unwrap();
+        let projection = PlanProjection::from(&config);
+        let json =
+            serde_json::to_value(ProjectionExport::with_actual_balances(&config, &projection))
+                .unwrap();
+        let scenarios = json["scenarios"].as_array().unwrap();
+        let scenario = |id: &str| {
+            scenarios
+                .iter()
+                .find(|scenario| scenario["id"] == id)
+                .unwrap()
+        };
+
+        for id in ["disabled", "descendant"] {
+            let scenario = scenario(id);
+            assert!(scenario["events"].as_array().unwrap().is_empty());
+            assert_eq!(scenario["outcome"]["end_balance"], "180");
+            for (month, balance) in scenario["months"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .zip(["60", "120", "180"])
+            {
+                assert_eq!(month["total_balance"], balance);
+                assert_eq!(month["assets"][0]["monthly_contribution"]["amount"], "100");
+                assert_eq!(month["assets"][0]["monthly_withdrawal"]["amount"], "40");
+            }
+        }
+
+        let revived = scenario("revived");
+        let events = revived["events"].as_array().unwrap();
+        assert_eq!(events.len(), 3);
+        for (event, month) in events.iter().zip(["2026-01", "2026-02", "2026-03"]) {
+            assert_eq!(event["name"], "Deposit");
+            assert_eq!(event["month"], month);
+            assert_eq!(event["asset_id"], "cash");
+            assert_eq!(event["kind"], "adjustment");
+            assert_eq!(event["amount"], "75");
+        }
+        assert_eq!(revived["outcome"]["end_balance"], "405");
+        for (month, balance) in revived["months"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(["135", "270", "405"])
+        {
+            assert_eq!(month["total_balance"], balance);
+        }
+
+        let parent_events = scenario("base")["events"].as_array().unwrap();
+        assert_eq!(parent_events.len(), 12);
+        let deposits = parent_events
+            .iter()
+            .filter(|event| event["name"] == "Deposit")
+            .collect::<Vec<_>>();
+        assert_eq!(deposits.len(), 3);
+        assert!(deposits.iter().all(|event| event["amount"] == "50"));
+    }
 }

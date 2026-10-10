@@ -229,8 +229,8 @@ convert future living costs from plan-start purchasing power to end-of-plan
 nominal money, applying it across every inclusive plan month. Scenario IDs
 must be unique. `extends` is optional and refers to another scenario ID; it may point forward
 or backward in the file. Everarc rejects unknown parent IDs, self-extension,
-and extension cycles. Inheritance is preserved for later runtime expansion; it
-is not copied or merged while the config loads.
+and extension cycles. Scenario and asset fields, milestones, and events are
+resolved during configuration validation.
 
 Each root scenario needs one or more `[[scenarios.assets]]` tables. An extending
 scenario may omit assets entirely or declare only the fields it overrides on a
@@ -266,8 +266,29 @@ using the static configured rate. Omitting `monthly_withdrawal` is equivalent
 to a zero withdrawal in the asset currency. Assets outside `plan.currency`
 require a usable conversion rate.
 
-Events are optional and are processed in TOML declaration order. Every event
-has a nonblank ID unique within its scenario, a nonblank human-facing name, a
+Events are optional. Inherited events keep their order, and new events append
+in TOML declaration order. An extending scenario's event with an inherited ID
+overrides only the fields it declares; omitted fields inherit from the parent.
+An override keeps the inherited event's position. Nested money and recurrence
+objects replace the inherited object as a whole. Event IDs must be unique
+within each scenario's declarations.
+
+Events default to `enabled = true`. To disable an inherited event, declare only
+its ID and enabled state in the child scenario:
+
+```toml
+[[scenarios.events]]
+id = "buy-house"
+enabled = false
+```
+
+Disabling excludes every occurrence from projections, dashboard event lists,
+and exported events without changing the parent. Descendants inherit the
+disabled state and may override it with `enabled = true`. Disabled events still
+need valid resolved fields. An ID without an inherited match defines a new
+event and requires all mandatory fields, even when disabled.
+
+Every resolved event has a nonblank ID, a nonblank human-facing name, a
 `YYYY-MM` date within the plan range, and an `asset_id`. The asset may be local to the scenario or inherited
 from a parent scenario. `asset_adjustment` uses a signed `amount` in the
 asset's currency. `set_monthly_contribution` and `set_monthly_withdrawal` use
@@ -296,8 +317,8 @@ plan end, or the target asset's inclusive `ends` month; an occurrence exactly in
 that ending month still applies. An `until` beyond the plan or asset end is valid
 but does not extend those existing limits. Percentage adjustments compound at each occurrence. Recurring signed
 asset adjustments remain uncapped and may produce a negative balance. Recurring
-occurrences preserve parent-before-child and TOML declaration order when they
-share a month. Absolute setters and expected-return setters do not support
+occurrences preserve the resolved event order when they share a month
+(inherited positions first, followed by new child events). Absolute setters and expected-return setters do not support
 recurrence. `set_annual_expected_return` uses a
 nonnegative effective annual
 decimal-fraction `rate` and takes effect for that month's return and every

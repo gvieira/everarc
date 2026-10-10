@@ -370,7 +370,8 @@ currency = "USD"
 "#
         );
 
-        let error = toml::from_str::<Config>(&source).expect_err("legacy event fields fail");
+        let mut config: Config = toml::from_str(&source).expect("event declarations parse");
+        let error = config.validate().expect_err("legacy event fields fail");
         assert!(error.to_string().contains(expected_field), "{error}");
     }
 }
@@ -945,4 +946,296 @@ scenarios = []
     )
     .unwrap_err();
     assert!(error.to_string().contains("invalid type"), "{error}");
+}
+
+fn event_override_config(overrides: &str) -> Config {
+    recurring_adjustment_config(&format!(
+        r#"
+[[scenarios.events]]
+id = "deposit"
+name = "Deposit"
+type = "asset_adjustment"
+date = "2026-01"
+asset_id = "cash"
+amount = "50"
+
+[[scenarios]]
+id = "child"
+name = "Child"
+extends = "base"
+
+{overrides}
+"#
+    ))
+}
+
+#[test]
+fn disables_an_inherited_event_without_changing_the_parent() {
+    let mut config = event_override_config(
+        r#"
+[[scenarios.events]]
+id = "deposit"
+enabled = false
+"#,
+    );
+    config.validate().unwrap();
+    let parent = &config.scenarios[0];
+    let child = &config.scenarios[1];
+    assert!(parent.events[0].enabled());
+    assert!(!child.events[0].enabled());
+    assert_eq!(child.events[0].name(), "Deposit");
+    assert_eq!(resolved_event_occurrences(&config, parent).len(), 1);
+    assert!(resolved_event_occurrences(&config, child).is_empty());
+
+    let projection = crate::projection::PlanProjection::from(&config);
+    assert_eq!(
+        projection.scenarios[0].assets[0].monthly_balances[0].native_balance,
+        Decimal::new(110, 0)
+    );
+    assert_eq!(
+        projection.scenarios[1].assets[0].monthly_balances[0].native_balance,
+        Decimal::new(60, 0)
+    );
+    assert!(projection.scenarios[1].asset_events.is_empty());
+}
+
+#[test]
+fn overrides_event_fields_by_id_and_inherits_omitted_fields() {
+    let mut config = event_override_config(
+        r#"
+[[scenarios.events]]
+id = "deposit"
+date = "2026-02"
+amount = "75"
+"#,
+    );
+    config.validate().unwrap();
+    let child = &config.scenarios[1];
+    assert_eq!(child.events.len(), 1);
+    assert_eq!(child.events[0].name(), "Deposit");
+    assert_eq!(child.events[0].asset_id(), "cash");
+    assert!(child.events[0].enabled());
+    assert_eq!(child.events[0].date(), "2026-02".parse().unwrap());
+    assert!(matches!(
+        child.events[0],
+        Event::AssetAdjustment { amount, .. } if amount == Decimal::new(75, 0)
+    ));
+    let projection = crate::projection::PlanProjection::from(&config);
+    let child = &projection.scenarios[1];
+    assert_eq!(child.asset_events.len(), 1);
+    assert_eq!(
+        child.assets[0].monthly_balances[0].native_balance,
+        Decimal::new(60, 0)
+    );
+    assert_eq!(
+        child.assets[0].monthly_balances[1].native_balance,
+        Decimal::new(195, 0)
+    );
+}
+
+#[test]
+fn rejects_duplicate_event_overrides_in_one_scenario() {
+    let mut config = event_override_config(
+        r#"
+[[scenarios.events]]
+id = "deposit"
+enabled = false
+
+[[scenarios.events]]
+id = "deposit"
+amount = "75"
+"#,
+    );
+    assert!(matches!(
+        config.validate(),
+        Err(ConfigError::DuplicateEventId { scenario_id, event_id })
+            if scenario_id == "child" && event_id == "deposit"
+    ));
+}
+
+#[test]
+fn rejects_incomplete_events_without_an_inherited_match() {
+    for id in ["unknown", "   "] {
+        let mut config = event_override_config(&format!(
+            "[[scenarios.events]]\nid = {id:?}\nenabled = false\n"
+        ));
+        assert!(config.validate().is_err());
+    }
+    let mut root =
+        recurring_adjustment_config("[[scenarios.events]]\nid = \"unknown\"\nenabled = false\n");
+    assert!(matches!(
+        root.validate(),
+        Err(ConfigError::InvalidEventDefinition { .. })
+    ));
+}
+
+#[test]
+fn inherits_disabled_events_and_reenables_overridden_recurring_events() {
+    let mut config: Config =
+        toml::from_str(include_str!("../../tests/fixtures/event-overrides.toml")).unwrap();
+    config.validate().unwrap();
+    // Repeated validation must not resurrect events or duplicate occurrences.
+    config.validate().unwrap();
+    let scenario = |id: &str| {
+        config
+            .scenarios
+            .iter()
+            .find(|scenario| scenario.id == id)
+            .unwrap()
+    };
+    assert_eq!(
+        resolved_event_occurrences(&config, scenario("base")).len(),
+        12
+    );
+    for id in ["disabled", "descendant"] {
+        assert_eq!(scenario(id).events.len(), 6);
+        assert!(scenario(id).events.iter().all(|event| !event.enabled()));
+        assert!(resolved_event_occurrences(&config, scenario(id)).is_empty());
+    }
+    let revived = scenario("revived");
+    assert_eq!(
+        revived
+            .events
+            .iter()
+            .filter(|event| event.enabled())
+            .count(),
+        1
+    );
+    let occurrences = resolved_event_occurrences(&config, revived);
+    assert_eq!(occurrences.len(), 3);
+    for (occurrence, date) in occurrences.iter().zip(["2026-01", "2026-02", "2026-03"]) {
+        assert_eq!(occurrence.date, date.parse().unwrap());
+        assert!(matches!(
+            occurrence.event,
+            Event::AssetAdjustment { amount, .. } if *amount == Decimal::new(75, 0)
+        ));
+    }
+
+    let projection = crate::projection::PlanProjection::from(&config);
+    for id in ["disabled", "descendant", "revived"] {
+        let scenario = projection
+            .scenarios
+            .iter()
+            .find(|scenario| scenario.id() == id)
+            .unwrap();
+        let monthly_increment = if id == "revived" { 135 } else { 60 };
+        for (index, month) in scenario.assets[0].monthly_balances.iter().enumerate() {
+            assert_eq!(
+                month.native_balance,
+                Decimal::from(monthly_increment * (index + 1))
+            );
+            assert_eq!(month.monthly_contribution.amount, Decimal::new(100, 0));
+            assert_eq!(month.monthly_withdrawal.amount, Decimal::new(40, 0));
+        }
+        assert_eq!(
+            scenario.asset_events.len(),
+            if id == "revived" { 3 } else { 0 }
+        );
+    }
+}
+
+#[test]
+fn preserves_override_positions_and_replaces_nested_event_objects() {
+    let mut config = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "setter"
+name = "Set contribution"
+type = "set_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "200", currency = "USD" }
+
+[[scenarios.events]]
+id = "adjustment"
+name = "Adjust contribution"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { rate = "0.1" }
+recurrence = { every = 1, unit = "months", until = "2026-02" }
+
+[[scenarios]]
+id = "child"
+name = "Child"
+extends = "base"
+
+# A new event appends even when it is declared before the overrides.
+[[scenarios.events]]
+id = "new-adjustment"
+name = "New adjustment"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "5", currency = "USD" }
+
+# Overrides are intentionally declared in reverse inherited order.
+[[scenarios.events]]
+id = "adjustment"
+monthly_contribution = { amount = "10", currency = "USD" }
+recurrence = { every = 2, unit = "months" }
+
+[[scenarios.events]]
+id = "setter"
+monthly_contribution = { amount = "100", currency = "USD" }
+"#,
+    );
+    config.validate().unwrap();
+    let child = &config.scenarios[1];
+    assert_eq!(
+        child.events.iter().map(Event::id).collect::<Vec<_>>(),
+        ["setter", "adjustment", "new-adjustment"]
+    );
+    let occurrences = resolved_event_occurrences(&config, child);
+    assert_eq!(occurrences.len(), 4);
+    assert_eq!(occurrences[3].date, "2026-03".parse().unwrap());
+    assert_eq!(child.events[1].recurrence().unwrap().until, None);
+    let projection = crate::projection::PlanProjection::from(&config);
+    for (month, amount) in projection.scenarios[1].assets[0]
+        .monthly_balances
+        .iter()
+        .zip([115, 115, 125])
+    {
+        assert_eq!(month.monthly_contribution.amount, Decimal::from(amount));
+    }
+    // Child object replacements must not modify the parent's objects.
+    for (month, amount) in projection.scenarios[0].assets[0]
+        .monthly_balances
+        .iter()
+        .zip([220, 242, 242])
+    {
+        assert_eq!(month.monthly_contribution.amount, Decimal::from(amount));
+    }
+}
+
+#[test]
+fn validates_disabled_event_fields_and_enabled_boolean() {
+    for fields in [
+        "enabled = \"false\"",
+        "enabled = false\namount = \"not-a-number\"",
+        "enabled = false\ndate = \"2025-12\"",
+        "enabled = false\nasset_id = \"unknown\"",
+    ] {
+        let mut config = event_override_config(&format!(
+            "[[scenarios.events]]\nid = \"deposit\"\n{fields}\n"
+        ));
+        assert!(
+            config.validate().is_err(),
+            "accepted invalid fields: {fields}"
+        );
+    }
+    let mut config = recurring_adjustment_config(
+        r#"
+[[scenarios.events]]
+id = "disabled-new-event"
+name = "Disabled new event"
+type = "asset_adjustment"
+date = "2026-01"
+asset_id = "cash"
+amount = "50"
+enabled = false
+"#,
+    );
+    config.validate().unwrap();
+    assert!(resolved_event_occurrences(&config, &config.scenarios[0]).is_empty());
 }

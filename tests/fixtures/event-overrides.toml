@@ -1,0 +1,122 @@
+[display]
+locale = "en-US"
+
+[plan]
+currency = "USD"
+start = "2026-01"
+end = "2026-03"
+
+# Children deliberately precede their parents.
+[[scenarios]]
+id = "revived"
+name = "Revived"
+extends = "disabled"
+
+[[scenarios.events]]
+id = "deposit"
+enabled = true
+
+[[scenarios]]
+id = "descendant"
+name = "Descendant"
+extends = "disabled"
+
+[[scenarios]]
+id = "disabled"
+name = "Disabled"
+extends = "base"
+
+[[scenarios.events]]
+id = "deposit"
+enabled = false
+amount = "75"
+
+[[scenarios.events]]
+id = "contribution"
+enabled = false
+
+[[scenarios.events]]
+id = "withdrawal"
+enabled = false
+
+[[scenarios.events]]
+id = "contribution-adjustment"
+enabled = false
+
+[[scenarios.events]]
+id = "withdrawal-adjustment"
+enabled = false
+
+[[scenarios.events]]
+id = "return"
+enabled = false
+
+[[scenarios]]
+id = "base"
+name = "Base"
+annual_inflation = "0"
+
+[[scenarios.assets]]
+id = "cash"
+name = "Cash"
+currency = "USD"
+annual_expected_return = "0"
+monthly_contribution = { amount = "100", currency = "USD" }
+monthly_withdrawal = { amount = "40", currency = "USD" }
+
+[[scenarios.assets.holdings]]
+id = "opening"
+name = "Opening"
+currency = "USD"
+value = "0"
+
+[[scenarios.events]]
+id = "deposit"
+name = "Deposit"
+type = "asset_adjustment"
+date = "2026-01"
+asset_id = "cash"
+amount = "50"
+recurrence = { every = 1, unit = "months" }
+
+[[scenarios.events]]
+id = "contribution"
+name = "Set contribution"
+type = "set_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "200", currency = "USD" }
+
+[[scenarios.events]]
+id = "withdrawal"
+name = "Set withdrawal"
+type = "set_monthly_withdrawal"
+date = "2026-01"
+asset_id = "cash"
+monthly_withdrawal = { amount = "60", currency = "USD" }
+
+[[scenarios.events]]
+id = "contribution-adjustment"
+name = "Adjust contribution"
+type = "adjust_monthly_contribution"
+date = "2026-01"
+asset_id = "cash"
+monthly_contribution = { amount = "10", currency = "USD" }
+recurrence = { every = 1, unit = "months" }
+
+[[scenarios.events]]
+id = "withdrawal-adjustment"
+name = "Adjust withdrawal"
+type = "adjust_monthly_withdrawal"
+date = "2026-01"
+asset_id = "cash"
+monthly_withdrawal = { rate = "0.5" }
+recurrence = { every = 1, unit = "months" }
+
+[[scenarios.events]]
+id = "return"
+name = "Set return"
+type = "set_annual_expected_return"
+date = "2026-01"
+asset_id = "cash"
+rate = "0.12"

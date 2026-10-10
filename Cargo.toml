@@ -1,6 +1,6 @@
 [package]
 name = "everarc"
-version = "0.20.0"
+version = "0.21.0"
 edition = "2024"
 rust-version = "1.87"
 description = "Long-term financial planning from TOML with an interactive HTML dashboard"

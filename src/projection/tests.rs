@@ -412,7 +412,9 @@ amount = "1"
 "#;
 
     assert!(toml::from_str::<Config>(&format!("version = 1\n\n{source}")).is_err());
-    assert!(toml::from_str::<Config>(&source.replace("name = \"Deposit\"\n", "")).is_err());
+    let mut missing_name: Config = toml::from_str(&source.replace("name = \"Deposit\"\n", ""))
+        .expect("event fields are resolved during validation");
+    assert!(missing_name.validate().is_err());
 
     let mut blank_name: Config = toml::from_str(&source.replace("Deposit", "   "))
         .expect("blank names parse before semantic validation");

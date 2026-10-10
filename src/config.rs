@@ -130,8 +130,11 @@ pub struct Scenario {
     pub extends: Option<String>,
     #[serde(default)]
     pub assets: Vec<Asset>,
-    #[serde(default)]
+    #[serde(skip)]
     pub events: Vec<Event>,
+    // Keep declarations until inheritance supplies omitted event fields.
+    #[serde(default, rename = "events")]
+    event_definitions: Vec<EventDefinition>,
     #[serde(default)]
     pub milestones: Vec<AssetMilestone>,
 }
@@ -288,10 +291,37 @@ impl Serialize for Holding {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+struct EventDefinition {
+    id: String,
+    #[serde(flatten)]
+    fields: toml::Table,
+}
+
+impl EventDefinition {
+    fn resolve(&self, scenario_id: &str) -> Result<Event, ConfigError> {
+        let mut fields = self.fields.clone();
+        fields.insert("id".into(), toml::Value::String(self.id.clone()));
+        toml::Value::Table(fields).try_into().map_err(|source| {
+            ConfigError::InvalidEventDefinition {
+                scenario_id: scenario_id.to_owned(),
+                event_id: self.id.clone(),
+                source: Box::new(source),
+            }
+        })
+    }
+}
+
+fn default_event_enabled() -> bool {
+    true
+}
+
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
     AssetAdjustment {
         id: String,
+        #[serde(default = "default_event_enabled")]
+        enabled: bool,
         name: String,
         date: Month,
         asset_id: String,
@@ -301,6 +331,8 @@ pub enum Event {
     },
     SetMonthlyContribution {
         id: String,
+        #[serde(default = "default_event_enabled")]
+        enabled: bool,
         name: String,
         date: Month,
         asset_id: String,
@@ -309,6 +341,8 @@ pub enum Event {
     },
     SetMonthlyWithdrawal {
         id: String,
+        #[serde(default = "default_event_enabled")]
+        enabled: bool,
         name: String,
         date: Month,
         asset_id: String,
@@ -317,6 +351,8 @@ pub enum Event {
     },
     AdjustMonthlyContribution {
         id: String,
+        #[serde(default = "default_event_enabled")]
+        enabled: bool,
         name: String,
         date: Month,
         asset_id: String,
@@ -325,6 +361,8 @@ pub enum Event {
     },
     AdjustMonthlyWithdrawal {
         id: String,
+        #[serde(default = "default_event_enabled")]
+        enabled: bool,
         name: String,
         date: Month,
         asset_id: String,
@@ -333,6 +371,8 @@ pub enum Event {
     },
     SetAnnualExpectedReturn {
         id: String,
+        #[serde(default = "default_event_enabled")]
+        enabled: bool,
         name: String,
         date: Month,
         asset_id: String,
@@ -374,6 +414,17 @@ pub struct FutureLivingCost {
 }
 
 impl Event {
+    fn enabled(&self) -> bool {
+        match self {
+            Self::AssetAdjustment { enabled, .. }
+            | Self::SetMonthlyContribution { enabled, .. }
+            | Self::SetMonthlyWithdrawal { enabled, .. }
+            | Self::AdjustMonthlyContribution { enabled, .. }
+            | Self::AdjustMonthlyWithdrawal { enabled, .. }
+            | Self::SetAnnualExpectedReturn { enabled, .. } => *enabled,
+        }
+    }
+
     fn id(&self) -> &str {
         match self {
             Self::AssetAdjustment { id, .. }
@@ -463,24 +514,10 @@ pub(crate) fn resolved_event_occurrences<'config>(
     config: &'config Config,
     scenario: &'config Scenario,
 ) -> Vec<ResolvedEventOccurrence<'config>> {
-    let mut lineage = Vec::new();
-    let mut current = scenario;
-    loop {
-        lineage.push(current);
-        let Some(parent_id) = current.extends.as_deref() else {
-            break;
-        };
-        current = config
-            .scenarios
-            .iter()
-            .find(|candidate| candidate.id == parent_id)
-            .expect("validated scenario parents always exist");
-    }
-    lineage.reverse();
-
-    let mut occurrences = lineage
-        .into_iter()
-        .flat_map(|ancestor| ancestor.events.iter())
+    let mut occurrences = scenario
+        .events
+        .iter()
+        .filter(|event| event.enabled())
         .flat_map(|event| {
             let asset_end = scenario
                 .assets
@@ -779,6 +816,12 @@ pub enum ConfigError {
     ScenarioSelfExtension { id: String },
     #[error("scenario extension cycle includes `{id}`")]
     ScenarioExtensionCycle { id: String },
+    #[error("invalid event `{event_id}` in scenario `{scenario_id}`: {source}")]
+    InvalidEventDefinition {
+        scenario_id: String,
+        event_id: String,
+        source: Box<toml::de::Error>,
+    },
     #[error("scenario `{scenario_id}` must define at least one asset")]
     NoScenarioAssets { scenario_id: String },
     #[error("scenario `{scenario_id}` has an asset with a blank id")]
@@ -1059,6 +1102,38 @@ impl Config {
                 };
 
                 let mut scenario = scenario.clone();
+                let mut event_ids = HashSet::new();
+                for definition in &scenario.event_definitions {
+                    if definition.id.trim().is_empty() {
+                        return Err(ConfigError::BlankEventId {
+                            scenario_id: scenario.id.clone(),
+                        });
+                    }
+                    if !event_ids.insert(&definition.id) {
+                        return Err(ConfigError::DuplicateEventId {
+                            scenario_id: scenario.id.clone(),
+                            event_id: definition.id.clone(),
+                        });
+                    }
+                }
+                let mut event_definitions = parent
+                    .map(|parent| parent.event_definitions.clone())
+                    .unwrap_or_default();
+                for definition in &scenario.event_definitions {
+                    if let Some(inherited) = event_definitions
+                        .iter_mut()
+                        .find(|inherited| inherited.id == definition.id)
+                    {
+                        inherited.fields.extend(definition.fields.clone());
+                    } else {
+                        event_definitions.push(definition.clone());
+                    }
+                }
+                scenario.events = event_definitions
+                    .iter()
+                    .map(|definition| definition.resolve(&scenario.id))
+                    .collect::<Result<_, _>>()?;
+                scenario.event_definitions = event_definitions;
                 if let Some(parent) = parent {
                     if scenario.annual_inflation == INHERIT_DECIMAL {
                         scenario.annual_inflation = parent.annual_inflation;
